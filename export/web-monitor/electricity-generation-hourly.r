@@ -8,4 +8,4 @@ d.base = loadFromStorage(id = "electricity-generation-hourly-year-g1")
 
 
 # Save
-fwrite(d.agg.group, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
+fwrite(d.base, file.path(g$d$wd, "electricity", "generation-hourly.csv"))

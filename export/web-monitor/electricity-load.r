@@ -33,7 +33,7 @@ prep = function(di, l = 7, g = character(0)) {
     d = copy(d.base)
 
     addRollMean(d, 7, g)
-    addCum(d, g)
+    # addCum(d, g)
  
     d = meltAndRemove(d, g)
 

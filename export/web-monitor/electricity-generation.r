@@ -2,51 +2,54 @@
 rm(list = ls())
 source("export/web-monitor/_shared.r")
 
+nameOthers = "others"
 
 # - LOAD -----------------------------------------------------------------------
 d.base = loadFromStorage(id = "electricity-generation-g1")[, 
     date := as.Date(date)
 ]
 
-unique(d.base$source.group)
+# unique(d.base$source.group)
 
 
 # - AT -------------------------------------------------------------------------
-c.order = d.agg.group[, .(value = sum(value)), by=source.group][order(-value)]$source.group
+d.plot = d.base[country == "AT", .(
+    value = sum(value)
+), by = .(date = {t = as.Date(date); day(t) = 1; t}, source.group)]
+
+c.order = d.plot[, .(value = sum(value)), by=source.group][order(-value)]$source.group
 c.order = c(c.order[c.order != nameOthers], nameOthers)
 
-d.agg.group[, source.group := factor(source.group, c.order, c.order)]
-d.agg.group = d.agg.group[order(date, source.group)]
+d.plot[, source.group := factor(source.group, c.order, c.order)]
+d.plot = d.plot[order(date, source.group)]
 
-fwrite(d.agg.group, file.path(g$d$wd, "electricity", "generation.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation.csv"))
 
 
+# - AT GAS ---------------------------------------------------------------------
+d.plot = d.base[country == "AT" & source.group == "Gas", .(date, value)]
 
-# GAS
-
-# d.agg = d.base[AreaName == "AT CTY" & ResolutionCode == "PT15M" & ProductionType == "Fossil Gas", .(
 # Plot, Preparation
-addRollMean(d.agg, 7)
-addCum(d.agg)
-d.plot = meltAndRemove(d.agg)
+addRollMean(d.plot, 7)
+addCum(d.plot)
+d.plot = meltAndRemove(d.plot)
 dates2PlotDates(d.plot)
 
 # Save
 fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-gas.csv"))
 
 
-
-# FACETS
+# - AT FACETS ------------------------------------------------------------------
+d.plot = d.base[country == "AT"]
 
 # Plot
-c.order = d.agg.group[, .(value = sum(value)), by=source.group][order(-value)]$source.group
+c.order = d.plot[, .(value = sum(value)), by=source.group][order(-value)]$source.group
 c.order = c(c.order[c.order != nameOthers], nameOthers)
 
-d.agg.group[, source.group := factor(source.group, c.order, c.order)]
-d.plot = d.agg.group[order(date, source.group)]
+d.plot[, source.group := factor(source.group, c.order, c.order)]
+d.plot = d.plot[order(date, source.group)]
 
 addRollMean(d.plot, 28, g="source.group")
 dates2PlotDates(d.plot)
-
 
 fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-facets.csv"))

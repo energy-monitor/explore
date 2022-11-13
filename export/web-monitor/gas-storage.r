@@ -7,7 +7,7 @@ source("export/web-monitor/_shared.r")
 countries = c("AT", "EU")
 
 for (country in countries) {
-    d.plot = loadFromStorage(id = glue("storage-{country}"))[, 
+    d.base = loadFromStorage(id = glue("storage-{country}"))[, 
         gasDayStart := as.Date(gasDayStart)
     ]
 
