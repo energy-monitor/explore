@@ -1,3 +1,6 @@
 .Rhistory
 .Rproj.user
+
+__pycache__
+
 creds.json

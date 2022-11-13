@@ -6,8 +6,8 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 d.base = loadEntsoeComb(
-    type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
-    # type = "generation", month.start = month.start, month.end = month.end
+    # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
+    type = "generation", month.start = month.start, month.end = month.end
 )
 
 # d.base[, .(sum = sum(ActualGenerationOutput)), by=.(ProductionType)][order(sum)]
