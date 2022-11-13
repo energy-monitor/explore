@@ -3,30 +3,41 @@ rm(list = ls())
 source("export/web-monitor/_shared.r")
 
 
-files = list(
-    "gas/price" = list(data = "price-gas"),
-    "electricity/price" = list(data = "price-electricity"),
-    # "electricity/price-hourly" = list(data = "price-electricity-hourly"),
-    "others/brent" = list(data = "price-brent"),
-    "others/coal" = list(data = "price-coal"),
-    "others/dollar" = list(data = "price-dollar"),
-    "others/eua" = list(data = "price-eua")
+l.default = list(
+    value = "value",
+    date = "date",
+    others = character(0),
+    lags = 7,
+    cum = FALSE
 )
 
-lags = 7
+l.plots = list(
+    "gas/price" = list(data = "price-gas", value = "price"),
+    "electricity/price" = list(data = "price-electricity", value = c("base", "peak")),
+    # "electricity/price-hourly" = list(data = "price-electricity-hourly"),
+    "others/brent" = list(data = "price-brent", value = "price"),
+    "others/coal" = list(data = "price-coal", value = "price"),
+    "others/dollar" = list(data = "price-dollar", value = "price"),
+    "others/eua" = list(data = "price-eua")
+    "others/hdd" = list(data = "temperature-hdd", value = "hdd", lags = 28, cum = TRUE)
+)
 
-# file = "electricity/price"
-invisible(lapply(names(files), function(file) {
 
-    def = files[[file]]
+# id = "others/hdd"
+# id = "electricity/price"
+invisible(lapply(names(l.plots), function(id) {
+    l('-> ', id, iL = 2);
+
+    def = modifyList(l.default, l.plots[[id]])
 
     # Load
-    d.price = loadFromStorage(id = def$data)[, 
-        date := as.Date(date)
-    ]
+    d.raw = loadFromStorage(id = def$data)
+    d.base = d.raw[,
+        c(def$date, def$others, def$value), with = FALSE
+    ][, date := as.Date(date)][]
 
-    d.plot = melt(d.price, id.vars = "date")[order(date), ]
-    d.plot = d.plot[date > "2018-12-01"]
+    d.plot = melt(d.base, id.vars = "date")[order(date), ]
+    d.plot = d.plot[date >= "2018-01-01"]
 
     # Fill missing dates
     d.plot = merge(
@@ -38,15 +49,30 @@ invisible(lapply(names(files), function(file) {
         by=c('date', 'variable'), all = TRUE
     )
 
-    vl = glue("rm{lags}")
-    d.plot[, (vl) := rollmean(value, lags, fill = NA, align = "right", na.rm = TRUE), by=variable]
+    c.vars = "rm"
+    if (def$cum) {
+        addCum(d.plot, g = 'variable')
+        c.vars = c(c.vars, "cum")
+    }
 
-    d.plot = d.plot[date >= "2019-01-01" & !is.na(get(vl))]
-    d.plot[, value := NULL]
+    d.plot[, rm := rollmean(
+        value, def$lags, fill = NA, align = "right", na.rm = TRUE
+    ), by=variable]
+
+    d.plot = d.plot[date >= "2019-01-01" & !is.na(rm)]
+
+    setnames(d.plot, "variable", "type")
+    d.plot = melt(d.plot, id.vars = c("date", "type"), measure.vars = c.vars)[!is.na(value) & date >= "2019-01-01"]
 
     dates2PlotDates(d.plot)
 
-    fwrite(d.plot, file.path(g$d$wd, glue("{file}.csv")))
+    if (length(unique(d.plot$type)) == 1)
+        d.plot[, type := NULL]
+
+    if (length(unique(d.plot$variable)) == 1)
+        d.plot[, variable := NULL]
+
+    fwrite(d.plot, file.path(g$d$wd, glue("{id}.csv")))
     NULL
 }))
 

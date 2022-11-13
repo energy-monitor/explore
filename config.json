@@ -3,13 +3,21 @@
         "entsoe": "data/entsoe",
         "era5": "data/era5",
         "tmp": "data/tmp",
-        "wd": "../web/data",
-        "storage": "data/storage"
+        "wd": "../web/data"
     },
     "f": {
         "creds": "creds.json"
     },
-    "googledrive": {
-        "path": "energy-monitor-data"
+    "storage": {
+        "default": {
+            "load": "local",
+            "save": ["local", "googledrive"]
+        },
+        "googledrive": {
+            "path": "energy-monitor-data"
+        },
+        "local": {
+            "path": "data/storage"
+        }
     }
 }

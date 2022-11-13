@@ -12,10 +12,6 @@ meltAndRemove = function(d, g = character(0)) {
     melt(d, id.vars = c("date", g))[!is.na(value) & date >= "2019-01-01"]
 }
 
-removeLastDays = function(d, days = 1) {
-    d[date <= max(date) - days, ]
-}
-
 dates2PlotDates = function(d) {
     c.date20 = copy(d$date)
     year(c.date20) = 2020

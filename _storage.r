@@ -2,7 +2,7 @@ loadPackages(
     'googledrive'
 )
 
-saveToStorages = function(data, meta, storages = c("local", "googledrive")) {
+saveToStorages = function(data, meta, storages = g$storage$default$save) {
     fileName = glue("{meta$id}.{meta$format}")
     if (meta$format == 'csv') {
         fileWriteFunction = function(d, f) fwrite(d, f)
@@ -12,7 +12,7 @@ saveToStorages = function(data, meta, storages = c("local", "googledrive")) {
     for (storage in storages) {
         l(glue("Storage '{storage}':"))
         if (storage == "local") {
-            filePath = file.path(g$d$storage, fileName)
+            filePath = file.path(g$storage$local$path, fileName)
             l(glue("-> '{filePath}'"), iL = 2)
             fileWriteFunction(data, filePath)
         } else if (storage == "googledrive") {
@@ -26,7 +26,7 @@ saveToStorages = function(data, meta, storages = c("local", "googledrive")) {
     }
 }
 
-loadFromStorage = function(id, format = 'csv', storage = "googledrive") {
+loadFromStorage = function(id, format = 'csv', storage = g$storage$default$load) {
     # format = 'csv'
     # id = "temperature-hdd"
     fileName = glue("{id}.{format}")
@@ -38,7 +38,7 @@ loadFromStorage = function(id, format = 'csv', storage = "googledrive") {
     }
 
     if (storage == "local") {
-        file = file.path(g$d$storage, fileName)
+        file = file.path(g$storage$local$path, fileName)
         return(fileReadFunction(file))
     } else if (storage == "googledrive") {
         file = tempfile()
