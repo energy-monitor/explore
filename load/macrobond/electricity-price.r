@@ -1,7 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("load/macrobond/_shared.r")
-# loadPackages()
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -11,14 +10,11 @@ source("load/macrobond/_shared.r")
 # Austria, AT, Day Peak Price, EUR	EEX (European Energy Exchange)	Daily	01.10.2018	atelspotpeak
 # Austria, AT, Day Peak Volume	EEX (European Energy Exchange)	Daily	01.10.2018	atelspotpeakvol
 
-
 c.series = c(
     atelspotbase = "base",
-    atelspotpeak = "peak"
+    atelspotpeak = "peak",
+    atelspotbasevol = "baseVol",
+    atelspotpeakvol = "peakVol"
 )
 
-d.plot = getPrepMacrobondData(c.series, "price-electricity")
-
-# Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "price.csv"))
-
+saveMacrobondData(c.series, "price-electricity")

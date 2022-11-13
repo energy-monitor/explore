@@ -3,6 +3,7 @@ rm(list = ls())
 source("load/macrobond/_shared.r")
 loadPackages(stringi)
 
+# - DOIT -----------------------------------------------------------------------
 
 # Title	Source	Frequency	Start date	Name
 # Austria, AT, Hour 00-01, EUR	EEX (European Energy Exchange)	Daily	01.10.2018	atelspot00
@@ -54,7 +55,6 @@ loadPackages(stringi)
 # Austria, AT, Hour 23-24, EUR	EEX (European Energy Exchange)	Daily	01.10.2018	atelspot23
 # Austria, AT, Hour 23-24	EEX (European Energy Exchange)	Daily	01.10.2018	atelspot23vol
 
-# - DOIT -----------------------------------------------------------------------
 d.vars = data.table(
     hour = 0:23
 )
@@ -71,15 +71,3 @@ saveToStorages(d.m[order(date, hour)], list(
     source = "macrobond",
     format = "csv"
 ))
-
-
-# - PLOT -----------------------------------------------------------------------
-# Prepare
-d.m[, year := year(date)]
-
-d.plot = d.m[year >= 2019, .(
-    value = mean(value)
-), by=.(year, hour)][order(year, hour)]
-
-# Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "price-hourly.csv"))

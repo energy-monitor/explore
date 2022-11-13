@@ -1,5 +1,5 @@
 loadBase = function(update) {
-    base.file.name = file.path(g$d$tmp, 'prediction-gas-consumption-base.rData')
+    base.file.name = file.path(g$d$tmp, "prediction-gas-consumption-base.rData")
 
     if (!update & file.exists(base.file.name)) {
         return(readRDS(base.file.name))

@@ -1,27 +1,27 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('_shared.r')
+source("_shared.r")
 loadPackages(stringr)
 
 # - DATA -----------------------------------------------------------------------
 # LOAD/PREP HDD
-# d.hdd.old = fread(file.path(g$d$o, 'heating-degree-days.csv'))[, .(
+# d.hdd.old = fread(file.path(g$d$o, "heating-degree-days.csv"))[, .(
 #     date = as.Date(time),
 #     hdd = `0`
 # )]
 
-d.hdd.new = fread(file.path(g$d$o, 'temp-hdd.csv'))[, `:=`(
+d.hdd.new = fread(file.path(g$d$o, "temp-hdd.csv"))[, `:=`(
     date = as.Date(date)
 )]
 
 # CHECK
-# merge(d.hdd, d.hdd2, by='date')
+# merge(d.hdd, d.hdd2, by="date")
 
 d.hdd = d.hdd.new
 
 
 # LOAD/PREP GAS CONS
-d.consumption = fread(file.path(g$d$o, 'consumption-gas-aggm.csv'))[, .(
+d.consumption = fread(file.path(g$d$o, "consumption-gas-aggm.csv"))[, .(
     date = as.Date(date),
     value = value
 )]
@@ -71,8 +71,8 @@ summary(m.linear)
 d.pred[, prediction := predict(m.linear, d.pred)]
 
 # - OUTPUT ---------------------------------------------------------------------
-d.all = melt(d.pred, variable.name = 'type',
-    id.vars = c('date'), measure.vars = c('value', 'prediction'))
+d.all = melt(d.pred, variable.name = "type",
+    id.vars = c("date"), measure.vars = c("value", "prediction"))
 
 # c.names = c(
 #     value = "Beobachtung",
@@ -81,15 +81,15 @@ d.all = melt(d.pred, variable.name = 'type',
 
 
 
-addRollMean(d.all, 7, 'type')
+addRollMean(d.all, 7, "type")
 addCum(d.all)
 d.plot <- melt(d.all, id.vars = c("date", "type"))[!is.na(value)]
 dates2PlotDates(d.plot)
 
-fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, 'pred-gas-cons.csv'))
+fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, "pred-gas-cons.csv"))
 
 #proposal for visualization
-# loadPackages('tidyverse')
+# loadPackages("tidyverse")
 # ggplot(d.all, aes(x=date, y=rm10)) +
 #    geom_line(aes(linetype = type, color = year))
 

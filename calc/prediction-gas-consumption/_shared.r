@@ -1,3 +1,6 @@
 # - INIT -----------------------------------------------------------------------
-source('_shared.r')
-source('calc/prediction-gas-consumption/_functions.r')
+source("_shared.r")
+loadPackages(stringr)
+
+
+source("calc/prediction-gas-consumption/_functions.r")

@@ -19,18 +19,16 @@ getMacrobondData = function (cols, frequency = NULL, startdate = NULL) {
 }
 
 
-getPrepMacrobondData = function(c.series, name = NULL) {
+saveMacrobondData = function(c.series, name = NULL) {
     d.raw = getMacrobondData(names(c.series))
     setnames(d.raw, names(c.series), c.series)
 
-    if (!is.null(name)) {
-        # - STORAGE -------------------------------------------------------------
-        saveToStorages(d.raw, list(
-            id = name,
-            source = "macrobond",
-            format = "csv"
-        ))
-    }
+    # - STORAGE ----------------------------------------------------------------
+    saveToStorages(d.raw, list(
+        id = name,
+        source = "macrobond",
+        format = "csv"
+    ))
 
-    prepData(d.raw)
+    NULL
 }

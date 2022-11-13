@@ -1,6 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('calc/prediction-gas-consumption/_shared.r')
+source("calc/prediction-gas-consumption/_shared.r")
 
 
 # - CONF -----------------------------------------------------------------------
@@ -47,8 +47,8 @@ d.month = d.pred[, .(
 
 d.month[, diff := prediction - value]
 
-# d.month = melt(d.month, variable.name = 'type',
-#              id.vars = c('year', 'month'), measure.vars = c('value', 'prediction', 'diff')
+# d.month = melt(d.month, variable.name = "type",
+#              id.vars = c("year", "month"), measure.vars = c("value", "prediction", "diff")
 # )
 
 ggplot(d.month, aes(x = as.Date(glue("{year}-{month}-15")), y = diff)) + geom_line()

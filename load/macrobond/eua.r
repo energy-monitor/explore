@@ -1,7 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("load/macrobond/_shared.r")
-# loadPackages()
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -13,8 +12,4 @@ c.series = c(
     ned_c1_st = "value"
 )
 
-d.plot = getPrepMacrobondData(c.series, "price-eua")
-
-# Save
-fwrite(d.plot, file.path(g$d$wd, "others", "eua.csv"))
-
+saveMacrobondData(c.series, "price-eua")

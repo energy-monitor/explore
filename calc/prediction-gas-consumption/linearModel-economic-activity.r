@@ -1,6 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('calc/prediction-gas-consumption/_shared.r')
+source("calc/prediction-gas-consumption/_shared.r")
 
 
 # - CONF -----------------------------------------------------------------------
@@ -158,18 +158,18 @@ d.pred %>%
 
 
 # - OUTPUT ---------------------------------------------------------------------
-# d.all = melt(d.pred, variable.name = 'type',
-#              id.vars = c('date'), measure.vars = c('value', 'prediction')
+# d.all = melt(d.pred, variable.name = "type",
+#              id.vars = c("date"), measure.vars = c("value", "prediction")
 # )
 
 # # PREP FOR PLOT
-# addRollMean(d.all, 7, 'type')
-# addCum(d.all, 'type')
+# addRollMean(d.all, 7, "type")
+# addCum(d.all, "type")
 # d.plot <- melt(d.all, id.vars = c("date", "type"))[!is.na(value)]
 # dates2PlotDates(d.plot)
 
 # # SAVE
-# fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, 'pred-gas-cons.csv'))
+# fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, "pred-gas-cons.csv"))
 
 
 
@@ -180,8 +180,8 @@ d.month = d.pred[, .(
 
 d.month[, diff := (value - prediction) / prediction]
 
-# d.month = melt(d.month, variable.name = 'type',
-#              id.vars = c('year', 'month'), measure.vars = c('value', 'prediction', 'diff')
+# d.month = melt(d.month, variable.name = "type",
+#              id.vars = c("year", "month"), measure.vars = c("value", "prediction", "diff")
 # )
 
 

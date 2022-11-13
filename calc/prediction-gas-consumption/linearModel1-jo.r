@@ -1,16 +1,16 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('_shared.r')
-loadPackages(stringr, tidyverse)
+source("_shared.r")
+loadPackages(tidyverse)
 
 
 # - DATA -----------------------------------------------------------------------
-d.hdd = fread(file.path(g$d$o, 'temp-hdd.csv'))[, `:=`(
+d.hdd = fread(file.path(g$d$o, "temp-hdd.csv"))[, `:=`(
     date = as.Date(date)
 )]
 
 # LOAD/PREP GAS CONS
-d.consumption = fread(file.path(g$d$o, 'consumption-gas-aggm.csv'))[, .(
+d.consumption = fread(file.path(g$d$o, "consumption-gas-aggm.csv"))[, .(
     date = as.Date(date),
     value = value
 )]
@@ -159,7 +159,7 @@ bind_rows(coefs) %>%
     geom_bar(aes(fill=type), stat="identity", position="dodge") +
     facet_wrap(.~type, scale="free")
 
-####I'd say, 2016:2021 look similar, 2019 being an exception for some reason
+####I"d say, 2016:2021 look similar, 2019 being an exception for some reason
 ####2014:2015 have a lower intercept and a higher slope, I would perhaps exclude them therefore - and maybe also 2019?
 
 
@@ -334,15 +334,15 @@ d.pred %>%
 
 
 # - OUTPUT ---------------------------------------------------------------------
-d.all = melt(d.pred, variable.name = 'type',
-             id.vars = c('date'), measure.vars = c('value', 'prediction')
+d.all = melt(d.pred, variable.name = "type",
+             id.vars = c("date"), measure.vars = c("value", "prediction")
 )
 
 # PREP FOR PLOT
-addRollMean(d.all, 7, 'type')
-addCum(d.all, 'type')
+addRollMean(d.all, 7, "type")
+addCum(d.all, "type")
 d.plot <- melt(d.all, id.vars = c("date", "type"))[!is.na(value)]
 dates2PlotDates(d.plot)
 
 # SAVE
-fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, 'pred-gas-cons.csv'))
+fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, "pred-gas-cons.csv"))

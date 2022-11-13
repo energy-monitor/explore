@@ -1,6 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('_shared.r')
+source("_shared.r")
 loadPackages(
     readODS,
     tidyverse
@@ -22,7 +22,7 @@ names(d.economic.activity)[2] = "month"
 names(d.economic.activity)[3] = "economic.activity"
 
 d.final = d.economic.activity %>%
-    slice_tail(n= -10) %>%
+    slice_tail(n = -10) %>%
     fill(year) %>%
     mutate(month = as.numeric(as.roman(str_replace(month, "\\.", "")))) %>%
     mutate(year = as.numeric(year)) %>%

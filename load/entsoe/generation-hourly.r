@@ -41,5 +41,3 @@ saveToStorages(d.agg.group, list(
     source = "entsoe",
     format = "csv"
 ))
-
-fwrite(d.agg.group, file.path(g$d$wd, "electricity", "generation-hourly.csv"))

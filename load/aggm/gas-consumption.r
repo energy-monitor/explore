@@ -39,17 +39,3 @@ saveToStorages(d.full, list(
     source = "aggm",
     format = "csv"
 ))
-
-
-# - PLOT -----------------------------------------------------------------------
-d.plot = copy(d.full)
-
-# Plot, Preparation
-addRollMean(d.plot, 7)
-addCum(d.plot)
-d.plot = meltAndRemove(d.plot)
-dates2PlotDates(d.plot)
-
-# Save plot data
-fwrite(d.plot, file.path(g$d$wd, 'gas', 'consumption-aggm.csv'))
-

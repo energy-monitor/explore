@@ -1,12 +1,10 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source('export/web-monitor/_shared.r')
+source("export/web-monitor/_shared.r")
 
 
 # - LOAD/PREP ------------------------------------------------------------------
-d.base = loadFromStorage(id = "temperature-hdd")
-
-d.plot = d.base[, .(
+d.plot = loadFromStorage(id = "temperature-hdd")[, .(
     date = as.Date(date), value = hdd
 )]
 
