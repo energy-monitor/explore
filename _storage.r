@@ -51,6 +51,6 @@ loadFromStorage = function(id, format = 'csv', storage = g$storage$default$load)
 
 
 uploadGoogleDrive = function(file, fileName) {
-    drive_put(file, path = file.path(g$googledrive, fileName))
+    drive_put(file, path = file.path(g$storage$googledrive$path, fileName))
 }
 
