@@ -22,7 +22,7 @@ d.base.f[, value := factor*TotalLoadValue]
 
 # Filter, Aggregate
 d.agg = d.base.f[, .(
-    value = sum(value)/10^3
+    value = sum(value)/10^6
 ), by = .(country = MapCode, date = as.Date(DateTime))][order(date)]
 
 # Delete last (most probably incomplete) obs
