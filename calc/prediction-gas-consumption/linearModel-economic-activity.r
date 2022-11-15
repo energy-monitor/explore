@@ -1,6 +1,7 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("calc/prediction-gas-consumption/_shared.r")
+library(tidyverse)
 
 
 # - CONF -----------------------------------------------------------------------
@@ -26,15 +27,16 @@ d.comb = d.comb[, economic.activity := ifelse(is.na(economic.activity), rel.grow
 #     hdd = hdd.vienna
 # )]
 
+
 # AUGMENT
+# package clock gives weekdays in English, independent of system locale
 d.comb[, `:=`(
     t = as.integer(date - min(date)),
     year = year(date),
     day = yday(date),
     week = week(date),
     month = month(date),
-    wday = factor(
-        weekdays(date, abbreviate = TRUE),
+    wday = factor(as.character(clock::date_weekday_factor(date)),
         c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     ),
     temp.15 = ifelse(temp < 15, 15 - temp, 0),
@@ -72,10 +74,10 @@ estimate = function(model, type="non-economic"){
 
     summary(m.linear)
 
-    prediction.prediction = predict(m.linear, d.pred, interval = "prediction", level = 0.95) %>%
+    prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
         as.data.table()
 
-    prediction.confidence = predict(m.linear, d.pred, interval = "confidence", level = 0.95) %>%
+    prediction.confidence = predict(m.linear, d.ret, interval = "confidence", level = 0.95) %>%
         as.data.table()
 
     d.ret[, `:=`(prediction = prediction.prediction$fit,
@@ -116,6 +118,7 @@ d.pred = bind_rows(d.pred.non.economic, d.pred.economic)
 
 
 d.pred %>%
+    filter(type == "economic") %>%
     dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate, type) %>%
     filter(year(date) > 2021) %>%
     gather(variable, value, -date, -`Industrieproduktion`, -type) %>%
@@ -125,9 +128,35 @@ d.pred %>%
     ungroup() %>%
     spread(variable, value) %>%
     ggplot(aes(x = date, y = difference)) +
-        geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper, fill = `Industrieproduktion`), alpha=0.1) +
-        geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper, fill = `Industrieproduktion`), alpha=0.3) +
-        geom_line(size = 0.5, aes(col = `Industrieproduktion`, linetype=type)) +
+    geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+
+    #    geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper, fill = `Industrieproduktion`), alpha=0.1) +
+    #    geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper, fill = `Industrieproduktion`), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
+        geom_line(size = 1) +
+    theme_bw(base_size = 12) +
+    xlab("Datum") +
+    ylab("Relative Differenz zwischen \nSchätzung und Observation\n(%)") +
+    scale_colour_manual(values=c("red", "black")) +
+    scale_fill_manual(values=c("red", "black")) +
+    scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
+    scale_y_continuous(n.breaks = 10)
+
+d.pred %>%
+    filter(type == "non-economic") %>%
+    dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate, type) %>%
+    filter(year(date) > 2021) %>%
+    gather(variable, value, -date, -`Industrieproduktion`, -type) %>%
+    filter(variable %in% c("difference", "diff.pred.lower", "diff.pred.upper", "diff.conf.lower", "diff.conf.upper")) %>%
+    group_by(variable) %>%
+    mutate(value = rollmean(100 * value, 30, fill = NA)) %>%
+    ungroup() %>%
+    spread(variable, value) %>%
+    ggplot(aes(x = date, y = difference)) +
+    geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+    #geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.1) +
+    geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper, fill = Industrieproduktion), alpha=0.3) +
+    geom_line(size = 1, aes(col = Industrieproduktion)) +
     theme_bw(base_size = 12) +
     xlab("Datum") +
     ylab("Relative Differenz zwischen \nSchätzung und Observation\n(%)") +
@@ -137,7 +166,7 @@ d.pred %>%
     scale_y_continuous(n.breaks = 10)
 
 
-d.pred %>%
+    d.pred %>%
     dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate) %>%
     filter(year(date) > 2021) %>%
     gather(variable, value, -date, -`Industrieproduktion`) %>%
