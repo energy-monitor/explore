@@ -1,6 +1,8 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("calc/prediction-gas-consumption/_shared.r")
+source("export/web-monitor/_shared.r")
+
 library(tidyverse)
 
 
@@ -91,7 +93,7 @@ estimate = function(model, type="non-economic"){
                    diff.pred.upper = (value - upper.pred) / upper.pred,
                    diff.conf.lower = (value - lower.conf) / lower.conf,
                    diff.conf.upper = (value - upper.conf) / upper.conf,
-                   type = type
+                   model.type = type
                    ), ]
 
     return(d.ret)
@@ -116,22 +118,19 @@ d.pred.economic = estimate(model.economic, type = "economic")
 
 d.pred = bind_rows(d.pred.non.economic, d.pred.economic)
 
-
+#####example figures
 d.pred %>%
-    filter(type == "economic") %>%
-    dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate, type) %>%
+    filter(model.type == "non-economic") %>%
+    dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
     filter(year(date) > 2021) %>%
-    gather(variable, value, -date, -`Industrieproduktion`, -type) %>%
-    filter(variable %in% c("difference", "diff.pred.lower", "diff.pred.upper", "diff.conf.lower", "diff.conf.upper")) %>%
+    gather(variable, value, -date) %>%
+    filter(variable %in% c("difference", "diff.conf.lower", "diff.conf.upper")) %>%
     group_by(variable) %>%
     mutate(value = rollmean(100 * value, 30, fill = NA)) %>%
     ungroup() %>%
     spread(variable, value) %>%
     ggplot(aes(x = date, y = difference)) +
     geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
-
-    #    geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper, fill = `Industrieproduktion`), alpha=0.1) +
-    #    geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper, fill = `Industrieproduktion`), alpha=0.3) +
         geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
         geom_line(size = 1) +
     theme_bw(base_size = 12) +
@@ -143,11 +142,11 @@ d.pred %>%
     scale_y_continuous(n.breaks = 10)
 
 d.pred %>%
-    filter(type == "non-economic") %>%
-    dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate, type) %>%
+    filter(model.type == "economic") %>%
+    dplyr::select(date, difference, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate) %>%
     filter(year(date) > 2021) %>%
-    gather(variable, value, -date, -`Industrieproduktion`, -type) %>%
-    filter(variable %in% c("difference", "diff.pred.lower", "diff.pred.upper", "diff.conf.lower", "diff.conf.upper")) %>%
+    gather(variable, value, -date, -`Industrieproduktion`) %>%
+    filter(variable %in% c("difference", "diff.conf.lower", "diff.conf.upper")) %>%
     group_by(variable) %>%
     mutate(value = rollmean(100 * value, 30, fill = NA)) %>%
     ungroup() %>%
@@ -166,52 +165,17 @@ d.pred %>%
     scale_y_continuous(n.breaks = 10)
 
 
-    d.pred %>%
-    dplyr::select(date, difference, diff.pred.lower, diff.pred.upper, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate) %>%
-    filter(year(date) > 2021) %>%
-    gather(variable, value, -date, -`Industrieproduktion`) %>%
-    filter(variable %in% c("difference", "diff.pred.lower", "diff.pred.upper", "diff.conf.lower", "diff.conf.upper")) %>%
-    group_by(month=month(date), variable, Industrieproduktion) %>%
-    summarize(value = sum(value)) %>%
-    ungroup() %>%
-    spread(variable, value) %>%
-    ggplot(aes(x = month, y = difference)) +
-    geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper, fill = `Industrieproduktion`), alpha=0.1) +
-    geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper, fill = `Industrieproduktion`), alpha=0.3) +
-    geom_line(size = 0.5, aes(col = `Industrieproduktion`)) +
-    theme_bw(base_size = 12) +
-    xlab("Datum") +
-    ylab("Relative Differenz zwischen \nSchätzung und Observation\n(%)") +
-    scale_colour_manual(values=c("red", "black")) +
-    scale_fill_manual(values=c("red", "black"))
-
 
 # - OUTPUT ---------------------------------------------------------------------
-# d.all = melt(d.pred, variable.name = "type",
-#              id.vars = c("date"), measure.vars = c("value", "prediction")
-# )
+ d.all = melt(d.pred, variable.name = "type",
+              id.vars = c("date", "model.type"), measure.vars = c("value", "prediction", "lower.pred", "upper.pred", "lower.conf", "upper.conf")
+ )
 
 # # PREP FOR PLOT
-# addRollMean(d.all, 7, "type")
-# addCum(d.all, "type")
-# d.plot <- melt(d.all, id.vars = c("date", "type"))[!is.na(value)]
-# dates2PlotDates(d.plot)
+addRollMean(d.all, 7, "type")
+addCum(d.all, "type")
+d.plot <- melt(d.all, id.vars = c("date", "type", "model.type"))[!is.na(value)]
+dates2PlotDates(d.plot)
 
 # # SAVE
-# fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, "pred-gas-cons.csv"))
-
-
-
-d.month = d.pred[, .(
-    value = sum(value),
-    prediction = sum(prediction)
-) , by = .(month, year)]
-
-d.month[, diff := (value - prediction) / prediction]
-
-# d.month = melt(d.month, variable.name = "type",
-#              id.vars = c("year", "month"), measure.vars = c("value", "prediction", "diff")
-# )
-
-
-ggplot(d.month, aes(x = as.Date(glue("{year}-{month}-15")), y = diff)) + geom_line()
+fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, "pred-gas-cons.csv"))
