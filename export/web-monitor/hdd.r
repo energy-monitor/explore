@@ -22,4 +22,4 @@ source("export/web-monitor/_shared.r")
 #
 # d.plot(date20 >)
 
-fwrite(d.plot, file.path(g$d$wd, "others", "hdd.csv"))
+# fwrite(d.plot, file.path(g$d$wd, "others", "hdd.csv"))
