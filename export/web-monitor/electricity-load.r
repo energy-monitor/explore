@@ -4,11 +4,9 @@ source("export/web-monitor/_shared.r")
 
 
 # - LOAD -----------------------------------------------------------------------
-d.base = loadFromStorage(id = "electricity-load")[, 
+d.base = loadFromStorage(id = "electricity-load")[,
     date := as.Date(date)
 ]
-
-
 
 # - AT -------------------------------------------------------------------------
 d.at = d.base[country == "AT", .(date, value)]
@@ -26,24 +24,15 @@ fwrite(d.plot, file.path(g$d$wd, "electricity", "load.csv"))
 
 
 # - INT -------------------------------------------------------------------------
+d.int = d.base[, .(country, date, value = value * 1000)] # TWh -> GWh
 
-# Plot, Preparation
+addRollMean(d.int, 7, g = "country")
+addCum(d.int, g = "country")
+d.plot = meltAndRemove(d.int, g = "country")
+dates2PlotDates(d.plot)
 
-prep = function(di, l = 7, g = character(0)) {
-    d = copy(d.base)
-
-    addRollMean(d, 7, g)
-    # addCum(d, g)
- 
-    d = meltAndRemove(d, g)
-
-    dates2PlotDates(d)
-
-    d[]
-}
-
-d.plot = prep(d.base, l = 7, g = "country")
 d.plot = d.plot[variable %in% c("rm7")]
+d.plot[, variable := NULL]
 # d.plot = d.plot[country %in% c("AT", "DE", "PT", "FR") & date >= "2022-01-01"]
 # d.plot = d.plot[as.integer(date - min(date)) %% 5 == 0]
 
@@ -52,7 +41,7 @@ d.plot = d.plot[variable %in% c("rm7")]
 fwrite(d.plot, file.path(g$d$wd, "electricity", "load-international.csv"))
 
 
-
+# - COUNTRY CODES FOR JSON -----------------------------------------------------
 # loadPackages(countrycode, jsonlite)
 #
 # d.countries = data.table(iso2 = unique(d.plot$country), selected = FALSE)

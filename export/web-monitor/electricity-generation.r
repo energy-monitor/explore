@@ -5,7 +5,7 @@ source("export/web-monitor/_shared.r")
 nameOthers = "others"
 
 # - LOAD -----------------------------------------------------------------------
-d.base = loadFromStorage(id = "electricity-generation-g1")[, 
+d.base = loadFromStorage(id = "electricity-generation-g1")[,
     date := as.Date(date)
 ]
 
@@ -40,7 +40,7 @@ fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-gas.csv"))
 
 
 # - AT FACETS ------------------------------------------------------------------
-d.plot = d.base[country == "AT"]
+d.plot = d.base[country == "AT"][, value := value * 1000][]
 
 # Plot
 c.order = d.plot[, .(value = sum(value)), by=source.group][order(-value)]$source.group
