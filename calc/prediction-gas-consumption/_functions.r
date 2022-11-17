@@ -16,6 +16,11 @@ loadBase = function(update) {
         date = as.Date(date), value
     )]
 
+    # Electricity generation gas
+    d.power.gas = loadFromStorage(id = "electricity-generation-g1")[country == "AT" & source.group == "Gas", .(
+        date = as.Date(date), gas.power = value / 0.55
+    )]
+
     # Holidays
     d.holidays = loadFromStorage(id = "holidays")[, `:=`(
         date = as.Date(date)
@@ -23,9 +28,19 @@ loadBase = function(update) {
         # vacation.name = ifelse(vacation.name == "", NA, vacation.name)
     )]
 
+    d.lockdowns = loadFromStorage(id = "lockdowns")[, `:=`(
+        date = as.Date(date),
+        is.hard.lockdown = is.hard.lockdown > 0,
+        is.lockdown = is.lockdown > 0
+    )]
+
     # - MERGE ------------------------------------------------------------------
     d.comb = merge(d.consumption, d.hdd, by = "date")
     d.comb = merge(d.comb, d.holidays, by = "date")
+    d.comb = merge(d.comb, d.lockdowns, by = "date")
+    d.comb = merge(d.comb, d.power.gas, by = "date")
+
+    d.comb[ ,`:=`(value.without.power = value - gas.power), ]
 
     # - AUGMENT ----------------------------------------------------------------
     d.comb[, `:=`(
