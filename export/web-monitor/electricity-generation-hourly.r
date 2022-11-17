@@ -8,4 +8,7 @@ d.base = loadFromStorage(id = "electricity-generation-hourly-year-g1")
 
 
 # Save
-fwrite(d.base, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
+d.plot = d.base[year == 2021, .(
+    hour, source.group, value
+)]
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
