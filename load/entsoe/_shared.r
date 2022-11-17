@@ -44,6 +44,16 @@ addGroupCol = function(d, mapping, sourceCol = "source", groupCol = "source.grou
 }
 
 
+# c.sources = c("Fossil Coal-derived gas", "Fossil Oil shale", "Fossil Brown coal/Lignite",
+#               "Biomass", "Fossil Gas", "Hydro Run-of-river and poundage", "Fossil Oil",
+#               "Fossil Peat", "Fossil Hard coal", "Other renewable", "Hydro Water Reservoir",
+#               "Hydro Pumped Storage", "Geothermal", "Marine", "Nuclear", "Wind Onshore",
+#               "Waste", "Solar", "Wind Offshore", "Other")
+#
+# c.sources[!c.sources %in% unlist(c.sourceGroups1)]
+# c.sources[!c.sources %in% unlist(c.sourceGroups2)]
+
+
 # - OTHE -----------------------------------------------------------------------
 source("load/entsoe/_functions.R")
 

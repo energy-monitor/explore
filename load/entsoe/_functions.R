@@ -66,7 +66,8 @@ loadEntsoeComb = function(
     }))
 
     d.full[, `:=`(
-        DateTime = ymd_hms(DateTime)
+        DateTime = with_tz(ymd_hms(DateTime), "Europe/Vienna")
+        # UpdateTime = NULL
     )]
 
     d.full[]

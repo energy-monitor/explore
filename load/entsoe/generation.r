@@ -20,7 +20,8 @@ d.base.f[, factor := resToFactor[ResolutionCode]]
 
 # - AGG -----------------------------------------------------------------------
 d.agg = d.base.f[, .(
-    value = sum(ActualGenerationOutput*factor)/10^6
+    value = sum(ActualGenerationOutput*factor, na.rm = TRUE)/10^6,
+    cons = sum(ActualConsumption*factor, na.rm = TRUE)/10^6
 ), by = .(
     country = MapCode,
     date = as.Date(DateTime),
@@ -44,7 +45,10 @@ nameOthers = "others"
 # - GROUP 1
 addGroupCol(d.agg, c.sourceGroups1, nameOthers = nameOthers)
 # Agg
-d.agg.group = d.agg[, .(value = sum(value)), by=.(country, date, source.group)]
+d.agg.group = d.agg[, .(
+    value = sum(value),
+    cons = sum(cons)
+), by=.(country, date, source.group)]
 # Store
 saveToStorages(d.agg.group, list(
     id = "electricity-generation-g1",
@@ -55,7 +59,10 @@ saveToStorages(d.agg.group, list(
 # - GROUP 2
 addGroupCol(d.agg, c.sourceGroups2, nameOthers = nameOthers)
 # Agg
-d.agg.group = d.agg[, .(value = sum(value)), by=.(country, date, source.group)]
+d.agg.group = d.agg[, .(
+    value = sum(value),
+    cons = sum(cons)
+), by=.(country, date, source.group)]
 # Store
 saveToStorages(d.agg.group, list(
     id = "electricity-generation-g2",
