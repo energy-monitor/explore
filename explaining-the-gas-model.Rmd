@@ -1,10 +1,12 @@
 ---
 title: "Explanation estimate"
-output: html_document
+output: md_document
 date: '2022-11-17'
 ---
 
-```{r setup, include=FALSE, echo = FALSE}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+
 rm(list = ls())
 source("calc/prediction-gas-consumption/_shared.r")
 source("export/web-monitor/_shared.r")
@@ -61,7 +63,7 @@ savings.2022 = relative.savings %>%
 
 Seit Jahresbeginn liegt der Verbrauch in Summe um `r round(savings.2022)` % unter dem Schnitt 2016-2021. Der Gasverbrauch liegt damit sogar niedriger als im Lockdown Jahr 2020. 
 
-```{r figure1, echo = FALSE}
+```{r figure1}
 relative.savings %>%
     ggplot(aes(x = year, y = rel.save)) +
     geom_bar(stat = "identity") +
@@ -71,7 +73,7 @@ relative.savings %>%
 ```
 Es gibt aber einen Zusammenhang mit der Außentemperatur: kalte Temperaturen erhöhen den Verbrauch. In einem warmen Jahr wird weniger verbraucht. Die Temperaturabhängigkeit wird dabei oft in Heizgradtagen gemessen - das ist grob gesprochen die Summe an Temperaturen für Tage, an denen geheizt werden muss. Diese war in 2022 bisher besonders niedrig.
 
-```{r figure2, echo = FALSE}
+```{r figure2}
 relative.hdd %>%
     ggplot(aes(x = year, y = rel.hdd)) +
     geom_bar(stat = "identity") +
@@ -82,7 +84,7 @@ theme_bw()
 ```
 
 Den Zusammenhang zwischen Temperatur und Gasverbrauch sieht man sehr schön in einem Scatterplot von Temperatur gegen Gasverbrauch. Wenn die Temperatur unter 15°C fällt, wird begonnen, zu heizen - und das wirkt auf den Gasverbrauch.
-```{r figure3, echo = FALSE}
+```{r figure3}
 d.base %>%
     filter(year > 2018) %>% 
     filter(day < max.day$max.day) %>% 
@@ -99,7 +101,7 @@ theme_bw()
 ```
 Diese Information kann man nutzen, um zu schätzen, wie hoch der Verbrauch in Österreich in einem "normalen" Jahr gewesen wäre. Man schätzt dazu den Einfluss von Temperatur, Feier-, und Wochentagen und Ferien auf den Verbrauch für eine Vergleichsperiode (wir verwenden 2016-2021). Damit simulieren wir in Folge wie hoch der Verbrauch in Österreich unter 2016-2021 Bedingungen mit dem Klima von 2022 gewesen wäre (Simulation) und vergleichen mit der Beobachtung. Um Schwankungen zu verringern, mitteln wir die beiden Zeitreihen über ein 14-Tage Zeitfenster. Während zwischen Mai und Mitte Oktober die Beobachtung immer unter der Simulation ist, ist sie ab Mitte Oktober, Anfang November fast gleich. Das würde darauf hindeuten, dass der niedrige Gasverbrauch im Oktober vor allem witterunsbedingt zu Stande gekommen ist. 
 
-```{r model, echo = FALSE}
+```{r model}
 
 
 # - CONF -----------------------------------------------------------------------
@@ -216,7 +218,7 @@ d.pred.non.economic %>%
 ```
 Besser sieht man das noch, wenn man die Differenz zwischen den beiden als Abweichung plottet, die Einsparung also prozentuell darstellt.Die graue Fläche zeigt dabei die Unsicherheit in unserer Simulation. Hier erscheinen die Einsparungen im November gering. Stimmt das aber so?
 
-```{r figure 4, echo=FALSE}
+```{r figure 4}
 
 d.pred.non.economic %>%
     dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
@@ -242,9 +244,7 @@ d.pred.non.economic %>%
 ```
 Nun, ein beträchtlicher Anteil des österreichischen Gaskonsums geht in die Stromproduktion. Rechnet man diesen Anteil heraus, so ergeben sich sehr viel höhere Einsparungseffekte - die hohen Einsprungen bei Haushalten und Industrie werden also durch im Vergleich relativ hohe Verstromung von Gas in diesem Jahr reduziert. Während die Einsparungen im Oktober also etwas zurückgegangen sind, sind sie noch immer beträchtlich, wenn man den Stromsektor nicht berücksichtigt.
 
-```{r figure 5, echo=FALSE}
-
-
+```{r figure 5}
 estimate = function(model, type="non-economic"){
     d.ret = copy(d.comb)
 
@@ -308,7 +308,7 @@ d.pred.non.economic.no.power %>%
 
 ```
 
-```{r savings final, echo = FALSE}
+```{r savings final}
 mean.2019.2021.gas.no.power = d.base %>% 
     filter(year > 2018 & year < 2022) %>% 
     filter(day <= max.day$max.day) %>% 
@@ -349,7 +349,7 @@ savings.2022.no.power.predicted = relative.savings.no.power.predicted %>%
 Wie hoch sind also die Einsparungen insgesamt für Jahr 2022? Nun, beobachtet wurde eine Veränderung im gesamten Gasverbrauch von `r round(savings.2022$rel.save)`. Zieht man den - ungefähren - Verbrauch der Gaskraftwerke ab, so betragen die beobachteten Einsparungen `r round(savings.2022.no.power$rel.save)`. In normalen Jahren, hätte man beim Klima von 2022, würde wir aber nur eine Reduktion von `r round(savings.2022.predicted$rel.save)` abschätzen, wenn die Gasverstromung inkludiert ist. Ohne Gasverstromung wäre die Reduktion ebenfalls bei `r round(savings.2022.no.power.predicted$rel.save)`. In Summe gehen wir also davon aus, dass beträchtliche Einsparungen gelungen sind.
 
 
-```{r figure savings, echo = FALSE}
+```{r figure savings}
 relative.savings.no.power %>% 
     mutate(Gasverbrauch = "Ohne Verstromung", Typ = "Beobachtung") %>% 
     bind_rows(relative.savings %>% mutate(Gasverbrauch = "Mit Verstromung", Typ = "Beobachtung")) %>% 
