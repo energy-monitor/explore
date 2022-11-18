@@ -61,17 +61,17 @@ savings.2022 = relative.savings %>%
 
 Seit Jahresbeginn liegt der Verbrauch in Summe um `r round(savings.2022)` % unter dem Schnitt 2016-2021. Der Gasverbrauch liegt damit sogar niedriger als im Lockdown Jahr 2020. 
 
-```{r figure1}
+```{r figure1, echo = FALSE}
 relative.savings %>%
-ggplot(aes(x = year, y = rel.save)) +
-geom_bar(stat = "identity") +
-xlab("Jahr") +
-ylab("Unterschied im Gasverbrauch im Vergleich \nzum Durchschnitt 2019-2021 \n(%)") +
-theme_bw()
+    ggplot(aes(x = year, y = rel.save)) +
+    geom_bar(stat = "identity") +
+    xlab("Jahr") +
+    ylab("Unterschied im Gasverbrauch im Vergleich \nzum Durchschnitt 2016-2021 \n(%)") +
+    theme_bw()
 ```
 Es gibt aber einen Zusammenhang mit der Außentemperatur: kalte Temperaturen erhöhen den Verbrauch. In einem warmen Jahr wird weniger verbraucht. Die Temperaturabhängigkeit wird dabei oft in Heizgradtagen gemessen - das ist grob gesprochen die Summe an Temperaturen für Tage, an denen geheizt werden muss. Diese war in 2022 bisher besonders niedrig.
 
-```{r figure2}
+```{r figure2, echo = FALSE}
 relative.hdd %>%
     ggplot(aes(x = year, y = rel.hdd)) +
     geom_bar(stat = "identity") +
@@ -82,7 +82,7 @@ theme_bw()
 ```
 
 Den Zusammenhang zwischen Temperatur und Gasverbrauch sieht man sehr schön in einem Scatterplot von Temperatur gegen Gasverbrauch. Wenn die Temperatur unter 15°C fällt, wird begonnen, zu heizen - und das wirkt auf den Gasverbrauch.
-```{r figure3}
+```{r figure3, echo = FALSE}
 d.base %>%
     filter(year > 2018) %>% 
     filter(day < max.day$max.day) %>% 
@@ -99,7 +99,7 @@ theme_bw()
 ```
 Diese Information kann man nutzen, um zu schätzen, wie hoch der Verbrauch in Österreich in einem "normalen" Jahr gewesen wäre. Man schätzt dazu den Einfluss von Temperatur, Feier-, und Wochentagen und Ferien auf den Verbrauch für eine Vergleichsperiode (wir verwenden 2016-2021). Damit simulieren wir in Folge wie hoch der Verbrauch in Österreich unter 2016-2021 Bedingungen mit dem Klima von 2022 gewesen wäre (Simulation) und vergleichen mit der Beobachtung. Um Schwankungen zu verringern, mitteln wir die beiden Zeitreihen über ein 14-Tage Zeitfenster. Während zwischen Mai und Mitte Oktober die Beobachtung immer unter der Simulation ist, ist sie ab Mitte Oktober, Anfang November fast gleich. Das würde darauf hindeuten, dass der niedrige Gasverbrauch im Oktober vor allem witterunsbedingt zu Stande gekommen ist. 
 
-```{r model}
+```{r model, echo = FALSE}
 
 
 # - CONF -----------------------------------------------------------------------
@@ -167,7 +167,7 @@ estimate = function(model, type="non-economic"){
         model
         , data = d.train)
 
-    print(summary(m.linear))
+    #print(summary(m.linear))
 
     prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
         as.data.table()
@@ -214,9 +214,10 @@ d.pred.non.economic %>%
     xlab("Monat (2022)") +
     ylab("Täglicher Gasverbrauch \n (TWh, 14-tägiges Mittel)")
 ```
-Besser sieht man das noch, wenn man die Differenz zwischen den beiden als Abweichung plottet, die Einsparung also prozentuell darstellt.Hier erscheinen die Einsparungen im November gering. Stimmt das aber so?
+Besser sieht man das noch, wenn man die Differenz zwischen den beiden als Abweichung plottet, die Einsparung also prozentuell darstellt.Die graue Fläche zeigt dabei die Unsicherheit in unserer Simulation. Hier erscheinen die Einsparungen im November gering. Stimmt das aber so?
 
 ```{r figure 4, echo=FALSE}
+
 d.pred.non.economic %>%
     dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
     filter(year(date) == 2022) %>%
@@ -239,6 +240,130 @@ d.pred.non.economic %>%
     scale_y_continuous(n.breaks = 10)
 
 ```
-ADD R MODEL POWER
+Nun, ein beträchtlicher Anteil des österreichischen Gaskonsums geht in die Stromproduktion. Rechnet man diesen Anteil heraus, so ergeben sich sehr viel höhere Einsparungseffekte - die hohen Einsprungen bei Haushalten und Industrie werden also durch im Vergleich relativ hohe Verstromung von Gas in diesem Jahr reduziert. Während die Einsparungen im Oktober also etwas zurückgegangen sind, sind sie noch immer beträchtlich, wenn man den Stromsektor nicht berücksichtigt.
 
-ADD CUMULATIVE SAVINGS
+```{r figure 5, echo=FALSE}
+
+
+estimate = function(model, type="non-economic"){
+    d.ret = copy(d.comb)
+
+    m.linear = lm(
+        model
+        , data = d.train)
+
+    #print(summary(m.linear))
+
+    prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
+        as.data.table()
+
+    prediction.confidence = predict(m.linear, d.ret, interval = "confidence", level = 0.95) %>%
+        as.data.table()
+
+    d.ret[, `:=`(prediction = prediction.prediction$fit,
+                  lower.pred = prediction.prediction$lwr,
+                  upper.pred = prediction.prediction$upr,
+                  lower.conf = prediction.confidence$lwr,
+                  upper.conf = prediction.confidence$upr), ]
+
+    d.ret[, `:=` (difference = (value.without.power - prediction) / prediction,
+                   diff.pred.lower = (value.without.power - lower.pred) / lower.pred,
+                   diff.pred.upper = (value.without.power - upper.pred) / upper.pred,
+                   diff.conf.lower = (value.without.power - lower.conf) / lower.conf,
+                   diff.conf.upper = (value.without.power - upper.conf) / upper.conf,
+                   model.type = type
+                   ), ]
+
+    return(d.ret)
+}
+
+model = value.without.power ~
+    # value.lag + value.lag2 + # AR TERMS
+    temp + temp.squared + temp.15 + temp.15.lag + temp.15.squared +
+    # temp * as.factor(temp.f) +
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+d.pred.non.economic.no.power = estimate(model)
+
+d.pred.non.economic.no.power %>%
+    dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
+    filter(year(date) == 2022) %>%
+    gather(variable, value, -date) %>%
+    filter(variable %in% c("difference", "diff.conf.lower", "diff.conf.upper")) %>%
+    group_by(variable) %>%
+    mutate(value = rollmean(100 * value, 30, fill = NA, align = "right")) %>%
+    ungroup() %>%
+    spread(variable, value) %>%
+    ggplot(aes(x = date, y = difference)) +
+    geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
+        geom_line(size = 1) +
+    theme_bw(base_size = 12) +
+    xlab("Datum") +
+    ylab("Relative Differenz zwischen \nSchätzung und Observation\n(%)") +
+    scale_colour_manual(values=c("red", "black")) +
+    scale_fill_manual(values=c("red", "black")) +
+    scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
+    scale_y_continuous(n.breaks = 10)
+
+```
+
+```{r savings final, echo = FALSE}
+mean.2019.2021.gas.no.power = d.base %>% 
+    filter(year > 2018 & year < 2022) %>% 
+    filter(day <= max.day$max.day) %>% 
+    group_by(year) %>% 
+    summarize(sum.val = sum(value.without.power)) %>% 
+    summarize(sum.val.mean = mean(sum.val))
+
+relative.savings.no.power = d.base %>% 
+    filter(year > 2018) %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.save = 100 * (sum(value.without.power)-mean.2019.2021.gas.no.power$sum.val.mean)/mean.2019.2021.gas.no.power$sum.val.mean)
+
+relative.savings.predicted = d.pred.non.economic %>% 
+    filter(year > 2018) %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.save = 100 * (sum(prediction)-mean.2019.2021.gas$sum.val.mean)/mean.2019.2021.gas$sum.val.mean)
+
+relative.savings.no.power.predicted = d.pred.non.economic.no.power %>% 
+    filter(year > 2018) %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.save = 100 * (sum(prediction)-mean.2019.2021.gas.no.power$sum.val.mean)/mean.2019.2021.gas.no.power$sum.val.mean)
+
+savings.2022.no.power = relative.savings.no.power %>% 
+    filter(year == 2022) 
+
+savings.2022.predicted = relative.savings.predicted %>% 
+    filter(year == 2022) 
+
+savings.2022.no.power.predicted = relative.savings.no.power.predicted %>% 
+    filter(year == 2022) 
+
+
+```
+
+Wie hoch sind also die Einsparungen insgesamt für Jahr 2022? Nun, beobachtet wurde eine Veränderung im gesamten Gasverbrauch von `r round(savings.2022$rel.save)`. Zieht man den - ungefähren - Verbrauch der Gaskraftwerke ab, so betragen die beobachteten Einsparungen `r round(savings.2022.no.power$rel.save)`. In normalen Jahren, hätte man beim Klima von 2022, würde wir aber nur eine Reduktion von `r round(savings.2022.predicted$rel.save)` abschätzen, wenn die Gasverstromung inkludiert ist. Ohne Gasverstromung wäre die Reduktion ebenfalls bei `r round(savings.2022.no.power.predicted$rel.save)`. In Summe gehen wir also davon aus, dass beträchtliche Einsparungen gelungen sind.
+
+
+```{r figure savings, echo = FALSE}
+relative.savings.no.power %>% 
+    mutate(Gasverbrauch = "Ohne Verstromung", Typ = "Beobachtung") %>% 
+    bind_rows(relative.savings %>% mutate(Gasverbrauch = "Mit Verstromung", Typ = "Beobachtung")) %>% 
+    bind_rows(relative.savings.predicted %>% mutate(Gasverbrauch = "Mit Verstromung", Typ = "Simulation")) %>% 
+    bind_rows(relative.savings.no.power.predicted %>% mutate(Gasverbrauch = "Ohne Verstromung", Typ = "Simulation")) %>% 
+    filter(year == 2022) %>% 
+    ggplot(aes(x = Gasverbrauch, y = rel.save)) +
+    geom_bar(stat= "identity", aes(fill = Typ), position = "dodge") +
+    scale_fill_manual(values = COLORS3) +
+    theme_bw() +
+    ylab("Veränderungen im Vergleich zu 2019 - 2021 \n (%) ")
+    
+    
+
+```
+
+
