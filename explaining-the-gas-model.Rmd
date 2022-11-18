@@ -5,26 +5,27 @@ date: '2022-11-17'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=3, dpi=300)
-
+# - INIT -----------------------------------------------------------------------
+rm(list=ls())
 source("calc/prediction-gas-consumption/_shared.r")
-source("export/web-monitor/_shared.r")
 loadPackages(tidyverse)
 
+
+# - CONF -----------------------------------------------------------------------
+# ggplot theme
 theme_set(theme_bw(base_size = 12, base_family="Century Gothic"))
 theme_update(
     panel.background = element_rect(fill = "transparent", colour = NA),
     plot.background = element_rect(fill = "transparent", colour = NA),
     strip.background = element_rect(fill = "transparent", colour = NA)
 )
+COLORS3 = c("#c72321", "#0d8085", "#efc220")
 
+# default output options
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=3, dpi=300)
 knitr::opts_chunk$set(dev.args=list(bg="transparent"))
 
-
-# - CONF -----------------------------------------------------------------------
 update.data = TRUE
-
-COLORS3 = c("#c72321", "#0d8085", "#efc220")
 
 
 # - LOAD -----------------------------------------------------------------------
@@ -118,23 +119,8 @@ update.data = TRUE
 
 # - LOAD -----------------------------------------------------------------------
 d.base = loadBase(update.data)
-d.economic.activity = loadFromStorage(id = "economic-activity")[, .(
-    year, month, economic.activity = value
-)]
 
-
-d.comb = merge(d.base, d.economic.activity, by = c("year", "month"), all.x = TRUE)
-
-rel.growth = growth.rate(d.economic.activity)
-
-d.comb = d.comb[, economic.activity.estimate := ifelse(is.na(economic.activity), "Naiver Schätzer", "Statistik\nAustria"), ]
-d.comb = d.comb[, economic.activity := ifelse(is.na(economic.activity), rel.growth * lag(economic.activity, 365), economic.activity), ]
-
-# d.comb[, `:=`(
-#     temp = temp.vienna,
-#     hdd = hdd.vienna
-# )]
-
+d.comb = copy(d.base)
 
 # AUGMENT
 # package clock gives weekdays in English, independent of system locale
@@ -168,7 +154,6 @@ d.comb[, `:=`(
 train.years = c(2019:2021)
 
 d.train = d.comb[year %in% train.years]
-
 
 estimate = function(model, type="non-economic"){
     d.ret = copy(d.comb)
