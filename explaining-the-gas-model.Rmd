@@ -5,13 +5,22 @@ date: '2022-11-17'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=3, dpi=300)
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=10, fig.height=3, dpi=300)
 
-rm(list = ls())
 source("calc/prediction-gas-consumption/_shared.r")
 source("export/web-monitor/_shared.r")
+loadPackages(tidyverse)
 
-library(tidyverse)
+theme_set(theme_bw(base_size = 12, base_family="Century Gothic"))
+theme_update(
+    panel.background = element_rect(fill = "transparent", colour = NA),
+    plot.background = element_rect(fill = "transparent", colour = NA),
+    strip.background = element_rect(fill = "transparent", colour = NA)
+)
+
+knitr::opts_chunk$set(dev.args=list(bg="transparent"))
+
+
 # - CONF -----------------------------------------------------------------------
 update.data = TRUE
 
@@ -65,8 +74,7 @@ relative.savings %>%
     ggplot(aes(x = year, y = rel.save)) +
     geom_bar(stat = "identity") +
     xlab("Jahr") +
-    ylab("Unterschied im Gasverbrauch im Vergleich \nzum Durchschnitt 2016-2021 \n in %") +
-    theme_bw()
+    ylab("Unterschied im Gasverbrauch im Vergleich \nzum Durchschnitt 2016-2021 \n in %")
 ```
 
 Es gibt aber einen Zusammenhang mit der Außentemperatur: kalte Temperaturen erhöhen den Verbrauch. In einem warmen Jahr wird weniger verbraucht. Die Temperaturabhängigkeit wird dabei oft in Heizgradtagen gemessen - das ist grob gesprochen die Summe an Temperaturen für Tage, an denen geheizt werden muss. Diese war in 2022 bisher besonders niedrig.
@@ -76,13 +84,13 @@ relative.hdd %>%
     ggplot(aes(x = year, y = rel.hdd)) +
     geom_bar(stat = "identity") +
     xlab("Jahr") +
-    ylab("Unterschied in Heizgradtagen im Vergleich \nzum Durchschnitt 2019-2021 \n in %") +
-theme_bw()
+    ylab("Unterschied in Heizgradtagen im Vergleich \nzum Durchschnitt 2019-2021 \n in %") 
 
 ```
 
 Den Zusammenhang zwischen Temperatur und Gasverbrauch sieht man sehr schön in einem Scatterplot von Temperatur gegen Gasverbrauch. Wenn die Temperatur unter 15°C fällt, wird begonnen, zu heizen - und das wirkt auf den Gasverbrauch.
-```{r figure3}
+
+```{r figure3, fig.height=5}
 d.base %>%
     filter(year > 2018) %>% 
     filter(day < max.day$max.day) %>% 
@@ -91,10 +99,11 @@ d.base %>%
         geom_point(aes(col = temp.lower.15), alpha = 0.2) +
         geom_smooth(method = "lm", aes(col = temp.lower.15)) +
         xlab("Temperatur") +
-        ylab("Täglicher Gasverbrauch \n(TWh)") +
-        scale_color_manual(values = COLORS3) +
-        facet_wrap(.~year) +
-        theme_bw()
+        # ylab("Täglicher Gasverbrauch \n(TWh)") +
+        xlab(NULL) + ylab(NULL) +
+        labs(title = "Täglicher Gasverbrauch", subtitle = "nach Jahren, in TWh") +
+        scale_color_manual(values = COLORS3, name = "Temperatur") +
+        facet_wrap(.~year) 
 
 ```
 
@@ -210,14 +219,14 @@ d.pred.non.economic %>%
     ggplot(aes(x = date, y = value)) +
         geom_line(aes(col = Typ), size = 1) +
         scale_color_manual(values = COLORS3) +
-        theme_bw() +
         scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
-        xlab(NULL) + ylab("Täglicher Gasverbrauch \n (TWh, 14-tägiges Mittel)")
+        xlab(NULL) + ylab(NULL) +
+        labs(title = "Täglicher Gasverbrauch", subtitle = "in TWh, 14-tägiges Mittel")
 ```
 
 Besser sieht man das noch, wenn man die Differenz zwischen den beiden als Abweichung plottet, die Einsparung also prozentuell darstellt.Die graue Fläche zeigt dabei die Unsicherheit in unserer Simulation. Hier erscheinen die Einsparungen im November gering. Stimmt das aber so?
 
-```{r figure 4}
+```{r figure4}
 
 d.pred.non.economic %>%
     dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
@@ -230,19 +239,19 @@ d.pred.non.economic %>%
     spread(variable, value) %>%
     ggplot(aes(x = date, y = difference)) +
         geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
-            geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
-            geom_line(size = 1) +
-        theme_bw(base_size = 12) +
-        xlab(NULL) + ylab("Relative Differenz zwischen \nSchätzung und Observation\n in %") +
+        geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
+        geom_line(size = 1) +
+        xlab(NULL) + ylab(NULL) +
         scale_colour_manual(values=c("red", "black")) +
         scale_fill_manual(values=c("red", "black")) +
         scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
-        scale_y_continuous(n.breaks = 10)
+        scale_y_continuous(n.breaks = 10) +
+        labs(title = "Veränderung Gasverbrauch (mit Stromproduktion)", subtitle = "Relative Differenz zwischen Schätzung und Observation, in %")
 ```
 
 Nun, ein beträchtlicher Anteil des österreichischen Gaskonsums geht in die Stromproduktion. Rechnet man diesen Anteil heraus, so ergeben sich sehr viel höhere Einsparungseffekte - die hohen Einsprungen bei Haushalten und Industrie werden also durch im Vergleich relativ hohe Verstromung von Gas in diesem Jahr reduziert. Während die Einsparungen im Oktober also etwas zurückgegangen sind, sind sie noch immer beträchtlich, wenn man den Stromsektor nicht berücksichtigt.
 
-```{r figure 5}
+```{r figure5}
 estimate = function(model, type="non-economic"){
     d.ret = copy(d.comb)
 
@@ -296,16 +305,15 @@ d.pred.non.economic.no.power %>%
         geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
         geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
         geom_line(size = 1) +
-        theme_bw(base_size = 12) +
-        xlab(NULL) + ylab("Relative Differenz zwischen \nSchätzung und Observation\n in %") +
+        xlab(NULL) + ylab(NULL) +
         scale_colour_manual(values=c("red", "black")) +
         scale_fill_manual(values=c("red", "black")) +
         scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
-        scale_y_continuous(n.breaks = 10)
-
+        scale_y_continuous(n.breaks = 10) + 
+        labs(title = "Veränderung Gasverbrauch (ohne Stromproduktion)", subtitle = "Relative Differenz zwischen Schätzung und Observation, in %")
 ```
 
-```{r savings final}
+```{r savingsFinal}
 mean.2019.2021.gas.no.power = d.base %>% 
     filter(year > 2018 & year < 2022) %>% 
     filter(day <= max.day$max.day) %>% 
@@ -338,14 +346,12 @@ savings.2022.predicted = relative.savings.predicted %>%
     filter(year == 2022) 
 
 savings.2022.no.power.predicted = relative.savings.no.power.predicted %>% 
-    filter(year == 2022) 
-
-
+    filter(year == 2022)
 ```
 
 Wie hoch sind also die Einsparungen insgesamt für Jahr 2022? Nun, beobachtet wurde eine Veränderung im gesamten Gasverbrauch von `r round(savings.2022$rel.save)`%. Zieht man den - ungefähren - Verbrauch der Gaskraftwerke ab, so betragen die beobachteten Einsparungen `r round(savings.2022.no.power$rel.save)`%. In normalen Jahren, hätte man beim Klima von 2022, würde wir aber nur eine Reduktion von `r round(savings.2022.predicted$rel.save)`% abschätzen, wenn die Gasverstromung inkludiert ist. Ohne Gasverstromung wäre die Reduktion ebenfalls bei `r round(savings.2022.no.power.predicted$rel.save)`%. In Summe gehen wir also davon aus, dass beträchtliche Einsparungen gelungen sind.
 
-```{r figure savings}
+```{r figureSavings}
 relative.savings.no.power %>% 
     mutate(Gasverbrauch = "Ohne Verstromung", Typ = "Beobachtung") %>% 
     bind_rows(relative.savings %>% mutate(Gasverbrauch = "Mit Verstromung", Typ = "Beobachtung")) %>% 
@@ -355,6 +361,6 @@ relative.savings.no.power %>%
     ggplot(aes(x = Gasverbrauch, y = rel.save)) +
         geom_bar(stat= "identity", aes(fill = Typ), position = "dodge") +
         scale_fill_manual(values = COLORS3) +
-        theme_bw() + xlab(NULL) + 
-        ylab("Veränderungen im Vergleich zu 2019 - 2021 \n (%) ")
+        xlab(NULL) + ylab(NULL) + 
+        labs(title = "Veränderung Gasverbrauch", subtitle = "im Vergleich zu 2019 - 2021, in %")
 ```
