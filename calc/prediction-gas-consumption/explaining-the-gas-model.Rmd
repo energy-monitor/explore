@@ -1,0 +1,71 @@
+---
+title: "Explanation estimate"
+output: html_document
+date: '2022-11-17'
+---
+
+## Wie steht es um den Gasverbrauch in Österreich?
+
+Seit Jahresbeginn liegt der Verbrauch in Summe \~3.5% unter dem Schnitt 2016-2021. Es gibt aber einen Zusammenhang mit der Außentemperatur: kalte Temperaturen (überdurchschnittliche Heizgradtage) erhöhen Verbrauch.
+
+
+```{r setup, include=FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE)
+
+source("calc/prediction-gas-consumption/_shared.r")
+source("export/web-monitor/_shared.r")
+
+library(tidyverse)
+# - CONF -----------------------------------------------------------------------
+update.data = TRUE
+
+
+# - LOAD -----------------------------------------------------------------------
+d.base = loadBase(update.data)
+d.economic.activity = loadFromStorage(id = "economic-activity")[, .(
+    year, month, economic.activity = value
+)]
+
+max_day = d.base %>% 
+    filter(year == 2022) %>% 
+    summarize(max_day = max(day))
+
+mean_2019_2021 = d.base %>% 
+    filter(year > 2018 & year < 2022) %>% 
+    filter(day <= max_day$max_day) %>% 
+    group_by(year) %>% 
+    summarize(sum_val = sum(value)) %>% 
+    summarize(sum_val_mean = mean(sum_val))
+
+d.base %>% 
+    group_by(year) %>% 
+    filter(year > 2018) %>% 
+    filter(day <= max_day$max_day) %>% 
+    summarize(sum_val = 100 * (sum(value)-mean_2019_2021$sum_val_mean)/mean_2019_2021$sum_val_mean) %>% 
+    ggplot(aes(x = year, y = sum_val)) +
+    geom_bar(stat = "identity") +
+    xlab("Jahr") +
+    ylab("Unterschied im Gasverbrauch im Vergleich \nzum Durchschnitt 2019-2021 \n(%)") +
+    theme_bw()
+
+```
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
