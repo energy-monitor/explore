@@ -8,32 +8,13 @@ date: '2022-11-20'
 # - INIT -----------------------------------------------------------------------
 rm(list=ls())
 source("calc/prediction-gas-consumption/_shared.r")
-loadPackages(tidyverse, equatiomatic)
+loadPackages(tidyverse, knitr)
 
 # - CONF -----------------------------------------------------------------------
 # ggplot theme
-theme_set(theme_bw(base_family="Century Gothic"))
-theme_update(
-    panel.background = element_rect(fill = "transparent", colour = NA),
-    plot.background = element_rect(fill = "transparent", colour = NA),
-    strip.background = element_rect(fill = "transparent", colour = NA),
-    plot.title = element_text(size = 18, face = "bold"),
-    plot.subtitle = element_text(size = 11),
-    text = element_text(size = 13),
-    panel.border = element_blank(),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor.x = element_blank(),
-    axis.line = element_line(),
-    legend.position="top"
-)
-
-COLORS2 = c("#c3423f", "#86cae7", "#b5c969")
-COLORS6 = c("#CCCCCC", "#AAAAAA", "#909090", "#707070", "#505050", "#DD0000")
-
-# default output options
-knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=1000/96, fig.height=3.8, dpi=96*3)
-knitr::opts_chunk$set(dev.args=list(bg="transparent"))
+source("analysis/theme.r")
 ```
+
 ```{r setupData, include=FALSE}
 d.base = loadBase(FALSE)
 min(d.base$date)
@@ -42,34 +23,32 @@ min(d.base$date)
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017]
 
-# start data with first complete year
-d.base = d.base[date <= "2022-11-10"]
+# remove most recent
+# d.base = d.base[date <= "2022-11-10"]
 ```
 
 # Temperaturkorrigierte Einsparungen des Gasverbrauchs
 
-
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vegleichen zu Vorjahreswerten beruhen. Bei diesen Einschätzungen wird aber der wesentliche
-Treiber des Gaskonsums - die Aussentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist . Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies bswp. in ... gemacht.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vegleichen zu Vorjahreswerten beruhen. Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Aussentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies bswp. in ... gemacht.
 
 
-## Daten
+## Verwendete Daten
 
 Als Datengrundlage verwenden wir öffentlich verfügbare Zeitreihen, die hier auf dieser Website auch als Indikatoren geführt werden (Download und Aufbereitsungscripts sind [hier](https://github.com/energy-monitor/explore) auffindbar). 
 
 Die zwei maßgeblichen verwendeten Zeitreihen sind:
 
-- Gaskonsum: [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
-- Temperatur: [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview)
+- Gaskonsum[↗](/single/gas~consumption-aggm): [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
+- Temperatur[↗](/single/others~temperature): [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview)
 
 
 ## Analyse
 
 ### Daten
 
-Der Verlauf des Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs bträchtliche Einsparungen seit Mitte Juli vermuten.
+Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs bträchtliche Einsparungen seit Mitte Juli vermuten.
 
 
 Die Temperatur hat erwartungsgemäß einen grossen Einfluss auf den Gaskonsum:
@@ -91,7 +70,7 @@ d.lines = data.table(
 
 ggplot(d.loess, aes(x = temp, y = value)) +
     geom_point(size = 0.4, alpha = 0.3) +
-    geom_line(data = d.lines, size = 1, alpha = 1, color = COLORS2[1]) +
+    geom_line(data = d.lines, size = 1, alpha = 1, color = COLORS[1]) +
     xlab(NULL) + ylab(NULL) + xlab("Temperatur in °C") + ylab("") +
     # theme(legend.position="top") 
     labs(title = "Gaskonsum vs Temperatur", subtitle = "in GWh, LOESS Linie")
@@ -165,12 +144,12 @@ estimate = function(model, d, train.years = c(2000:2021)) {
     )
 }
 
-model = value ~
+model.base = value ~
     t + t.squared + # week + 
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
-l.withPower = estimate(model, d.comb)
+l.model.base = estimate(model.base, d.comb)
 ```
 
 Ein einfaches lineares Model (OLS) wird verwendet um einerseits den Einfluss der Temperatur zu messen bzw. eine Prognose der Einsparungen zu errechen. Ein Regressionsmodel wird für den Zeitraum vor der Energiekrise geschätzt und deren Prognosen mit den tatsächlichen Gaskonsum im Jahr 2022 verglichen.
@@ -181,46 +160,85 @@ Alle Daten sind täglich seit 2015 verfügbar.
 
 Das spezifizierte zu schätzende Model:
 
-```{r modelEquation}
-extract_eq(l.withPower$m)
+```{=markdown}
+$$\begin{aligned} Konsum_d = \alpha + &\beta_{\bullet} t + \beta_{\bullet} t^2 + \\ &\beta_{\bullet} {Temp}_d + \beta_{\bullet} {Temp}_{d-1} + \beta_{\bullet} {Temp}_d^2 + \\ &\beta_{\bullet} Feiertag_d + \beta_{\bullet} Lockdown^{hard}_d + \beta_{\bullet} Lockdown^{soft}_d + \\ &\sum_i{\beta_{\bullet} Wochentag_{id}} + \sum_i{\beta_{\bullet} Ferientyp_{id}} \end{aligned}$$
 ```
+
+Wobei es sich bei $t$ un einen täglicher Trend handelt und Temp die vorhin beschriebene modifizierte Tagestemperatur darstellt.
 
 
 ### Ergebnisse
 
-Mit diesem Model wird nun der Gaskonsum für die einzelnen Tage im Jahr 2020 geschätzt. Der Unterschied dieser Werte kann als Konsumänderung unabhängig der inkludierten erkläarenden Variablen interpretiert werden.
+Die Regressionsergebnisse folgende:
 
+```{r regressionResultBase}
+c.nice.names = c(
+    `(Intercept)` = "(Intercept)", 
+    t = "t", 
+    t.squared = "t²", 
+    temp.below.threshold = "Temp", 
+    temp.below.threshold.lag = "Temp Lag", 
+    temp.below.threshold.squared = "Temp²", 
+    wdayTue = "Dummy Dienstag", 
+    wdayWed = "Dummy Mittwoch", 
+    wdayThu = "Dummy Donnerstag", 
+    wdayFri = "Dummy Freitag", 
+    wdaySat = "Dummy Samstag", 
+    wdaySun = "Dummy Sonntag", 
+    is.holidayTRUE = "Dummy Feiertag", 
+    `as.factor(vacation.name)august` = "Dummy Sommerferien (August)", 
+    `as.factor(vacation.name)christmasNewYear` = "Dummy Weihnachtsferien (1. Woche)", 
+    `as.factor(vacation.name)eastern` = "Dummy Osterferien", 
+    `as.factor(vacation.name)holy` = "Dummy Karwoche", 
+    `as.factor(vacation.name)july` = "Dummy Sommerferien (Juli)", 
+    `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)", 
+    is.lockdownTRUE = "Lockdown Soft", 
+    is.hard.lockdownTRUE = "Lockdown Hard",
+    gas.power = "Gasverbrauch zum Stromerzeugung"
+)
 
-```{r modelResultLevels}
+getSummaryTable = function(m) {
+    d = data.table(coef(summary(m)), keep.rownames = 'term')
+    d[, Variable := c.nice.names[term]]
+    d[is.na(Variable), Variable := term]
+    d$`Pr(>|t|)` = NULL
+    d$term = NULL
+    setcolorder(d, "Variable")
+    d
+}
+kable(getSummaryTable(l.model.base$m), align = "r")
+```
 
+Mit diesem Model wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 geschätzt. Der Unterschied dieser Werte kann als Konsumänderung unabhängig der inkludierten erkläarenden Variablen interpretiert werden.
+
+```{r modelResultLevelsBase}
 d.plot = rbind(
-    l.withPower$d.plot[variable %in% c('value', 'prediction')][date >= "2022-03-01"],
-    l.withPower$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+    l.model.base$d.plot[variable %in% c('value', 'prediction')][date >= "2022-03-01"],
+    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
         date = as.Date(paste("2022", month(date), day(date), sep="-")),
         variable = "value21", value, rollmean
     )]
 )
 
-
-
-
-
-
 d.plot %>%
     ggplot(aes(x = date, y = rollmean, color = variable)) +
         geom_line(size = 1) +
-        scale_color_manual(values = COLORS2, name = NULL, labels = c(
+        scale_color_manual(values = COLORS, name = NULL, labels = c(
             value = "Beobachtung", prediction = "Schätzung", value21 = "Vorjahr")
         ) +
+        # scale_y_continuous(labels = scales::comma())
         scale_x_date(date_labels = "%b", date_breaks = "1 month") +
         xlab(NULL) + ylab(NULL) +
-        labs(title = "Täglicher Gasverbrauch", subtitle = "in TWh, 14-tägiges Mittel")
+        labs(
+            title = "Täglicher Gasverbrauch", 
+            subtitle = "in TWh, 14-tägiges Mittel"
+        )
 ```
 
 Die relativen Abweichungen zeigen nun die Einsparungen:
 
-```{r modelResultDiff}
-dcast(l.withPower$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+```{r modelResultDiffBase}
+dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
     ggplot(aes(x = date, y = difference * 100)) +
         geom_line(size = 1) +
         geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
@@ -229,10 +247,50 @@ dcast(l.withPower$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "ro
         xlab(NULL) + ylab(NULL) +
         scale_x_date(date_labels = "%b", date_breaks ="1 month") +
         scale_y_continuous(n.breaks = 10) +
-        labs(title = "Veränderung Gasverbrauch", subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %")
+        labs(
+            title = "Veränderung Gasverbrauch", 
+            subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
+        )
 ```
 
 Hier sieht man deutlich, dass im November weniger bis gar nichts eingespart wurde. Die Gaspreise[↗](/single/gas~price) entspannten sich seit Anfang September, dies hat sich wohl auf die Einsparungen negative ausgewirkt.
 
+#### Variante mit Berücksichtigung des Gasvebrauchs zur Stromproduktion
 
+TODO MOTIVATION
+
+```{r setupModelPower, include=FALSE}
+model.power = value ~
+    t + t.squared + gas.power + # week + 
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+l.model.power = estimate(model.power, d.comb)
+```
+
+```{r regressionResultPower, include=FALSE}
+kable(getSummaryTable(l.model.power$m))
+```
+
+
+```{r modelResultDiffPower}
+dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+    ggplot(aes(x = date, y = difference * 100)) +
+        geom_line(size = 1) +
+        geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha=0.3) +
+        xlab(NULL) + ylab(NULL) +
+        scale_x_date(date_labels = "%b", date_breaks ="1 month") +
+        scale_y_continuous(n.breaks = 10) +
+        labs(
+            title = "Veränderung Gasverbrauch - Variante 2", 
+            subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
+        )
+```
+
+
+```{r regressionResultComparison, include=FALSE}
+kable(getSummaryTable(l.model.power$m))
+```
 
