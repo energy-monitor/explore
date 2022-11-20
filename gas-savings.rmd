@@ -203,10 +203,11 @@ getSummaryTable = function(m) {
     d[is.na(Variable), Variable := term]
     d$`Pr(>|t|)` = NULL
     d$term = NULL
+    d$`t value` = NULL
     setcolorder(d, "Variable")
-    d
+    kable(d, align = "r", digits = 3)
 }
-kable(getSummaryTable(l.model.base$m), align = "r")
+getSummaryTable(l.model.base$m)
 ```
 
 Mit diesem Model wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 geschätzt. Der Unterschied dieser Werte kann als Konsumänderung unabhängig der inkludierten erkläarenden Variablen interpretiert werden.
@@ -269,7 +270,7 @@ l.model.power = estimate(model.power, d.comb)
 ```
 
 ```{r regressionResultPower, include=FALSE}
-kable(getSummaryTable(l.model.power$m))
+getSummaryTable(l.model.power$m)
 ```
 
 
@@ -291,6 +292,6 @@ dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "
 
 
 ```{r regressionResultComparison, include=FALSE}
-kable(getSummaryTable(l.model.power$m))
+
 ```
 
