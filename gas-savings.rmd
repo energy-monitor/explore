@@ -23,6 +23,43 @@ min(d.base$date)
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017]
 
+START.YEAR = min(d.base$year)
+LAST.YEAR = max(d.base$year)
+END.YEAR = LAST.YEAR - 1
+
+max.day = d.base %>% 
+    filter(year == LAST.YEAR) %>% 
+    summarize(max.day = max(day))
+
+mean.gas = d.base %>% 
+    filter(year <= END.YEAR) %>% 
+    filter(day <= max.day$max.day) %>% 
+    group_by(year) %>% 
+    summarize(sum.val = sum(value)) %>% 
+    summarize(sum.val.mean = mean(sum.val))
+
+mean.hdd = d.base %>% 
+    filter(year <= END.YEAR) %>% 
+    filter(day <= max.day$max.day) %>% 
+    group_by(year) %>% 
+    summarize(sum.val = sum(hdd)) %>% 
+    summarize(sum.val.mean = mean(sum.val))
+
+relative.savings = d.base %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.save = 100 * (sum(value)-mean.gas$sum.val.mean)/mean.gas$sum.val.mean)
+
+relative.hdd = d.base %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.hdd = 100 * (sum(hdd)-mean.hdd$sum.val.mean)/mean.hdd$sum.val.mean)
+
+savings.last.year = relative.savings %>% 
+    filter(year == LAST.YEAR) %>% 
+    dplyr::select(rel.save)
+
+
 # remove most recent
 # d.base = d.base[date <= "2022-11-10"]
 ```
@@ -31,8 +68,9 @@ d.base = d.base[year >= min(d.base[day == 1]$year)]
 
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vegleichen zu Vorjahreswerten beruhen. Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Aussentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies bswp. in ... gemacht.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vegleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn der Verbrauch in Summe um `r round(savings.last.year)` % unter dem Schnitt `r START.YEAR`-`r END.YEAR`. Der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown Jahr 2020.
 
+Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin [↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
 
 ## Verwendete Daten
 
@@ -40,18 +78,18 @@ Als Datengrundlage verwenden wir öffentlich verfügbare Zeitreihen, die hier au
 
 Die zwei maßgeblichen verwendeten Zeitreihen sind:
 
-- Gaskonsum[↗](/single/gas~consumption-aggm): [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
-- Temperatur[↗](/single/others~temperature): [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview)
+- Gaskonsum: [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
+- Temperatur: [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview)
+- Stromproduktion aus Gas: [ENTSO-E](https://transparency.entsoe.eu)
+
+Außerdem verwenden wir Informationen über Ferien, Feiertage, und über COVID-Lockdowns.
 
 
 ## Analyse
 
-### Daten
+Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs beträchtliche Einsparungen seit Mitte Juli vermuten.
 
-Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs bträchtliche Einsparungen seit Mitte Juli vermuten.
-
-
-Die Temperatur hat erwartungsgemäß einen grossen Einfluss auf den Gaskonsum:
+Die Temperatur hat allerdings erwartungsgemäß einen großen Einfluss auf den Gaskonsum, wie die folgende Grafik zeigt. Spart Österreich also tatsächlich - oder war es 2022 nur ungewöhnlich warm?
 
 ```{r consumTemp}
 d.loess = d.base[, .(
@@ -78,7 +116,7 @@ ggplot(d.loess, aes(x = temp, y = value)) +
 temp.threshold = 14
 ```
 
-Unter einem Schwellwert von knapp 15 Grad Celsius wirkt der Zusammenhang sehr linear, darüber halwegs konstant. Deshalb wird im folgenden Model nicht auf die Temperatur direkt sondern die Differenz zwischen 15 Grad und der Temperatur für Temperaturen unter 15 Grad (anderfalls 0) geschätzt.  
+Unter einem Schwellwert von knapp 15 Grad Celsius wirkt der Zusammenhang sehr linear, darüber halwegs konstant. Deshalb wird im folgenden Model nicht auf die Temperatur direkt geschätzt. Wir berechnen stattdessen die Differenz zwischen 15 Grad und der gemessenen Temperatur, falls die gemessene Temperatur unter 15°C ist. Ansonsten setzen wir die Variable auf 0.
 
 
 ### Model
@@ -152,24 +190,22 @@ model.base = value ~
 l.model.base = estimate(model.base, d.comb)
 ```
 
-Ein einfaches lineares Model (OLS) wird verwendet um einerseits den Einfluss der Temperatur zu messen bzw. eine Prognose der Einsparungen zu errechen. Ein Regressionsmodel wird für den Zeitraum vor der Energiekrise geschätzt und deren Prognosen mit den tatsächlichen Gaskonsum im Jahr 2022 verglichen.
+Wir verwenden ein einfaches lineares Model (OLS), um den Einfluss der Temperatur auf den Verbrauch abzuschätzen. Dies ermöglicht uns in Folge eine Prognose der Einsparungen zu berechnen: wir schätzen die Abhängigkeit des Gasverbrauchs von der Temperatur für den Zeitraum vor der Energiekrise (2015-2021) und prognostizieren dann damit den Gaskonsum im Jahr 2022. Diese Prognose vergleichen wir in Folge mit dem tatsächlichen Gaskonsum im Jahr 2022.
 
-Da wir tägliche Daten verwenden wurden auch Tagesspezifika in die Regression eingefügt die auch Auswirkungen auf den Gaskonsum haben (bspw. Wochentag, Feiertag, Covid19-Lockdown, ...).
+Da wir tägliche Daten verwenden, haben wir auch Tagesspezifika in die Regression eingefügt, welche Auswirkungen auf den Gaskonsum haben (bspw. Wochentag, Feiertag, Covid19-Lockdowns, ...). Alle Daten sind täglich seit 2015 verfügbar.
 
-Alle Daten sind täglich seit 2015 verfügbar.
-
-Das spezifizierte zu schätzende Model:
+Das spezifizierte Model sieht folgendermaßen aus:
 
 ```{=markdown}
 $$\begin{aligned} Konsum_d = \alpha + &\beta_{\bullet} t + \beta_{\bullet} t^2 + \\ &\beta_{\bullet} {Temp}_d + \beta_{\bullet} {Temp}_{d-1} + \beta_{\bullet} {Temp}_d^2 + \\ &\beta_{\bullet} Feiertag_d + \beta_{\bullet} Lockdown^{hard}_d + \beta_{\bullet} Lockdown^{soft}_d + \\ &\sum_i{\beta_{\bullet} Wochentag_{id}} + \sum_i{\beta_{\bullet} Ferientyp_{id}} \end{aligned}$$
 ```
 
-Wobei es sich bei $t$ un einen täglicher Trend handelt und Temp die vorhin beschriebene modifizierte Tagestemperatur darstellt.
+Bei $t$ handelt es sich um einen linearen Trend und bei Temp um die vorhin beschriebene modifizierte mittlere Tagestemperatur.
 
 
 ### Ergebnisse
 
-Die Regressionsergebnisse folgende:
+Die Ergebnisse der Regression zeigen, erwartungsgemäß, dass mit höherem temp (also niedrigerer Temperatur) die Nachfrage steigt. Am Wochenende, vor allem am Samstag, wird weniger Gas verbraucht, genauso in den Ferien - und während des 1.Lockdowns im März/April 2020.
 
 ```{r regressionResultBase}
 c.nice.names = c(
@@ -194,7 +230,7 @@ c.nice.names = c(
     `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)", 
     is.lockdownTRUE = "Lockdown Soft", 
     is.hard.lockdownTRUE = "Lockdown Hard",
-    gas.power = "Gasverbrauch zum Stromerzeugung"
+    gas.power = "Gasverbrauch zur Stromerzeugung"
 )
 
 getSummaryTable = function(m) {
@@ -210,7 +246,7 @@ getSummaryTable = function(m) {
 getSummaryTable(l.model.base$m)
 ```
 
-Mit diesem Model wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 geschätzt. Der Unterschied dieser Werte kann als Konsumänderung unabhängig der inkludierten erkläarenden Variablen interpretiert werden.
+Mit diesem Model wird nun der Gaskonsum für die einzelnen Tage im Jahr `r LAST.YEAR` geschätzt. Der Unterschied der in 2022 beobachteten Werte von unserer Prognose kann als temperaturunabhängige Konsumänderung interpretiert werden. Von Juni bis Mitte Oktober war der beobachtete Wert fast immer unter unserer Schätzung, wir gehen daher für diesen Zeitraum von Einsparungen, die über die klimatischen Bedingungen hinausgehen, aus.
 
 ```{r modelResultLevelsBase}
 d.plot = rbind(
@@ -236,7 +272,8 @@ d.plot %>%
         )
 ```
 
-Die relativen Abweichungen zeigen nun die Einsparungen:
+Noch deutlicher kann dies gezeigt werden, imdem wir die relativen Abweichungen der beiden Kurven plotten. Hier zeigt sich deutlich, dass ab Mitte Oktober die Einsparungen rasant zurückgehen - das passt zu den seit Anfang September stark gefallenen Gaspreisen[↗](/single/gas~price). Allerdings berücksichtigen wir in dieser Analyse nicht, dass der Gasverbrauch zur Stromproduktion in Österreich hochrelevant ist. 
+
 
 ```{r modelResultDiffBase}
 dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
@@ -254,11 +291,9 @@ dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "r
         )
 ```
 
-Hier sieht man deutlich, dass im November weniger bis gar nichts eingespart wurde. Die Gaspreise[↗](/single/gas~price) entspannten sich seit Anfang September, dies hat sich wohl auf die Einsparungen negative ausgewirkt.
 
 #### Variante mit Berücksichtigung des Gasvebrauchs zur Stromproduktion
-
-TODO MOTIVATION
+Obwohl der Stromverbrauch in Österreich zuletzt leicht gesunken ist  [↗](/single/electricity~load), ist die Stromproduktion aus Gaskraftwerken höher als in den 3 Jahren zuvor [↗](/single/electricity~generation-gas). Dies hat damit zu tun, dass die Wasserkraftproduktion in Österreich dieses Jahr - vor allem im Sommer - unter der Produktion der vergangenen Jahren lag. Wir fügen daher dem Modell als erklärende Variable auch die Stromproduktion hinzu. In der Prognose sehen wir damit nur mehr die Einsparungen im Industrie- und Haushaltssektor, ohne der Verwendung von Gas für die Stromproduktion. Hier sind die Einsparungen deutlich höher.  
 
 ```{r setupModelPower, include=FALSE}
 model.power = value ~
@@ -289,6 +324,10 @@ dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "
             subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
         )
 ```
+
+#### Schlussfolgerungen
+
+In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten bis zu 20%. Allerdings werden diese Einsparungen teilweise durch die Vertromung von Gas wieder aufgehoben.
 
 
 ```{r regressionResultComparison, include=FALSE}
