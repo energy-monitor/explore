@@ -16,7 +16,7 @@ d.base.g2 = loadFromStorage(id = "electricity-generation-g2")[,
 
 
 # - AT -------------------------------------------------------------------------
-d.plot = d.base.g1[date < "2022-11-01" & country == "AT", .(
+d.plot = d.base.g1[date < "2022-11-01" & date > "2019-01-01" & country == "AT", .(
     value = sum(value)
 ), by = .(date = {t = as.Date(date); day(t) = 1; t}, source.group)]
 
