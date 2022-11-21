@@ -7,7 +7,7 @@ library(tidyverse)
 
 
 # - CONF -----------------------------------------------------------------------
-update.data = FALSE
+update.data = TRUE
 
 
 # - LOAD -----------------------------------------------------------------------
@@ -45,8 +45,8 @@ d.comb[, `:=`(
     temp.squared  = temp^2,
     temp.lag = shift(temp, 1),
     # AR TERMS, ONLY TESTING
-    value.lag = shift(value, 1),
-    value.lag2 = shift(value, 2)
+    value.without.power.lag = shift(value.without.power, 1),
+    value.without.power.lag2 = shift(value.without.power, 2)
 )]
 
 d.comb[, `:=`(
@@ -62,7 +62,7 @@ d.comb[, `:=`(
 
 
 
-train.years = c(2015:2021)
+train.years = c(2019:2021)
 
 d.train = d.comb[year %in% train.years]
 
@@ -74,7 +74,7 @@ estimate = function(model, type="non-economic"){
         model
         , data = d.train)
 
-    summary(m.linear)
+    print(summary(m.linear))
 
     prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
         as.data.table()
@@ -88,63 +88,65 @@ estimate = function(model, type="non-economic"){
                   lower.conf = prediction.confidence$lwr,
                   upper.conf = prediction.confidence$upr), ]
 
-    d.ret[, `:=` (difference = (value - prediction) / prediction,
-                   diff.pred.lower = (value - lower.pred) / lower.pred,
-                   diff.pred.upper = (value - upper.pred) / upper.pred,
-                   diff.conf.lower = (value - lower.conf) / lower.conf,
-                   diff.conf.upper = (value - upper.conf) / upper.conf,
+    d.ret[, `:=` (difference = (value.without.power - prediction) / prediction,
+                   diff.pred.lower = (value.without.power - lower.pred) / lower.pred,
+                   diff.pred.upper = (value.without.power - upper.pred) / upper.pred,
+                   diff.conf.lower = (value.without.power - lower.conf) / lower.conf,
+                   diff.conf.upper = (value.without.power - upper.conf) / upper.conf,
                    model.type = type
                    ), ]
 
     return(d.ret)
 }
 
-model = value ~
+model = value.without.power ~
     # value.lag + value.lag2 + # AR TERMS
     temp + temp.squared + temp.15 + temp.15.lag + temp.15.squared +
     # temp * as.factor(temp.f) +
-    wday + is.holiday + as.factor(vacation.name)
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
 d.pred.non.economic = estimate(model)
 
-model.economic = value ~
+model.economic = value.without.power ~
     # value.lag + value.lag2 + # AR TERMS
     temp + temp.squared + temp.15 + temp.15.lag + temp.15.squared +
     # temp * as.factor(temp.f) +
-    wday + is.holiday + as.factor(vacation.name) +
+    wday + is.holiday + as.factor(vacation.name) + is.hard.lockdown + is.lockdown +
     economic.activity
 
 d.pred.economic = estimate(model.economic, type = "economic")
 
 d.pred = bind_rows(d.pred.non.economic, d.pred.economic)
 
+d.pred %>% mutate(value.without.power=rollmean(value.without.power, 30, fill = NA)) %>%  ggplot(aes(x=date, y=value.without.power)) + geom_line()
+
 #####example figures
 d.pred %>%
-    filter(model.type == "non-economic") %>%
-    dplyr::select(date, difference, diff.conf.lower, diff.conf.upper) %>%
-    filter(year(date) > 2021) %>%
-    gather(variable, value, -date) %>%
+    #filter(model.type == "non-economic") %>%
+    dplyr::select(date, difference, diff.conf.lower, diff.conf.upper, model.type) %>%
+    #filter(year(date) == 2019) %>%
+    gather(variable, value, -date, -model.type) %>%
     filter(variable %in% c("difference", "diff.conf.lower", "diff.conf.upper")) %>%
-    group_by(variable) %>%
+    group_by(variable, model.type) %>%
     mutate(value = rollmean(100 * value, 30, fill = NA)) %>%
     ungroup() %>%
     spread(variable, value) %>%
     ggplot(aes(x = date, y = difference)) +
     geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
-        geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
-        geom_line(size = 1) +
+        #geom_ribbon(aes(ymin = diff.conf.lower, ymax = diff.conf.upper), alpha=0.3) +
+        geom_line(size = 1,aes(col=model.type)) +
     theme_bw(base_size = 12) +
     xlab("Datum") +
     ylab("Relative Differenz zwischen \nSchätzung und Observation\n(%)") +
     scale_colour_manual(values=c("red", "black")) +
     scale_fill_manual(values=c("red", "black")) +
-    scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
+    #scale_x_date(date_labels = "%b",date_breaks  ="1 month") +
     scale_y_continuous(n.breaks = 10)
 
 d.pred %>%
     filter(model.type == "economic") %>%
     dplyr::select(date, difference, diff.conf.lower, diff.conf.upper, `Industrieproduktion` = economic.activity.estimate) %>%
-    filter(year(date) > 2021) %>%
+    #filter(year(date) == 2019) %>%
     gather(variable, value, -date, -`Industrieproduktion`) %>%
     filter(variable %in% c("difference", "diff.conf.lower", "diff.conf.upper")) %>%
     group_by(variable) %>%

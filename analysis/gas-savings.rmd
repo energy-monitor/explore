@@ -1,0 +1,364 @@
+---
+title: "Gas Savings estimation explanation"
+output: md_document
+date: '2022-11-20'
+---
+
+```{r setupBase, include=FALSE}
+# - INIT -----------------------------------------------------------------------
+source("calc/prediction-gas-consumption/_shared.r")
+loadPackages(tidyverse, knitr)
+
+# - CONF -----------------------------------------------------------------------
+# ggplot theme
+source("export/analysis/_theme.r")
+```
+
+```{r setupData, include=FALSE}
+d.base = loadBase(FALSE)
+min(d.base$date)
+
+# start data with first complete year
+d.base = d.base[year >= min(d.base[day == 1]$year)]
+# d.base = d.base[year >= 2017]
+
+START.YEAR = min(d.base$year)
+LAST.YEAR = max(d.base$year)
+END.YEAR = LAST.YEAR - 1
+
+max.day = d.base %>% 
+    filter(year == LAST.YEAR) %>% 
+    summarize(max.day = max(day))
+
+mean.gas = d.base %>% 
+    filter(year <= END.YEAR) %>% 
+    filter(day <= max.day$max.day) %>% 
+    group_by(year) %>% 
+    summarize(sum.val = sum(value)) %>% 
+    summarize(sum.val.mean = mean(sum.val))
+
+mean.hdd = d.base %>% 
+    filter(year <= END.YEAR) %>% 
+    filter(day <= max.day$max.day) %>% 
+    group_by(year) %>% 
+    summarize(sum.val = sum(hdd)) %>% 
+    summarize(sum.val.mean = mean(sum.val))
+
+relative.savings = d.base %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.save = 100 * (sum(value)-mean.gas$sum.val.mean)/mean.gas$sum.val.mean)
+
+relative.hdd = d.base %>% 
+    group_by(year) %>% 
+    filter(day <= max.day$max.day) %>% 
+    summarize(rel.hdd = 100 * (sum(hdd)-mean.hdd$sum.val.mean)/mean.hdd$sum.val.mean)
+
+savings.last.year = relative.savings %>% 
+    filter(year == LAST.YEAR) %>% 
+    dplyr::select(rel.save)
+
+
+# remove most recent
+# d.base = d.base[date <= "2022-11-10"]
+```
+
+# Temperaturkorrigierte Einsparungen des Gasverbrauchs
+
+## Motivation
+
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vegleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn der Verbrauch in Summe um `r round(savings.last.year)` % unter dem Schnitt `r START.YEAR`-`r END.YEAR`. Der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown Jahr 2020.
+
+Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin [↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
+
+## Verwendete Daten
+
+Als Datengrundlage verwenden wir öffentlich verfügbare Zeitreihen, die hier auf dieser Website auch als Indikatoren geführt werden (Download und Aufbereitsungscripts sind [hier](https://github.com/energy-monitor/explore) auffindbar). 
+
+Die zwei maßgeblichen verwendeten Zeitreihen sind:
+
+- Gaskonsum: [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
+- Temperatur: [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview)
+- Stromproduktion aus Gas: [ENTSO-E](https://transparency.entsoe.eu)
+
+Außerdem verwenden wir Informationen über Ferien, Feiertage, und über COVID-Lockdowns.
+
+
+## Analyse
+
+Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs beträchtliche Einsparungen seit Mitte Juli vermuten.
+
+Die Temperatur hat allerdings erwartungsgemäß einen großen Einfluss auf den Gaskonsum, wie die folgende Grafik zeigt. Spart Österreich also tatsächlich - oder war es 2022 nur ungewöhnlich warm?
+
+```{r consumTemp}
+d.loess = d.base[, .(
+    date, temp,
+    value = value * 1000
+)]
+
+m.loess = loess(value ~ temp, d.loess)
+
+order.loess = order(d.loess$temp)
+
+d.lines = data.table(
+    temp = d.loess$temp[order.loess],
+    value = m.loess$fitted[order.loess]
+)
+
+ggplot(d.loess, aes(x = temp, y = value)) +
+    geom_point(size = 0.4, alpha = 0.3) +
+    geom_line(data = d.lines, size = 1, alpha = 1, color = COLORS[1]) +
+    xlab(NULL) + ylab(NULL) + xlab("Temperatur in °C") + ylab("") +
+    # theme(legend.position="top") 
+    labs(title = "Gaskonsum vs Temperatur", subtitle = "in GWh, LOESS Linie")
+
+temp.threshold = 14
+```
+
+Unter einem Schwellwert von knapp 15 Grad Celsius wirkt der Zusammenhang sehr linear, darüber halwegs konstant. Deshalb wird im folgenden Modell nicht auf die Temperatur direkt geschätzt. Wir berechnen stattdessen die Differenz zwischen 15 Grad und der gemessenen Temperatur, falls die gemessene Temperatur unter 15°C ist. Ansonsten setzen wir die Variable auf 0. Im Grunde ähnlich dem Konzept der [Heizgradtage](https://de.wikipedia.org/wiki/Gradtagzahl).
+
+### Modell
+
+```{r setupModel, include=FALSE}
+# - MODEL ----------------------------------------------------------------------
+
+# AUGMENT
+d.comb = copy(d.base)
+d.comb[, `:=`(
+    temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
+    temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
+)]
+
+d.comb[, `:=`(
+    week = str_pad(week, 2, pad = "0"),
+    temp.below.threshold.squared = temp.below.threshold^2,
+    temp.below.threshold.lag = shift(temp.below.threshold, 1),
+    year_character = as.character(year)
+)]
+
+estimate = function(model, d, train.years = c(2000:2021)) {
+    d.train = d[year %in% train.years]
+    d.ret = copy(d)
+
+    m.linear = lm(model, data = d.train)
+    print(summary(m.linear))
+
+    prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
+        as.data.table()
+
+    prediction.confidence = predict(m.linear, d.ret, interval = "confidence", level = 0.95) %>%
+        as.data.table()
+
+    d.ret[, `:=`(
+        prediction = prediction.prediction$fit,
+        lower.pred = prediction.prediction$lwr,
+        upper.pred = prediction.prediction$upr,
+        lower.conf = prediction.confidence$lwr,
+        upper.conf = prediction.confidence$upr
+    )]
+
+    d.ret[, `:=` (
+        difference = (value - prediction) / prediction,
+        diff.pred.lower = (value - lower.pred) / lower.pred,
+        diff.pred.upper = (value - upper.pred) / upper.pred,
+        diff.conf.lower = (value - lower.conf) / lower.conf,
+        diff.conf.upper = (value - upper.conf) / upper.conf
+    )]
+
+    d.ret[, `:=`(
+        difference.mean = rollmean(difference, 14, fill = NA)
+    )]
+
+    d.plot = d.ret[, .(date, value, prediction, difference, diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper)]
+    d.plot = melt(d.plot, id.vars = "date")
+    d.plot[, rollmean := rollmean(value, 14, fill = NA, align = "right"), by=variable]
+
+    list(
+        m = m.linear,
+        d.pred = d.ret,
+        d.plot = d.plot
+    )
+}
+
+model.base = value ~
+    t + t.squared + # week + 
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+l.model.base = estimate(model.base, d.comb)
+```
+
+Wir verwenden ein einfaches lineares Modell (OLS), um den Einfluss der Temperatur auf den Verbrauch abzuschätzen. Dies ermöglicht uns in Folge eine Prognose der Einsparungen zu berechnen: wir schätzen die Abhängigkeit des Gasverbrauchs von der Temperatur für den Zeitraum vor der Energiekrise (2015-2021) und prognostizieren dann damit den Gaskonsum im Jahr 2022. Diese Prognose vergleichen wir in Folge mit dem tatsächlichen Gaskonsum im Jahr 2022.
+
+Da wir tägliche Daten verwenden, haben wir auch Tagesspezifika in die Regression eingefügt, welche Auswirkungen auf den Gaskonsum haben (bspw. Wochentag, Feiertag, Covid19-Lockdowns, ...). Alle Daten sind täglich seit 2015 verfügbar.
+
+Das spezifizierte Modell sieht folgendermaßen aus:
+
+```{=markdown}
+$$\begin{aligned} Konsum_d = \alpha + &\beta_{\bullet} t + \beta_{\bullet} t^2 + \\ &\beta_{\bullet} {Temp}_d + \beta_{\bullet} {Temp}_{d-1} + \beta_{\bullet} {Temp}_d^2 + \\ &\beta_{\bullet} Feiertag_d + \beta_{\bullet} Lockdown^{hard}_d + \beta_{\bullet} Lockdown^{soft}_d + \\ &\sum_i{\beta_{\bullet} Wochentag_{id}} + \sum_i{\beta_{\bullet} Ferientyp_{id}} \end{aligned}$$
+```
+
+Bei $t$ handelt es sich um einen linearen Trend und bei Temp um die vorhin beschriebene modifizierte mittlere Tagestemperatur.
+
+### Ergebnisse
+
+Die Ergebnisse der Regression zeigen, erwartungsgemäß, dass mit höherem temp (also niedrigerer Temperatur) die Nachfrage steigt. Am Wochenende, vor allem am Samstag, wird weniger Gas verbraucht, genauso in den Ferien - und während des 1. Lockdowns im März/April 2020.
+
+```{r regressionResulDef, include=FALSE}
+c.nice.names = c(
+    `(Intercept)` = "(Intercept)", 
+    t = "t", 
+    t.squared = "t²", 
+    temp.below.threshold = "Temp", 
+    temp.below.threshold.lag = "Temp Lag", 
+    temp.below.threshold.squared = "Temp²", 
+    wdayTue = "Dummy Dienstag", 
+    wdayWed = "Dummy Mittwoch", 
+    wdayThu = "Dummy Donnerstag", 
+    wdayFri = "Dummy Freitag", 
+    wdaySat = "Dummy Samstag", 
+    wdaySun = "Dummy Sonntag", 
+    is.holidayTRUE = "Dummy Feiertag", 
+    `as.factor(vacation.name)august` = "Dummy Sommerferien (August)", 
+    `as.factor(vacation.name)christmasNewYear` = "Dummy Weihnachtsferien (1. Woche)", 
+    `as.factor(vacation.name)eastern` = "Dummy Osterferien", 
+    `as.factor(vacation.name)holy` = "Dummy Karwoche", 
+    `as.factor(vacation.name)july` = "Dummy Sommerferien (Juli)", 
+    `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)", 
+    is.lockdownTRUE = "Lockdown Soft", 
+    is.hard.lockdownTRUE = "Lockdown Hard",
+    gas.power = "Gasverbrauch zur Stromerzeugung"
+)
+
+getSummaryTable = function(m) {
+    d = data.table(coef(summary(m)), keep.rownames = 'term')
+    d[, Variable := c.nice.names[term]]
+    d[is.na(Variable), Variable := term]
+    d$`Pr(>|t|)` = NULL
+    d$term = NULL
+    d$`t value` = NULL
+    setcolorder(d, "Variable")
+    kable(d, align = "r", digits = 3, format.args = list(decimal.mark = ','))
+}
+```
+
+#### Regressionsergebnis
+```{r regressionResultBase}
+getSummaryTable(l.model.base$m)
+```
+
+Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr `r LAST.YEAR` geschätzt. Der Unterschied der in 2022 beobachteten Werte von unserer Prognose kann als temperaturunabhängige Konsumänderung interpretiert werden. Von Juni bis Mitte Oktober war der beobachtete Wert fast immer unter unserer Schätzung, wir gehen daher für diesen Zeitraum von Einsparungen, die über die klimatischen Bedingungen hinausgehen, aus.
+
+```{r modelResultLevelsBase}
+d.plot = rbind(
+    l.model.base$d.plot[variable %in% c('value', 'prediction')][date >= "2022-03-01"],
+    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+        date = as.Date(paste("2022", month(date), day(date), sep="-")),
+        variable = "value21", value, rollmean
+    )]
+)
+
+d.plot %>%
+    ggplot(aes(x = date, y = rollmean, color = variable)) +
+        geom_line(size = 1) +
+        scale_color_manual(values = COLORS, name = NULL, labels = c(
+            value = "Beobachtung", prediction = "Schätzung", value21 = "Vorjahr")
+        ) +
+        # scale_y_continuous(labels = scales::comma())
+        scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+        xlab(NULL) + ylab(NULL) +
+        labs(
+            title = "Täglicher Gasverbrauch", 
+            subtitle = "in TWh, 14-tägiges Mittel"
+        )
+```
+
+Noch deutlicher kann dies gezeigt werden, imdem wir die relativen Abweichungen der beiden Kurven plotten. Hier zeigt sich deutlich, dass ab Mitte Oktober die Einsparungen rasant zurückgehen - das passt zu den seit Anfang September stark gefallenen Gaspreisen[↗](/single/gas~price). Allerdings berücksichtigen wir in dieser Analyse nicht, dass der Gasverbrauch zur Stromproduktion in Österreich hochrelevant ist. 
+
+```{r modelResultDiffBase}
+dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+    ggplot(aes(x = date, y = difference * 100)) +
+        geom_line(size = 1) +
+        geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha=0.3) +
+        xlab(NULL) + ylab(NULL) +
+        scale_x_date(date_labels = "%b", date_breaks ="1 month") +
+        scale_y_continuous(n.breaks = 10) +
+        labs(
+            title = "Veränderung Gasverbrauch", 
+            subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
+        )
+```
+
+## Alternative Variante
+
+Obwohl der Stromverbrauch in Österreich zuletzt leicht gesunken ist [↗](/single/electricity~load), ist die Stromproduktion aus Gaskraftwerken höher als in den 3 Jahren zuvor [↗](/single/electricity~generation-gas). Dies hat damit zu tun, dass die Wasserkraftproduktion in Österreich dieses Jahr - vor allem im Sommer - unter der Produktion der vergangenen Jahren lag [↗](/single/electricity~generation-g1). Wir fügen daher dem Modell als erklärende Variable auch den Gasverbrauch zur Stromproduktion hinzu. In der Prognose sehen wir damit nur mehr die Einsparungen im Industrie- und Haushaltssektor, ohne der Verwendung von Gas für die Stromproduktion. Hier sind die Einsparungen deutlich höher.  
+
+```{r setupModelPower, include=FALSE}
+model.power = value ~
+    t + t.squared + gas.power + # week + 
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+l.model.power = estimate(model.power, d.comb)
+```
+
+```{r regressionResultPower, include=FALSE}
+getSummaryTable(l.model.power$m)
+```
+
+
+```{r modelResultDiffPower}
+dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+    ggplot(aes(x = date, y = difference * 100)) +
+        geom_line(size = 1) +
+        geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha=0.3) +
+        xlab(NULL) + ylab(NULL) +
+        scale_x_date(date_labels = "%b", date_breaks ="1 month") +
+        scale_y_continuous(n.breaks = 10) +
+        labs(
+            title = "Veränderung Gasverbrauch - Variante 2", 
+            subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
+        )
+```
+
+## Schlussfolgerungen
+
+In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten sogar gute 16%. Allerdings werden diese Einsparungen teilweise durch die Verstromung von Gas wieder aufgehoben.
+
+
+#### Gaskonsumveränderungen in %
+```{r regressionResultComparison}
+d.comp = rbind(
+    l.model.base$d.plot[variable %in% c('value')][date >= "2022-03-01"][, .(
+        date, variable = "value", value = rollmean
+    )],
+    l.model.base$d.plot[variable %in% c('prediction')][date >= "2022-03-01"][, .(
+        date, variable = "pred.base", value = rollmean
+    )],
+    l.model.power$d.plot[variable %in% c('prediction')][date >= "2022-03-01"][, .(
+        date, variable = "pred.power", value = rollmean
+    )],
+    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+        date = as.Date(paste("2022", month(date), day(date), sep="-")),
+        variable = "value.21", value = rollmean
+    )]
+)
+
+d.comp = d.comp[, .(v = sum(value)), by = .(month = month(date), variable)]
+d.comp = merge(d.comp[variable == 'value', .(month, value = v)], d.comp[, .(month, type = variable, est = v)])
+
+d.comp[, rel := value/est]
+d.comp[, g100 := round((rel - 1)*100, 2)]
+
+d.comp = dcast(d.comp, month ~ type, value.var = "g100")
+d.comp[, value := NULL]
+setcolorder(d.comp, c('month', 'value.21', 'pred.base', 'pred.power'))
+setnames(d.comp, c('Monat', 'zum Vorjahr', 'in Variante 1', 'in Variante 2'))
+
+kable(d.comp, format.args = list(decimal.mark = ','), caption = )
+```
+

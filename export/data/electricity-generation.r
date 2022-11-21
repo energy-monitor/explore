@@ -1,6 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-source("export/web-monitor/_shared.r")
+source("export/data/_shared.r")
 
 nameOthers = "others"
 
