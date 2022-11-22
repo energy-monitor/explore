@@ -6,7 +6,7 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 d.base = loadEntsoeComb(
-    type = "load", month.start = month.start, month.end = month.end
+    type = "load", month.start = "2014-12", month.end = month.end
     # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
 )
 
