@@ -33,26 +33,26 @@ max.day = d.base %>%
 
 mean.gas = d.base %>% 
     filter(year <= END.YEAR) %>% 
-    filter(day <= max.day$max.day) %>% 
+    filter(day <= max.day) %>% 
     group_by(year) %>% 
     summarize(sum.val = sum(value)) %>% 
     summarize(sum.val.mean = mean(sum.val))
 
 mean.hdd = d.base %>% 
     filter(year <= END.YEAR) %>% 
-    filter(day <= max.day$max.day) %>% 
+    filter(day <= max.day) %>% 
     group_by(year) %>% 
     summarize(sum.val = sum(hdd)) %>% 
     summarize(sum.val.mean = mean(sum.val))
 
 relative.savings = d.base %>% 
     group_by(year) %>% 
-    filter(day <= max.day$max.day) %>% 
+    filter(day <= max.day) %>% 
     summarize(rel.save = 100 * (sum(value)-mean.gas$sum.val.mean)/mean.gas$sum.val.mean)
 
 relative.hdd = d.base %>% 
     group_by(year) %>% 
-    filter(day <= max.day$max.day) %>% 
+    filter(day <= max.day) %>% 
     summarize(rel.hdd = 100 * (sum(hdd)-mean.hdd$sum.val.mean)/mean.hdd$sum.val.mean)
 
 savings.last.year = relative.savings %>% 
@@ -328,19 +328,21 @@ dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "
 
 ## Schlussfolgerungen
 
-In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten sogar gute 16%. Allerdings werden diese Einsparungen teilweise durch die Verstromung von Gas wieder aufgehoben.
+In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten sogar bis zu 16%. Die absoluten Einsparungen im Vergleich zum Vorjahr, im Vergleich zur Periode 2019-2021 sind unten dargestellt - und daneben sind die witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Variante 1) und einmal inklusive Stromproduktion.
 
 
 #### Gaskonsumveränderungen in %
 ```{r regressionResultComparison}
 
-nmb.years = d.comb$year %>% unique() %>% length - 1
+PERIOD.START = 2019
 
-d.long.term.average.month = d.comb[day < max.day][(date <= "2022-01-01"), 
+nmb.years = END.YEAR - PERIOD.START + 1
+
+d.long.term.average.month = d.comb[day < max.day][(date <= "2022-01-01" & year(date) >= PERIOD.START), 
                              .(variable = "value.mean", 
                                v = sum(value) / nmb.years), by=c("month")][month > 2]
 
-d.long.term.average.year = d.comb[day < max.day][month>2][(date <= "2022-01-01"), 
+d.long.term.average.year = d.comb[day < max.day][month>2][(date <= "2022-01-01") & year(date) > 2018, 
                              .(variable = "value.mean", 
                                v = sum(value) / nmb.years), ]
 
@@ -354,10 +356,10 @@ d.comp = rbind(
     l.model.power$d.plot[variable %in% c('prediction')][date >= "2022-03-01"][, .(
         date, variable = "pred.power", value = rollmean
     )],
-    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2022-01-01"][, .(
         date = as.Date(paste("2022", month(date), day(date), sep="-")),
         variable = "value.21", value = rollmean
-    )]
+    )][yday(date) < max.day]
 )
 
 d.comp.month = d.comp[, .(v = sum(value)), by = .(month = month(date), variable)]
@@ -371,6 +373,8 @@ d.comp.year = rbind(d.comp.year,
 d.comp = rbind(d.comp.month,
                 d.comp.year)
 
+d.comp$month = factor(d.comp$month, level = c(c(1:12), "Kumulativ seit März"))
+
 d.comp = merge(d.comp[variable == 'value', .(month, value = v)], d.comp[, .(month, type = variable, est = v)])
 
 d.comp[, rel := value/est]
@@ -379,10 +383,7 @@ d.comp[, g100 := round((rel - 1)*100, 2)]
 d.comp = dcast(d.comp, month ~ type, value.var = "g100")
 d.comp[, value := NULL]
 setcolorder(d.comp, c('month', 'value.21', 'value.mean', 'pred.base', 'pred.power'))
-setnames(d.comp, c('Monat', 'zum Vorjahr',glue('zum Zeitraum {START.YEAR}-{END.YEAR}'), 'in Variante 1', 'in Variante 2'))
-
-
-
+setnames(d.comp, c('Monat', 'zum Vorjahr',glue('zum Zeitraum {PERIOD.START}-{END.YEAR}'), 'in Modellvariante 1', 'in Modellvariante 2'))
 
 kable(d.comp, format.args = list(decimal.mark = ','), caption = )
 ```
