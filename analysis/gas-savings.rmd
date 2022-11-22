@@ -20,7 +20,7 @@ min(d.base$date)
 
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
-# d.base = d.base[year >= 2017]
+# d.base = d.base[year >= 2017] 
 
 START.YEAR = min(d.base$year)
 LAST.YEAR = max(d.base$year)
@@ -28,7 +28,8 @@ END.YEAR = LAST.YEAR - 1
 
 max.day = d.base %>% 
     filter(year == LAST.YEAR) %>% 
-    summarize(max.day = max(day))
+    summarize(max.day = max(day)) %>% 
+    unlist()
 
 mean.gas = d.base %>% 
     filter(year <= END.YEAR) %>% 
@@ -332,6 +333,17 @@ In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also G
 
 #### Gaskonsumveränderungen in %
 ```{r regressionResultComparison}
+
+nmb.years = d.comb$year %>% unique() %>% length - 1
+
+d.long.term.average.month = d.comb[day < max.day][(date <= "2022-01-01"), 
+                             .(variable = "value.mean", 
+                               v = sum(value) / nmb.years), by=c("month")][month > 2]
+
+d.long.term.average.year = d.comb[day < max.day][month>2][(date <= "2022-01-01"), 
+                             .(variable = "value.mean", 
+                               v = sum(value) / nmb.years), ]
+
 d.comp = rbind(
     l.model.base$d.plot[variable %in% c('value')][date >= "2022-03-01"][, .(
         date, variable = "value", value = rollmean
@@ -348,7 +360,17 @@ d.comp = rbind(
     )]
 )
 
-d.comp = d.comp[, .(v = sum(value)), by = .(month = month(date), variable)]
+d.comp.month = d.comp[, .(v = sum(value)), by = .(month = month(date), variable)]
+d.comp.month = rbind(d.comp.month,
+               d.long.term.average.month)
+
+d.comp.year = d.comp[, .(v = sum(value)), by = .(variable)]
+d.comp.year = rbind(d.comp.year,
+                    d.long.term.average.year)[, .(month = "Kumulativ seit März", variable, v), ]
+
+d.comp = rbind(d.comp.month,
+                d.comp.year)
+
 d.comp = merge(d.comp[variable == 'value', .(month, value = v)], d.comp[, .(month, type = variable, est = v)])
 
 d.comp[, rel := value/est]
@@ -356,8 +378,11 @@ d.comp[, g100 := round((rel - 1)*100, 2)]
 
 d.comp = dcast(d.comp, month ~ type, value.var = "g100")
 d.comp[, value := NULL]
-setcolorder(d.comp, c('month', 'value.21', 'pred.base', 'pred.power'))
-setnames(d.comp, c('Monat', 'zum Vorjahr', 'in Variante 1', 'in Variante 2'))
+setcolorder(d.comp, c('month', 'value.21', 'value.mean', 'pred.base', 'pred.power'))
+setnames(d.comp, c('Monat', 'zum Vorjahr',glue('zum Zeitraum {START.YEAR}-{END.YEAR}'), 'in Variante 1', 'in Variante 2'))
+
+
+
 
 kable(d.comp, format.args = list(decimal.mark = ','), caption = )
 ```
