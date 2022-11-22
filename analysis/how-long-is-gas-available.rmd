@@ -1,0 +1,68 @@
+---
+title: "Gas Savings estimation explanation"
+output: md_document
+date: '2022-11-20'
+---
+# Reicht das Gas über den Winter?
+
+Laut [energie.gv.at](https://energie.gv.at) liegen in österreichischen Speichern 25 TWh Gas von österreichischen Energielieferanten oder Unternehmen - dazu kommt die strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer Eigenproduktion in Österreich von 4 TWh und Importen von 33 TWh rechnen - außer Russland stoppt die Exporte, dann würden Importe von 22 TWh in der gesamten Periode erwartet werden. Wir zeigen in der Grafik, wie sich der Gasverbrauch in Österreich im Winter im Vergleich zu den Vorjahren entwickelt hat - und wieviel wir maximal verbrauchen dürfen, ohne die strategische Gasreserve (20 TWh) verwenden zu müssen.  
+
+    ```{r setupBase, include=FALSE}
+# - INIT -----------------------------------------------------------------------
+source("calc/prediction-gas-consumption/_shared.r")
+loadPackages(tidyverse, knitr)
+output.file=""
+output.folder=""
+# - CONF -----------------------------------------------------------------------
+# ggplot theme
+source("export/analysis/_theme.r")
+```
+
+```{r setupData, include=FALSE}
+d.base = loadBase(TRUE)
+
+months = tibble(number = c(1:7),
+                name = c("Oktober", "November", "Dezember", "Jänner", "Februar", "März", "April"))
+
+days_of_months = c(1, 30, 31, 31, 28, 31, 30)
+
+gas.from.russia.winter = 10
+
+gas.from.russia.per.day = gas.from.russia.winter / (sum(days_of_months[1:6]))
+
+days.since.november = as.numeric(difftime(Sys.Date(), as.POSIXct("2022-10-01")))
+
+gas.availability.russia = 62
+
+gas.availability.no.russia = 52 + days.since.november * gas.from.russia.per.day
+
+annotation <- tibble(label=c("Gasverfügbarkeit Winter: Szenario mit russischem Gas", "Gasverfügbarkeit Winter: Szenario ohne russisches Gas"),
+                     x = c(60, 62),
+                     y = c(gas.availability.russia, gas.availability.no.russia))
+
+COLORS <- c("#c3423f", "#86cae7", "#b5c969", "#95c969")
+
+d.base %>%
+    mutate(date_shift = date - months(9)) %>%
+    mutate(year_shift = year(date_shift)) %>%
+    filter(month(date_shift) < 7) %>%
+    filter(year_shift > 2018) %>%
+    group_by(year_shift) %>%
+    mutate(cumvalue = cumsum(value)) %>%
+    ungroup() %>%
+    mutate(day_shift = yday(date_shift)) %>%
+    mutate(`Winter half year`=as.character(year_shift)) %>%
+    ggplot(aes(x=day_shift, y=cumvalue)) +
+    geom_line(aes(col=`Winter half year`), size = 1) +
+    theme_bw() +
+    xlab("Monat") +
+    ylab("Kumulativer Gaskonsum Winterperiode (Oktober - März)\n (TWh)") +
+    scale_x_continuous(breaks=cumsum(days_of_months),
+                       labels=months$number) +
+    geom_abline(intercept = gas.availability.russia, slope = 0, linetype = 2) +
+    geom_abline(intercept = gas.availability.no.russia, slope = 0, linetype = 2) +
+    geom_label(data=annotation, aes( x=x, y=y, label=label),                 ,
+               size=3 , fontface = "bold" ) +
+    scale_color_manual(values = rev(COLORS))
+
+```
