@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("_shared.r")
@@ -5,11 +6,17 @@ loadPackages(rmarkdown, knitr)
 
 
 # - CONF -----------------------------------------------------------------------
-output.folder = file.path(g$d$wd, "md")
+args = commandArgs(trailingOnly=TRUE)
+if (length(args) == 0) {
+    stop("Specify the markdown to render as arg", call. = FALSE)
+} else if (length(args) == 1) {
+    print(args)
+    name = args[1]
+    input.file = file.path("analysis", glue("{name}.rmd"))
+}
 
-# input.file = file.path("analysis", "gas-savings.rmd")
-input.file = file.path("analysis", "how-long-is-gas-available.rmd")
-output.file = "gas-savings"
+output.file = name
+output.folder = file.path(g$d$wd, "md")
 
 
 # - RENDER ---------------------------------------------------------------------

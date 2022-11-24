@@ -31,7 +31,7 @@ theme_update(
 
 knitr::opts_chunk$set(
     echo = FALSE, warning = FALSE, message = FALSE,
-    fig.width = 1000/96, fig.height = 4.5,
+    fig.width = 1000/96, fig.height = 5,
     dpi = 96*3, dev.args = list(bg = "transparent")
 )
 
@@ -43,5 +43,7 @@ if (exists("output.file")) {
     knitr::opts_chunk$set(fig.path = glue("{output.file}_files/figure-markdown_strict/"))
     rm(output.file)
 }
+
+options(OutDec= ",")
 
 rm(line.color)

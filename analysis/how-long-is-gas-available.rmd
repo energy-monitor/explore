@@ -32,6 +32,10 @@ gas.availability.no.russia = 52 + days.since.november * gas.from.russia.per.day
 COLORS <- c("#c3423f", "#86cae7", "#b5c969", "#95c969")
 ```
 # Reicht das Gas über den Winter?
+<p class="meta">
+    Datenstand: `r max(d.base$date)` | 
+    Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-availability.rmd" target="_blank">↗</a>
+</p>
 
 Laut [energie.gv.at](https://energie.gv.at) liegen in österreichischen Speichern 25 TWh Gas von österreichischen Energielieferanten oder Unternehmen - dazu kommt die strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer Eigenproduktion in Österreich von 4 TWh und Importen von 33 TWh rechnen - außer Russland stoppt die Exporte, dann würden Importe von 22 TWh in der gesamten Periode erwartet werden. Wir zeigen in der Grafik, wie sich der Gasverbrauch in Österreich im Winter im Vergleich zu den Vorjahren entwickelt hat - und wieviel wir maximal verbrauchen dürfen, ohne die strategische Gasreserve (20 TWh) verwenden zu müssen.  
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # - FILES ----------------------------------------------------------------------
 path = "export/data"
 c.scripts = grep("^[0-9a-z].*", list.files(path), value = TRUE)

@@ -1,7 +1,7 @@
 ---
-title: "Gas Savings estimation explanation"
+title: "Gas Savings Analysis"
 output: md_document
-date: '2022-11-20'
+date: '2022-11-24'
 ---
 
 ```{r setupBase, include=FALSE}
@@ -13,59 +13,27 @@ loadPackages(tidyverse, knitr)
 
 ```{r setupData, include=FALSE}
 d.base = loadBase(FALSE)
-min(d.base$date)
-
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017] 
 
-START.YEAR = min(d.base$year)
-LAST.YEAR = max(d.base$year)
-END.YEAR = LAST.YEAR - 1
+max.date = d.base[max(date) == date]$date
+max.day = yday(max.date)
 
-max.day = d.base %>% 
-    filter(year == LAST.YEAR) %>% 
-    summarize(max.day = max(day)) %>% 
-    unlist()
-
-mean.gas = d.base %>% 
-    filter(year <= END.YEAR) %>% 
-    filter(day <= max.day) %>% 
-    group_by(year) %>% 
-    summarize(sum.val = sum(value)) %>% 
-    summarize(sum.val.mean = mean(sum.val))
-
-mean.hdd = d.base %>% 
-    filter(year <= END.YEAR) %>% 
-    filter(day <= max.day) %>% 
-    group_by(year) %>% 
-    summarize(sum.val = sum(hdd)) %>% 
-    summarize(sum.val.mean = mean(sum.val))
-
-relative.savings = d.base %>% 
-    group_by(year) %>% 
-    filter(day <= max.day) %>% 
-    summarize(rel.save = 100 * (sum(value)-mean.gas$sum.val.mean)/mean.gas$sum.val.mean)
-
-relative.hdd = d.base %>% 
-    group_by(year) %>% 
-    filter(day <= max.day) %>% 
-    summarize(rel.hdd = 100 * (sum(hdd)-mean.hdd$sum.val.mean)/mean.hdd$sum.val.mean)
-
-savings.last.year = relative.savings %>% 
-    filter(year == LAST.YEAR) %>% 
-    dplyr::select(rel.save)
-
-
-# remove most recent
-# d.base = d.base[date <= "2022-11-10"]
+d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value)*10^3), by=year]
+mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
+d.gas.years[, rel := mean/mean.gas.before22]
+savings.2022 = 1 - d.gas.years[year == 2022, rel]
 ```
-
 # Temperaturkorrigierte Einsparungen des Gasverbrauchs
+<p class="meta">
+    Datenstand: `r max(d.base$date)` | 
+    Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-savings.rmd" target="_blank">↗</a>
+</p>
 
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn der Verbrauch in Summe um `r round(savings.last.year)` % unter dem Schnitt `r START.YEAR`-`r END.YEAR`. Der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown Jahr 2020.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Schnitt `r min(d.base$year)` - 2021 Der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown Jahr 2020.
 
 Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin [↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
 
@@ -85,7 +53,6 @@ Außerdem verwenden wir Informationen über Ferien, Feiertage, und COVID-Lockdow
 ## Analyse
 
 Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt fast durchwegs beträchtliche Einsparungen seit Mitte Juli vermuten.
-
 Die Temperatur hat allerdings erwartungsgemäß einen großen Einfluss auf den Gaskonsum, wie die folgende Grafik zeigt:
 
 ```{r consumTemp}
@@ -190,7 +157,7 @@ l.model.base = estimate(model.base, d.comb)
 
 Wir verwenden ein einfaches lineares Modell (OLS), um den Einfluss der Temperatur auf den Verbrauch abzuschätzen. Dies ermöglicht uns in Folge eine Prognose der Einsparungen zu berechnen: wir schätzen die Abhängigkeit des Gasverbrauchs von der Temperatur für den Zeitraum vor der Energiekrise (2015-2021) und prognostizieren damit dann den Gaskonsum im Jahr 2022. Diese Prognose vergleichen wir in Folge mit dem tatsächlichen Gaskonsum im Jahr 2022.
 
-Da wir tägliche Daten verwenden, haben wir auch Tagesspezifika in die Regression eingefügt, welche auch Auswirkungen auf den tagespezifischen Gaskonsum haben (bspw. Wochentag, Feiertag, Covid19-Lockdowns, ...). Diese verwendeten Datenreihen sind allesamt täglich seit 2015 verfügbar.
+Da wir tägliche Daten verwenden, haben wir auch Tagesspezifika in die Regression eingefügt, welche auch Auswirkungen auf den tagespezifischen Gaskonsum haben (bspw. Wochentag, Feiertag, Covid19-Lockdowns, ...). Diese verwendeten Datenreihen sind allesamt täglich seit 2015 verfügbar, wir haben daher `r nrow(d.base)` Beobachtungen.
 
 Das spezifizierte Modell sieht folgendermaßen aus:
 
@@ -238,7 +205,7 @@ getSummaryTable = function(m) {
     d$term = NULL
     d$`t value` = NULL
     setcolorder(d, "Variable")
-    kable(d, align = "r", digits = 3, format.args = list(decimal.mark = ','))
+    kable(d, align = "r", digits = 3)
 }
 ```
 
@@ -247,7 +214,7 @@ getSummaryTable = function(m) {
 getSummaryTable(l.model.base$m)
 ```
 
-Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr `r LAST.YEAR` geschätzt. Der Unterschied der in 2022 beobachteten Werte von unserer Prognose kann als temperaturunabhängige Konsumänderung interpretiert werden. Von Juni bis Mitte Oktober war der beobachtete Wert fast immer unter unserer Schätzung, wir gehen daher für diesen Zeitraum von Einsparungen, die über die klimatischen Bedingungen hinausgehen, aus.
+Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 geschätzt. Der Unterschied der in 2022 beobachteten Werte von unserer Prognose kann als temperaturunabhängige Konsumänderung interpretiert werden. Von Juni bis Mitte Oktober war der beobachtete Wert fast immer unter unserer Schätzung, wir gehen daher für diesen Zeitraum von Einsparungen, die über die klimatischen Bedingungen hinausgehen, aus.
 
 ```{r modelResultLevelsBase}
 d.plot = rbind(
@@ -262,7 +229,7 @@ d.plot %>%
     ggplot(aes(x = date, y = rollmean, color = variable)) +
         geom_line(size = 1) +
         scale_color_manual(values = COLORS, name = NULL, labels = c(
-            value = "Beobachtung", prediction = "Schätzung", value21 = "Vorjahr")
+            value = "Beobachtung", prediction = "Schätzung - Modellvariante 1", value21 = "Vorjahr")
         ) +
         # scale_y_continuous(labels = scales::comma())
         scale_x_date(date_labels = "%b", date_breaks = "1 month") +
@@ -286,7 +253,7 @@ dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "r
         scale_x_date(date_labels = "%b", date_breaks ="1 month") +
         scale_y_continuous(n.breaks = 10) +
         labs(
-            title = "Veränderung Gasverbrauch", 
+            title = "Veränderung Gasverbrauch - Modellvariante 1", 
             subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
         )
 ```
@@ -322,73 +289,80 @@ dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "
         scale_x_date(date_labels = "%b", date_breaks ="1 month") +
         scale_y_continuous(n.breaks = 10) +
         labs(
-            title = "Veränderung Gasverbrauch - Variante 2", 
+            title = "Veränderung Gasverbrauch - Modellvariante 2", 
             subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
         )
 ```
 
 ## Schlussfolgerungen
 
-In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten sogar bis zu 16%.
+In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also Gas gespart - in einzelnen Monaten sogar über 15%.
 
 #### Gaskonsumveränderungen in %
 ```{r regressionResultComparison}
 
-PERIOD.START = 2019
+startDate = "2022-03-01"
+c.years.avg = 2017:2021
 
-nmb.years = END.YEAR - PERIOD.START + 1
+d.comp.pred = rbind(
+    l.model.base$d.plot[variable %in% c('prediction')][date >= startDate][, .(
+        date, variable = "pred.base", value
+    )],
+    l.model.power$d.plot[variable %in% c('prediction')][date >= startDate][, .(
+        date, variable = "pred.power", value
+    )]
+)[, .(value = sum(value)), by = .(month = month(date), variable)]
 
-d.long.term.average.month = d.comb[day < max.day][(date <= "2022-01-01" & year(date) >= PERIOD.START), 
-                             .(variable = "value.mean", 
-                               v = sum(value) / nmb.years), by=c("month")][month > 2]
-
-d.long.term.average.year = d.comb[day < max.day][month>2][(date <= "2022-01-01") & year(date) > 2018, 
-                             .(variable = "value.mean", 
-                               v = sum(value) / nmb.years), ]
+d.data.agg = d.base[day <= max.day & month >= 3, .(
+    value = sum(value)
+), by = .(month = month(date), year = year(date))]
 
 d.comp = rbind(
-    l.model.base$d.plot[variable %in% c('value')][date >= "2022-03-01"][, .(
-        date, variable = "value", value = rollmean
-    )],
-    l.model.base$d.plot[variable %in% c('prediction')][date >= "2022-03-01"][, .(
-        date, variable = "pred.base", value = rollmean
-    )],
-    l.model.power$d.plot[variable %in% c('prediction')][date >= "2022-03-01"][, .(
-        date, variable = "pred.power", value = rollmean
-    )],
-    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2022-01-01"][, .(
-        date = as.Date(paste("2022", month(date), day(date), sep="-")),
-        variable = "value.21", value = rollmean
-    )][yday(date) < max.day]
+    d.comp.pred,
+    d.data.agg[year %in% c.years.avg, .(variable = "avg", value = mean(value)), by = month],
+    d.data.agg[year == 2022, .(month, variable = "value.22", value)],
+    d.data.agg[year == 2021, .(month, variable = "value.21", value)]
 )
 
-d.comp.month = d.comp[, .(v = sum(value)), by = .(month = month(date), variable)]
-d.comp.month = rbind(d.comp.month,
-               d.long.term.average.month)
+d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, locale = "de_AT.UTF-8"))]
 
-d.comp.year = d.comp[, .(v = sum(value)), by = .(variable)]
-d.comp.year = rbind(d.comp.year,
-                    d.long.term.average.year)[, .(month = "Kumulativ seit März", variable, v), ]
 
-d.comp = rbind(d.comp.month,
-                d.comp.year)
+d.comp.a = rbind(
+    d.comp[, .(month.name, variable, value)],
+    d.comp[month >= 3, .(month.name = '**Seit März**', value = sum(value)), by=variable],
+    d.comp[month >= 8, .(month.name = '**Seit August**', value = sum(value)), by=variable]
+)
 
-d.comp$month = factor(d.comp$month, level = c(c(1:12), "Kumulativ seit März"))
+d.comp.a[, month.name := factor(
+    month.name, unique(d.comp.a$month.name), unique(d.comp.a$month.name)
+)]
 
-d.comp = merge(d.comp[variable == 'value', .(month, value = v)], d.comp[, .(month, type = variable, est = v)])
 
-d.comp[, rel := value/est]
-d.comp[, g100 := round((rel - 1)*100, 2)]
+d.comp.c = merge(
+    d.comp.a[variable == 'value.22', .(month.name, value)], 
+    d.comp.a[, .(month.name, variable, comparison = value)],
+    by = "month.name"
+)
 
-d.comp = dcast(d.comp, month ~ type, value.var = "g100")
-d.comp[, value := NULL]
-setcolorder(d.comp, c('month', 'value.21', 'value.mean', 'pred.base', 'pred.power'))
-setnames(d.comp, c('Monat', 'zum Vorjahr',glue('zum Zeitraum {PERIOD.START}-{END.YEAR}'), 'in Modellvariante 1', 'in Modellvariante 2'))
+d.comp.c[, rel := value/comparison]
+d.comp.c[, g100 := round((rel - 1)*100, 2)]
 
-kable(d.comp, format.args = list(decimal.mark = ','), caption = )
+d.comp.f = dcast(d.comp.c, month.name ~ variable, value.var = "g100")
+d.comp.f[, value.22 := NULL]
+
+setcolorder(d.comp.f, c('month.name', 'value.21', 'avg', 'pred.base', 'pred.power'))
+
+c.trans = c(
+    'month.name' = "2022", 
+    'value.21'   = "zum Vorjahr", 
+    'avg'        = glue('zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}'), 
+    'pred.base'  = "in Modellvariante 1", 
+    'pred.power' = "in Modellvariante 2"
+)
+
+setnames(d.comp.f, names(c.trans), c.trans)
+
+kable(d.comp.f, align = "r", escape = FALSE)
 ```
 
-In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2019-2021 aufgeführt - daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal inklusive Stromproduktion (Modellvariante 2).
-
-
-
+In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2017-2021 aufgeführt - daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal inklusive Stromproduktion (Modellvariante 2).
