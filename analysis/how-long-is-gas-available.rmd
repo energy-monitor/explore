@@ -32,17 +32,18 @@ storage.start.domestic = 27.09
 storage.at = loadFromStorage("storage-AT") %>% 
     filter(year(gasDayStart) == 2022)  
 
-storage.at.max = storage.at %>% 
-    summarize(value = max(gasInStorage, na.rm = TRUE))
+storage.at.fill.state = storage.at %>% 
+    filter(gasDayStart == "2022-11-15") %>% 
+    mutate(value = gasInStorage)
 
 storage.at.last = storage.at %>% 
     arrange(gasDayStart) %>% 
     slice_tail() %>% 
     mutate(value = gasInStorage)
 
-proportion.domestic.international = (storage.start.domestic) / (storage.at.max$value -  storage.start.strategic)
+proportion.domestic.international = (storage.start.domestic) / (storage.at.fill.state$value -  storage.start.strategic)
 
-change.in.storage = (storage.at.max$value - storage.at.last$value) * proportion.domestic.international
+change.in.storage = (storage.at.fill.state$value - storage.at.last$value) * proportion.domestic.international
 
 storage.start.domestic = storage.start.domestic - change.in.storage
 ```
