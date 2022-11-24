@@ -165,7 +165,7 @@ Das spezifizierte Modell sieht folgendermaßen aus:
 $$\begin{aligned} Konsum_d = \alpha + &\beta_{\bullet} t + \beta_{\bullet} t^2 + \\ &\beta_{\bullet} {Temp}_d + \beta_{\bullet} {Temp}_{d-1} + \beta_{\bullet} {Temp}_d^2 + \\ &\beta_{\bullet} Feiertag_d + \beta_{\bullet} Lockdown^{hard}_d + \beta_{\bullet} Lockdown^{soft}_d + \\ &\sum_i{\beta_{\bullet} Wochentag_{id}} + \sum_i{\beta_{\bullet} Ferientyp_{id}} \end{aligned}$$
 ```
 
-Bei $t$ handelt es sich um einen linearen Trend und bei Temp um die vorhin beschriebene modifizierte mittlere Tagestemperatur.
+Bei `t` handelt es sich um einen linearen Trend und bei `Temp` um die vorhin beschriebene modifizierte mittlere Tagestemperatur.
 
 ### Ergebnisse
 
