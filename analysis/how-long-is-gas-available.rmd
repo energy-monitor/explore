@@ -9,65 +9,186 @@ date: '2022-11-20'
 source("calc/prediction-gas-consumption/_shared.r")
 source("export/analysis/_theme.r")
 loadPackages(tidyverse, knitr)
+
+days_of_months = c(31, 30, 31, 31, 28, 31)
+
+### these values are taken from https://energie.gv.at/gut-zu-wissen/wie-wird-der-winter
+gas.from.russia = 10
+gas.from.russia.per.day = gas.from.russia / (sum(days_of_months))
+
+gas.domestic = 4
+gas.domestic.per.day = gas.domestic / (sum(days_of_months))
+
+gas.from.others = 33
+gas.from.others.per.day = gas.from.others / (sum(days_of_months))
+
+### values from energie.gv.at (Eigentumsverhältnisse Gasspeicher)
+### these values are not updated regularly
+### I therefore update them proportional to emptying the complete gas storage
+### Date of the initial data is 15/11/2022
+storage.start.strategic = 20
+storage.start.domestic = 27.09
+
+storage.at = loadFromStorage("storage-AT") %>% 
+    filter(year(gasDayStart) == 2022)  
+
+storage.at.max = storage.at %>% 
+    summarize(value = max(gasInStorage, na.rm = TRUE))
+
+storage.at.last = storage.at %>% 
+    arrange(gasDayStart) %>% 
+    slice_tail() %>% 
+    mutate(value = gasInStorage)
+
+proportion.domestic.international = (storage.start.domestic) / (storage.at.max$value -  storage.start.strategic)
+
+change.in.storage = (storage.at.max$value - storage.at.last$value) * proportion.domestic.international
+
+storage.start.domestic = storage.start.domestic - change.in.storage
 ```
 
-```{r setupData, include=FALSE}
-d.base = loadBase(FALSE)
-
-months = tibble(number = c(1:7),
-                name = c("Oktober", "November", "Dezember", "Jänner", "Februar", "März", "April"))
-
-days_of_months = c(1, 30, 31, 31, 28, 31, 30)
-
-gas.from.russia.winter = 10
-
-gas.from.russia.per.day = gas.from.russia.winter / (sum(days_of_months[1:6]))
-
-days.since.november = as.numeric(difftime(Sys.Date(), as.POSIXct("2022-10-01")))
-
-gas.availability.russia = 62
-
-gas.availability.no.russia = 52 + days.since.november * gas.from.russia.per.day
-
-COLORS <- c("#c3423f", "#86cae7", "#b5c969", "#95c969")
-```
 # Reicht das Gas über den Winter?
 <p class="meta">
     Datenstand: `r max(d.base$date)` | 
     Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-availability.rmd" target="_blank">↗</a>
 </p>
 
-Laut [energie.gv.at](https://energie.gv.at) liegen in österreichischen Speichern 25 TWh Gas von österreichischen Energielieferanten oder Unternehmen - dazu kommt die strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer Eigenproduktion in Österreich von 4 TWh und Importen von 33 TWh rechnen - außer Russland stoppt die Exporte, dann würden Importe von 22 TWh in der gesamten Periode erwartet werden. Wir zeigen in der Grafik, wie sich der Gasverbrauch in Österreich im Winter im Vergleich zu den Vorjahren entwickelt hat - und wieviel wir maximal verbrauchen dürfen, ohne die strategische Gasreserve (20 TWh) verwenden zu müssen.  
+Laut [energie.gv.at](https://energie.gv.at) lagen am 15.11.2022 `r storage.start.domestic` TWh Gas in österreichischen Speichern welches für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer österreichischen Gaseigenproduktion von 4 TWh rechnen - und mit Importen von 33 TWh. Falls Russland die Exporte stoppt, würden Importe von 22 TWh in der gesamten Periode erwartet werden. 
 
-```{r plot}
+In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zuünftige Gasproduktion im Inland - können wir dann Szenarien für den Gasspeicherstand über den Winter berechnen. Der aktuelle Speicherstand wir so miteinbezogen, dass wir annehmen, dass die Abnahme im Speicherstand der österreichischen Kund/innen proportional zur Abnahme des Speicherstands der ausländischen Kund/innen erfolgt. 
+
+```{r setupData, include=FALSE}
+
+d.base = loadBase(update = TRUE)
+
+temp.threshold = 14
+
+d.comb = copy(d.base)
+d.comb[, `:=`(
+    temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
+    temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
+)]
+
+d.comb[, `:=`(
+    week = str_pad(week, 2, pad = "0"),
+    temp.below.threshold.squared = temp.below.threshold^2,
+    temp.below.threshold.lag = shift(temp.below.threshold, 1),
+    year_character = as.character(year)
+)]
+
+model.base = value ~
+    #t + t.squared + # week + 
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    wday + is.holiday + as.factor(vacation.name) 
+
+max.date = max(d.comb$date)
+
+d.train = d.comb[(date > (max.date - 365))]
+
+m.linear = lm(model.base, data = d.train)
+
+d.hdd = loadFromStorage(id = "temperature-hdd")[, `:=`(
+        date = as.Date(date)
+    )]
+
+d.hdd = d.hdd[, c("date", "temp")]
+d.hdd = d.hdd[, `:=` (date = date - 90)]
+d.hdd[ , `:=` (day = yday(date),
+               year = year(date)), ]
+
+
+
+one.prediction = function(year.select, temp.in, m.linear, d.base) {
+    
+    temp.in = temp.in[year == year.select]
+    
+    d.prediction = copy(d.base)
+
+    
+    
+    d.prediction[, `:=`(
+        temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
+        temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
+    )]
+
+    d.prediction[ , `:=`(week = str_pad(week(date), 2, pad = "0"),
+        wday = factor(as.character(clock::date_weekday_factor(date)),
+                      c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")),
+        temp.below.threshold.squared = temp.below.threshold^2,
+        temp.below.threshold.lag = shift(temp.below.threshold, 1),
+        year_character = as.character(year)
+    )]
+    
+    d.prediction[ ,`:=`(date = date + 365), ]
+
+    d.prediction = d.prediction[date > max.date & date < "2023-04-01"]
+    
+    d.prediction[ ,`:=`(date = date - 90), ]
+    
+    d.prediction[ ,`:=`(day = yday(date)), ]
+
+    
+    d.prediction = merge(d.prediction, temp.in, by = "day")[, `:=` (temp = temp.y), ]
+    
+     d.prediction[, `:=`(
+        temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
+        temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
+    )]
+    
+    prediction = predict(m.linear, d.prediction)
+
+    d.prediction[ , `:=`(day = day,
+                         year = year.y,
+                     value = cumsum(prediction),
+                     storage.strategic = storage.start.strategic,
+                     storage.domestic = storage.start.domestic,
+                     gas.from.russia = gas.from.russia.per.day,
+                     gas.other = gas.from.others.per.day + gas.domestic.per.day)]
+
+
+    d.prediction[ , `:=`(storage.with.russia = storage.domestic + storage.strategic - value + cumsum(gas.from.russia) + cumsum(gas.other),
+                     storage.without.russia = storage.domestic + storage.strategic - value + cumsum(gas.other))]
+
+    d.prediction = d.prediction %>% 
+        dplyr::select(day,
+                      year,
+                  storage.with.russia,
+                  storage.without.russia,
+                  ) %>% 
+        gather(variable, value, -day, -year) %>% 
+        mutate(year = year.select)
+    
+    return(d.prediction)
+}
+
+d.all.years = bind_rows(lapply(1950:2021, one.prediction, d.hdd, m.linear, d.base)) %>% as.data.table()
+
+d.all.years[ ,`:=` (day.name = day + 90)]
+
+d.all.years[ ,`:=` (date = (as.Date(day.name, origin = "2022-01-01"))),]
+
 annotation <- tibble(
     label = c(
-        "Gasverfügbarkeit Winter: Szenario mit russischem Gas", 
-        "Gasverfügbarkeit Winter: Szenario ohne russisches Gas"
+        "Strategische Gasreserve", 
+        ""
     ),
-    x = c(60, 62),
-    y = c(gas.availability.russia, gas.availability.no.russia)
+    x = c(as.Date("2023-01-01")),
+    y = c(22)
 )
 
-d.base %>%
-    mutate(date_shift = date - months(9)) %>%
-    mutate(year_shift = year(date_shift)) %>%
-    filter(month(date_shift) < 7) %>%
-    filter(year_shift > 2018) %>%
-    group_by(year_shift) %>%
-    mutate(cumvalue = cumsum(value)) %>%
-    ungroup() %>%
-    mutate(day_shift = yday(date_shift)) %>%
-    mutate(`Winter half year`=as.character(year_shift)) %>%
-    ggplot(aes(x=day_shift, y=cumvalue)) +
-        geom_line(aes(col=`Winter half year`), size = 1) +
-        xlab("Monat") + ylab(NULL) +
-        scale_x_continuous(breaks=cumsum(days_of_months),
-                           labels=months$number) +
-        geom_abline(intercept = gas.availability.russia, slope = 0, linetype = 2) +
-        geom_abline(intercept = gas.availability.no.russia, slope = 0, linetype = 2) +
-        geom_label(data=annotation, aes( x=x, y=y, label=label),
-                   size=3 , fontface = "bold" ) +
-        scale_color_manual(values = rev(COLORS)) +
-        labs(title = "Kumulativer Gaskonsum", subtitle = "Winterperiode (Oktober - März), in TWh")
+d.all.years %>% 
+    mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>% 
+    ggplot(aes(x = date, y = value)) +
+    geom_line(aes(col = as.character(year)), size = 0.3, alpha = 0.5) +
+    facet_wrap(.~variable) +
+    geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
+    ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
+    scale_color_manual(values = rgb((1:72)/ 72, 0, 0), guide = "none") +
+    xlab("") +
+    ylab("Speicherniveau (TWh)") +
+    geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3)
+
+
 ```
+
+
