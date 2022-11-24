@@ -7,16 +7,16 @@ nameOthers = "others"
 # - LOAD -----------------------------------------------------------------------
 d.base.g1 = loadFromStorage(id = "electricity-generation-g1")[,
     date := as.Date(date)
-][date < "2022-11-11"]
+]#[date < "2022-11-11"]
 
 d.base.g2 = loadFromStorage(id = "electricity-generation-g2")[,
     date := as.Date(date)
-][date < "2022-11-11"]
+]#[date < "2022-11-11"]
 # unique(d.base$source.group)
 
 
 # - AT -------------------------------------------------------------------------
-d.plot = d.base.g1[date < "2022-11-01" & date > "2019-01-01" & country == "AT", .(
+d.plot = d.base.g1[date > "2019-01-01" & country == "AT", .(
     value = sum(value)
 ), by = .(date = {t = as.Date(date); day(t) = 1; t}, source.group)]
 

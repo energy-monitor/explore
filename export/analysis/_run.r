@@ -7,7 +7,8 @@ loadPackages(rmarkdown, knitr)
 # - CONF -----------------------------------------------------------------------
 output.folder = file.path(g$d$wd, "md")
 
-input.file = file.path("analysis", "gas-savings.rmd")
+# input.file = file.path("analysis", "gas-savings.rmd")
+input.file = file.path("analysis", "how-long-is-gas-available.rmd")
 output.file = "gas-savings"
 
 

@@ -1,3 +1,4 @@
+library(ggplot2)
 theme_set(theme_bw(base_family = "Century Gothic"))
 
 line.color = "black"
@@ -31,12 +32,16 @@ theme_update(
 knitr::opts_chunk$set(
     echo = FALSE, warning = FALSE, message = FALSE,
     fig.width = 1000/96, fig.height = 4.5,
-    dpi = 96*3, fig.path = glue("{output.file}_files/figure-markdown_strict/"),
-    dev.args = list(bg = "transparent")
+    dpi = 96*3, dev.args = list(bg = "transparent")
 )
 
 # knitr::opts_knit$set(base.dir = output.folder)
 
 COLORS = c("#c3423f", "#86cae7", "#b5c969")
 
-rm(output.folder, output.file, line.color)
+if (exists("output.file")) {
+    knitr::opts_chunk$set(fig.path = glue("{output.file}_files/figure-markdown_strict/"))
+    rm(output.file)
+}
+
+rm(line.color)
