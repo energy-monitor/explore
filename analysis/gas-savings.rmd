@@ -15,14 +15,14 @@ loadPackages(tidyverse, knitr)
 d.base = loadBase(FALSE)
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
-# d.base = d.base[year >= 2017] 
+# d.base = d.base[year >= 2017]
 
 max.date = d.base[max(date) == date]$date
 max.day = yday(max.date)
 
-d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value)*10^3), by=year]
+d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value) * 10^3), by = year]
 mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
-d.gas.years[, rel := mean/mean.gas.before22]
+d.gas.years[, rel := mean / mean.gas.before22]
 savings.2022 = 1 - d.gas.years[year == 2022, rel]
 ```
 # Temperaturkorrigierte Einsparungen des Gasverbrauchs
@@ -33,7 +33,7 @@ savings.2022 = 1 - d.gas.years[year == 2022, rel]
 
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Schnitt `r min(d.base$year)` - 2021 Der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown Jahr 2020.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn bspw. der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch ist damit bisher sogar niedriger als im *Lockdown-Jahr* 2020.
 
 Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin [↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
 
@@ -72,9 +72,9 @@ d.lines = data.table(
 
 ggplot(d.loess, aes(x = temp, y = value)) +
     geom_point(size = 0.4, alpha = 0.3) +
-    geom_line(data = d.lines, size = 1, alpha = 1, color = COLORS[1]) +
+    geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +
     ylab(NULL) + xlab("Temperatur in °C")  +
-    # theme(legend.position="top") 
+    # theme(legend.position="top")
     labs(title = "Gaskonsum vs Temperatur", subtitle = "in GWh, LOESS Linie")
 
 temp.threshold = 14
@@ -91,17 +91,7 @@ Unter einem Schwellwert von knapp 15 Grad Celsius wirkt der Zusammenhang sehr li
 
 # AUGMENT
 d.comb = copy(d.base)
-d.comb[, `:=`(
-    temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
-    temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
-)]
-
-d.comb[, `:=`(
-    week = str_pad(week, 2, pad = "0"),
-    temp.below.threshold.squared = temp.below.threshold^2,
-    temp.below.threshold.lag = shift(temp.below.threshold, 1),
-    year_character = as.character(year)
-)]
+addTempThreshold(d.comb, temp.threshold)
 
 estimate = function(model, d, train.years = c(2000:2021)) {
     d.train = d[year %in% train.years]
@@ -124,7 +114,7 @@ estimate = function(model, d, train.years = c(2000:2021)) {
         upper.conf = prediction.confidence$upr
     )]
 
-    d.ret[, `:=` (
+    d.ret[, `:=`(
         difference = (value - prediction) / prediction,
         diff.pred.lower = (value - lower.pred) / lower.pred,
         diff.pred.upper = (value - upper.pred) / upper.pred,
@@ -136,9 +126,13 @@ estimate = function(model, d, train.years = c(2000:2021)) {
         difference.mean = rollmean(difference, 14, fill = NA)
     )]
 
-    d.plot = d.ret[, .(date, value, prediction, difference, diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper)]
+    d.plot = d.ret[, .(
+        date, value, prediction, difference,
+        diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper
+    )]
+
     d.plot = melt(d.plot, id.vars = "date")
-    d.plot[, rollmean := rollmean(value, 14, fill = NA, align = "right"), by=variable]
+    d.plot[, rollmean := rollmean(value, 14, fill = NA, align = "right"), by = variable]
 
     list(
         m = m.linear,
@@ -148,8 +142,8 @@ estimate = function(model, d, train.years = c(2000:2021)) {
 }
 
 model.base = value ~
-    t + t.squared + # week + 
-    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    t + t.squared + # week +
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
 l.model.base = estimate(model.base, d.comb)
@@ -173,32 +167,32 @@ Die Ergebnisse der Regression zeigen, erwartungsgemäß, dass mit höherem `Temp
 
 ```{r regressionResulDef, include=FALSE}
 c.nice.names = c(
-    `(Intercept)` = "(Intercept)", 
-    t = "t", 
-    t.squared = "t²", 
-    temp.below.threshold = "Temp", 
-    temp.below.threshold.lag = "Temp Lag", 
-    temp.below.threshold.squared = "Temp²", 
-    wdayTue = "Dummy Dienstag", 
-    wdayWed = "Dummy Mittwoch", 
-    wdayThu = "Dummy Donnerstag", 
-    wdayFri = "Dummy Freitag", 
-    wdaySat = "Dummy Samstag", 
-    wdaySun = "Dummy Sonntag", 
-    is.holidayTRUE = "Dummy Feiertag", 
-    `as.factor(vacation.name)august` = "Dummy Sommerferien (August)", 
-    `as.factor(vacation.name)christmasNewYear` = "Dummy Weihnachtsferien (1. Woche)", 
-    `as.factor(vacation.name)eastern` = "Dummy Osterferien", 
-    `as.factor(vacation.name)holy` = "Dummy Karwoche", 
-    `as.factor(vacation.name)july` = "Dummy Sommerferien (Juli)", 
-    `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)", 
-    is.lockdownTRUE = "Lockdown Soft", 
+    `(Intercept)` = "(Intercept)",
+    t = "t",
+    t.squared = "t²",
+    temp.below.threshold = "Temp",
+    temp.below.threshold.lag = "Temp Lag",
+    temp.below.threshold.squared = "Temp²",
+    wdayTue = "Dummy Dienstag",
+    wdayWed = "Dummy Mittwoch",
+    wdayThu = "Dummy Donnerstag",
+    wdayFri = "Dummy Freitag",
+    wdaySat = "Dummy Samstag",
+    wdaySun = "Dummy Sonntag",
+    is.holidayTRUE = "Dummy Feiertag",
+    `as.factor(vacation.name)august` = "Dummy Sommerferien (August)",
+    `as.factor(vacation.name)christmasNewYear` = "Dummy Weihnachtsferien (1. Woche)",
+    `as.factor(vacation.name)eastern` = "Dummy Osterferien",
+    `as.factor(vacation.name)holy` = "Dummy Karwoche",
+    `as.factor(vacation.name)july` = "Dummy Sommerferien (Juli)",
+    `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)",
+    is.lockdownTRUE = "Lockdown Soft",
     is.hard.lockdownTRUE = "Lockdown Hard",
     gas.power = "Gasverbrauch zur Stromerzeugung"
 )
 
 getSummaryTable = function(m) {
-    d = data.table(coef(summary(m)), keep.rownames = 'term')
+    d = data.table(coef(summary(m)), keep.rownames = "term")
     d[, Variable := c.nice.names[term]]
     d[is.na(Variable), Variable := term]
     d$`Pr(>|t|)` = NULL
@@ -218,16 +212,16 @@ Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 ge
 
 ```{r modelResultLevelsBase}
 d.plot = rbind(
-    l.model.base$d.plot[variable %in% c('value', 'prediction')][date >= "2022-03-01"],
-    l.model.base$d.plot[variable %in% c('value')][date >= "2021-03-01" & date <= "2021-11-10"][, .(
-        date = as.Date(paste("2022", month(date), day(date), sep="-")),
+    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
+    l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+        date = as.Date(paste("2022", month(date), day(date), sep = "-")),
         variable = "value21", value, rollmean
     )]
 )
 
 d.plot %>%
     ggplot(aes(x = date, y = rollmean, color = variable)) +
-        geom_line(size = 1) +
+        geom_line(linewidth = 1) +
         scale_color_manual(values = COLORS, name = NULL, labels = c(
             value = "Beobachtung", prediction = "Schätzung - Modellvariante 1", value21 = "Vorjahr")
         ) +
@@ -235,7 +229,7 @@ d.plot %>%
         scale_x_date(date_labels = "%b", date_breaks = "1 month") +
         xlab(NULL) + ylab(NULL) +
         labs(
-            title = "Täglicher Gasverbrauch", 
+            title = "Täglicher Gasverbrauch",
             subtitle = "in TWh, 14-tägiges Mittel"
         )
 ```
@@ -245,15 +239,15 @@ Noch deutlicher kann dies gezeigt werden, imdem wir die relativen Abweichungen d
 ```{r modelResultDiffBase}
 dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
     ggplot(aes(x = date, y = difference * 100)) +
-        geom_line(size = 1) +
-        geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        geom_line(linewidth = 1) +
+        geom_abline(slope = 0, intercept = 0, linewidth = 0.5, linetype = 2) +
         # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
-        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha = 0.3) +
         xlab(NULL) + ylab(NULL) +
-        scale_x_date(date_labels = "%b", date_breaks ="1 month") +
+        scale_x_date(date_labels = "%b", date_breaks = "1 month") +
         scale_y_continuous(n.breaks = 10) +
         labs(
-            title = "Veränderung Gasverbrauch - Modellvariante 1", 
+            title = "Veränderung Gasverbrauch - Modellvariante 1",
             subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
         )
 ```
@@ -266,8 +260,8 @@ Obwohl der Stromverbrauch in Österreich zuletzt leicht gesunken ist [↗](/sing
 
 ```{r setupModelPower, include=FALSE}
 model.power = value ~
-    t + t.squared + gas.power + # week + 
-    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared + 
+    t + t.squared + gas.power + # week +
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
 l.model.power = estimate(model.power, d.comb)
@@ -281,15 +275,15 @@ getSummaryTable(l.model.power$m)
 ```{r modelResultDiffPower}
 dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
     ggplot(aes(x = date, y = difference * 100)) +
-        geom_line(size = 1) +
-        geom_abline(slope = 0, intercept = 0, size = 0.5, linetype = 2) +
+        geom_line(linewidth = 1) +
+        geom_abline(slope = 0, intercept = 0, linewidth = 0.5, linetype = 2) +
         # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
-        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100), alpha = 0.3) +
         xlab(NULL) + ylab(NULL) +
-        scale_x_date(date_labels = "%b", date_breaks ="1 month") +
+        scale_x_date(date_labels = "%b", date_breaks = "1 month") +
         scale_y_continuous(n.breaks = 10) +
         labs(
-            title = "Veränderung Gasverbrauch - Modellvariante 2", 
+            title = "Veränderung Gasverbrauch - Modellvariante 2",
             subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %"
         )
 ```
@@ -305,10 +299,10 @@ startDate = "2022-03-01"
 c.years.avg = 2017:2021
 
 d.comp.pred = rbind(
-    l.model.base$d.plot[variable %in% c('prediction')][date >= startDate][, .(
+    l.model.base$d.plot[variable %in% c("prediction")][date >= startDate][, .(
         date, variable = "pred.base", value
     )],
-    l.model.power$d.plot[variable %in% c('prediction')][date >= startDate][, .(
+    l.model.power$d.plot[variable %in% c("prediction")][date >= startDate][, .(
         date, variable = "pred.power", value
     )]
 )[, .(value = sum(value)), by = .(month = month(date), variable)]
@@ -329,8 +323,8 @@ d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, loc
 
 d.comp.a = rbind(
     d.comp[, .(month.name, variable, value)],
-    d.comp[month >= 3, .(month.name = '**Seit März**', value = sum(value)), by=variable],
-    d.comp[month >= 8, .(month.name = '**Seit August**', value = sum(value)), by=variable]
+    d.comp[month >= 3, .(month.name = "**Seit März**", value = sum(value)), by = variable],
+    d.comp[month >= 8, .(month.name = "**Seit August**", value = sum(value)), by = variable]
 )
 
 d.comp.a[, month.name := factor(
@@ -339,25 +333,25 @@ d.comp.a[, month.name := factor(
 
 
 d.comp.c = merge(
-    d.comp.a[variable == 'value.22', .(month.name, value)], 
+    d.comp.a[variable == "value.22", .(month.name, value)],
     d.comp.a[, .(month.name, variable, comparison = value)],
     by = "month.name"
 )
 
-d.comp.c[, rel := value/comparison]
-d.comp.c[, g100 := round((rel - 1)*100, 2)]
+d.comp.c[, rel := value / comparison]
+d.comp.c[, g100 := round((rel - 1) * 100, 2)]
 
 d.comp.f = dcast(d.comp.c, month.name ~ variable, value.var = "g100")
 d.comp.f[, value.22 := NULL]
 
-setcolorder(d.comp.f, c('month.name', 'value.21', 'avg', 'pred.base', 'pred.power'))
+setcolorder(d.comp.f, c("month.name", "value.21", "avg", "pred.base", "pred.power"))
 
 c.trans = c(
-    'month.name' = "2022", 
-    'value.21'   = "zum Vorjahr", 
-    'avg'        = glue('zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}'), 
-    'pred.base'  = "in Modellvariante 1", 
-    'pred.power' = "in Modellvariante 2"
+    month.name = "2022",
+    value.21   = "zum Vorjahr",
+    avg        = glue("zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}"),
+    pred.base  = "in Modellvariante 1",
+    pred.power = "in Modellvariante 2"
 )
 
 setnames(d.comp.f, names(c.trans), c.trans)
@@ -365,4 +359,6 @@ setnames(d.comp.f, names(c.trans), c.trans)
 kable(d.comp.f, align = "r", escape = FALSE)
 ```
 
-In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2017-2021 aufgeführt. Daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal inklusive Stromproduktion (Modellvariante 2). Die EU Komission fordert eine Reduktion des Gasverbrauchs um 15% im Zeitraum August 2022 - März 2023 im Vergleich zum Durchschnitt der Periode 2017 - 2021: die entsprechenden kumulativen Einsparungen ab August 2022 sind in der Tabelle ebenfalls zu sehen. Insgesamt waren die Einsparungen also höher als von der EU gefordert, in unseren temperaturkorrigierten Modellergebnissen liegen die Einsparungen also darunter. In einem durchschnittlich kalten Winter wären daher höhere Einsparungsanstrengungen notwendig. 
+In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2017 - 2021 aufgeführt. Daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal mit der Stromproduktion (Modellvariante 2). 
+
+Die EU Komission fordert eine Reduktion des Gasverbrauchs um 15% im Zeitraum August 2022 - März 2023 im Vergleich zum Durchschnitt der Periode 2017 - 2021. Die entsprechenden kumulativen Einsparungen ab August 2022 sind in der Tabelle ebenfalls ersichtlich. Seit August waren die Einsparungen bisher also höher als die EU Vorgabe, jedoch liegen die Einsparungen laut den temperaturkorrigierten Modellergebnissen unter diesen 15%, somit wären in einem durchschnittlich kalten Winter höhere Einsparungsanstrengungen notwendig um diese Zielvorgabe zu erfüllen.

@@ -23,9 +23,9 @@ theme_update(
     # plot.caption = element_text(hjust = 0, face= "italic"),
     plot.title.position = "plot",
     plot.caption.position = "plot",
-    axis.line = element_line(colour = line.color, size = 0.5),
-    axis.ticks.y = element_line(colour = line.color, size = 0.5),
-    axis.ticks.x = element_line(colour = line.color, size = 0.5),
+    axis.line = element_line(colour = line.color, linewidth = 0.5),
+    axis.ticks.y = element_line(colour = line.color, linewidth = 0.5),
+    axis.ticks.x = element_line(colour = line.color, linewidth = 0.5),
     axis.ticks.length = unit(5, "points")
 )
 

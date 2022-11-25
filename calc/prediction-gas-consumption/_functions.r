@@ -1,7 +1,7 @@
 loadBase = function(update) {
     base.file.name = file.path(g$d$tmp, "prediction-gas-consumption-base.rData")
 
-    if (!update & file.exists(base.file.name)) {
+    if (!update && file.exists(base.file.name)) {
         return(readRDS(base.file.name))
     }
 
@@ -47,7 +47,7 @@ loadBase = function(update) {
 
     min(d.comb$date)
 
-    d.comb[ ,`:=`(value.without.power = value - gas.power), ]
+    d.comb[, `:=`(value.without.power = value - gas.power)]
 
     # - AUGMENT ----------------------------------------------------------------
     d.comb[, `:=`(
@@ -56,8 +56,9 @@ loadBase = function(update) {
         month = month(date),
         day = yday(date),
         week = str_pad(week(date), 2, pad = "0"),
-        wday = factor(as.character(clock::date_weekday_factor(date)),
-                      c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        wday = factor(
+            as.character(clock::date_weekday_factor(date)),
+            c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         )
     )]
 
@@ -70,6 +71,18 @@ loadBase = function(update) {
     d.comb[]
 }
 
+addTempThreshold = function(d, threshold) {
+    d[, `:=`(
+        temp.below.threshold = ifelse(temp < threshold, threshold - temp, 0)
+        # temp.above.threshold = ifelse(temp > threshold, temp - threshold, 0)
+    )]
+
+    d[, `:=`(
+        temp.below.threshold.squared = temp.below.threshold^2,
+        temp.below.threshold.lag = shift(temp.below.threshold, 1)
+    )]
+}
+
 
 ### the economic indicator is published at monthly resolution, t + 45 days
 ### to be able to predict up to the current moment,
@@ -77,23 +90,21 @@ loadBase = function(update) {
 ### it is economic activity of (t - 365 days) times
 ### the growth rate of the current year for the available time period
 ### compared to last year
-growth.rate = function(d.economic.activity){
-
+growth.rate = function(d.economic.activity) {
     maximum.month.last.year = as_tibble(d.economic.activity) %>%
-        filter(year==max(year)) %>%
-        filter(month==max(month)) %>%
+        filter(year == max(year)) %>%
+        filter(month == max(month)) %>%
         dplyr::select(month) %>%
         unlist()
 
     as_tibble(d.economic.activity) %>%
-        filter(year >= max(year) -1) %>%
+        filter(year >= max(year) - 1) %>%
         filter(month <= maximum.month.last.year) %>%
         group_by(year) %>%
         summarize(economic.activity = sum(economic.activity)) %>%
-        add_row(.[2,]/.[1,]) %>%
-        slice_tail(n=1) %>%
+        add_row(.[2, ] / .[1, ]) %>%
+        slice_tail(n = 1) %>%
         dplyr::select(economic.activity) %>%
         unlist()
 
 }
-
