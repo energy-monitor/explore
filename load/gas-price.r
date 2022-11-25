@@ -6,6 +6,7 @@ source("_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 # Load
+update.time = now()
 l.base = read_json(file.path(g$d$tmp, "gas-price.json"))
 sapply(l.base, `[[`, "name")
 
@@ -20,5 +21,6 @@ d.raw = data.table(date = as.Date(as_datetime(date/1000)), price = unlist(price)
 saveToStorages(d.raw, list(
     id = "price-gas",
     source = "cismo",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))

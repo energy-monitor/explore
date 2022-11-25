@@ -7,14 +7,19 @@ countries = c("AT", "EU")
 
 for (country in countries) {
     # Load
+    update.time = now()
     d.recent = loadGieFull(country = country, startDate = "2022-01-01")
 
     historic.data.file = file.path(g$d$tmp, glue("gie-{country}-historic.csv"))
     if (!file.exists(historic.data.file)) {
-        d.historic = loadGieFull(country = country, startDate = "2016-01-01", endDate = "2021-12-31")
+        d.historic = loadGieFull(
+            country = country, startDate = "2016-01-01", endDate = "2021-12-31"
+        )
         fwrite(d.historic, historic.data.file)
     }
-    d.historic = fread(historic.data.file)[, gasDayStart := as.character(gasDayStart)]
+    d.historic = fread(historic.data.file)[, 
+        gasDayStart := as.character(gasDayStart)
+    ]
 
     d.base = rbind(
         d.recent,
@@ -40,6 +45,7 @@ for (country in countries) {
     saveToStorages(d.base, list(
         id = glue("storage-{country}"),
         source = "gie",
-        format = "csv"
+        format = "csv",
+        update.time = update.time
     ))
 }

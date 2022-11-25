@@ -9,6 +9,7 @@ loadPackages(
 # - DOWN -----------------------------------------------------------------------
 url = "https://ec.europa.eu/energy/observatory/reports/Oil_Bulletin_Prices_History.xlsx"
 t = tempfile(fileext = ".xlsx")
+update.time = now()
 download.file(url, t, mode = "wb")
 
 
@@ -30,5 +31,6 @@ d.full = melt(d.base, id.vars = "date")[order(date), ]
 saveToStorages(d.full, list(
     id = "price-gas-oil",
     source = "ec",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))

@@ -10,6 +10,7 @@ loadPackages(
 # - LOAD -----------------------------------------------------------------------
 url = "https://www.statistik.at/fileadmin/pages/189/PI2015_BDL.ods"
 f = tempfile()
+update.time = now()
 download.file(url, dest=f)
 d.economic.activity = readODS::read_ods(f) %>%
     as_tibble(.name_repair = "unique")
@@ -35,5 +36,6 @@ d.final = d.economic.activity %>%
 saveToStorages(d.final, list(
     id = "economic-activity",
     source = "stat",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))

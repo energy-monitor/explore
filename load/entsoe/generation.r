@@ -5,6 +5,7 @@ source("load/entsoe/_shared.r")
 
 
 # - LOAD/PREP ------------------------------------------------------------------
+update.time = now()
 d.base = loadEntsoeComb(
     # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
     type = "generation", month.start = "2014-12", month.end = month.end
@@ -36,7 +37,8 @@ d.agg = removeLastDays(d.agg, 2)
 saveToStorages(d.agg, list(
     id = "electricity-generation",
     source = "entsoe",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))
 
 
@@ -48,12 +50,13 @@ addGroupCol(d.agg, c.sourceGroups1, nameOthers = nameOthers)
 d.agg.group = d.agg[, .(
     value = sum(value),
     cons = sum(cons)
-), by=.(country, date, source.group)]
+), by = .(country, date, source.group)]
 # Store
 saveToStorages(d.agg.group, list(
     id = "electricity-generation-g1",
     source = "entsoe",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))
 
 # - GROUP 2
@@ -62,10 +65,11 @@ addGroupCol(d.agg, c.sourceGroups2, nameOthers = nameOthers)
 d.agg.group = d.agg[, .(
     value = sum(value),
     cons = sum(cons)
-), by=.(country, date, source.group)]
+), by = .(country, date, source.group)]
 # Store
 saveToStorages(d.agg.group, list(
     id = "electricity-generation-g2",
     source = "entsoe",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))

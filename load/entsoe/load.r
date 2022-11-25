@@ -5,6 +5,7 @@ source("load/entsoe/_shared.r")
 
 
 # - DOIT -----------------------------------------------------------------------
+update.time = now()
 d.base = loadEntsoeComb(
     type = "load", month.start = "2014-12", month.end = month.end
     # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
@@ -18,7 +19,7 @@ d.base.f = d.base[AreaTypeCode == "CTY"]
 # sort(unique(d.base.f$ResolutionCode))
 
 d.base.f[, factor := resToFactor[ResolutionCode]]
-d.base.f[, value := factor*TotalLoadValue]
+d.base.f[, value := factor * TotalLoadValue]
 
 # Filter, Aggregate
 d.agg = d.base.f[, .(
@@ -33,5 +34,6 @@ d.agg = removeLastDays(d.agg, 2)
 saveToStorages(d.agg, list(
     id = "electricity-load",
     source = "entsoe",
-    format = "csv"
+    format = "csv",
+    update.time = update.time
 ))
