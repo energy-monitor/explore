@@ -12,6 +12,8 @@ loadPackages(tidyverse, knitr)
 
 days_of_months = c(31, 30, 31, 31, 28, 31)
 
+diff.days.dec.mar = as.numeric(as.Date("2023-03-31") - as.Date("2022-12-31") + 1)
+
 ### these values are taken from https://energie.gv.at/gut-zu-wissen/wie-wird-der-winter
 gas.from.russia = 10
 gas.from.russia.per.day = gas.from.russia / (sum(days_of_months))
@@ -27,7 +29,11 @@ gas.from.others.per.day = gas.from.others / (sum(days_of_months))
 ### I therefore update them proportional to emptying the complete gas storage
 ### Date of the initial data is 15/11/2022
 storage.start.strategic = 20
+
+#15/11/2022
 storage.start.domestic = 27.09
+#22/11/2022
+storage.start.domestic = 26.95
 
 storage.at = loadFromStorage("storage-AT") %>%
     filter(year(gasDayStart) == 2022)
@@ -69,65 +75,74 @@ temp.threshold = 14
 d.comb = copy(d.base)
 addTempThreshold(d.comb, temp.threshold)
 
-model.base = value ~
-    #t + t.squared + # week +
-    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
-    wday + is.holiday + as.factor(vacation.name)
-
-max.date = max(d.comb$date)
-
-d.train = d.comb[(date > (max.date - 365))]
-
-m.linear = lm(model.base, data = d.train)
-
 d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
     date = as.Date(date), temp
 )]
 
-d.hdd[, `:=`(
-    date = date - 90
-)]
 
-d.hdd[, `:=`(
-    day = yday(date),
-    year = year(date)
-)]
+one.prediction = function(year.select, d.hdd, d.base, start.date) {
+    
+    model.base = value ~
+                        #t + t.squared + # week +
+                        temp.below.threshold + 
+                        temp.below.threshold.lag +
+                        temp.below.threshold.squared +
+                        wday + is.holiday + as.factor(vacation.name)
 
-one.prediction = function(year.select, temp.in, m.linear, d.base) {
+    #max.date = max(d.comb$date)
+    # we add one additional day, as we have to account for the lag in temperature
+    max.date = start.date
 
-    temp.in = temp.in[year == year.select]
+    d.train = d.comb[(date > (max.date - 365) & date <= max.date)]
+
+    m.linear = lm(model.base, data = d.train)
+    
+    temp.in = d.hdd[((year(date) == year.select) & (month(date) >= 10)) | 
+                          ((year(date) == (year.select + 1)) & (month(date) <= 3))]
+    
+    temp.in[, `:=`(
+        date = date - diff.days.dec.mar
+        )]
+
+    temp.in[, `:=`(
+        day = yday(date),
+        year = year(date)
+    )]
+    
+    addTempThreshold(temp.in, temp.threshold)
 
     d.prediction = copy(d.base)
-    addTempThreshold(d.prediction, temp.threshold)
-
+    
+    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (max.date)) &
+                                                                 (date < "2023-04-01")][, .(date)]
+    
     d.prediction[, `:=`(
         wday = factor(
             as.character(clock::date_weekday_factor(date)),
             c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         )
     )]
+    
+    holidays = loadFromStorage(id = "holidays")
+    
+    d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date, 
+                                                                   wday, 
+                                                                   is.holiday, 
+                                                                   vacation.name)]
+    
 
-    d.prediction[, `:=`(date = date + 365), ]
 
-    d.prediction = d.prediction[date > max.date & date < "2023-04-01"]
-
-    d.prediction[, `:=`(date = date - 90), ]
+    d.prediction[, `:=`(date = date - diff.days.dec.mar), ]
 
     d.prediction[, `:=`(day = yday(date)), ]
 
-
-    d.prediction = merge(d.prediction, temp.in, by = "day")[, `:=`(temp = temp.y), ]
-
-    d.prediction[, `:=`(
-        temp.below.threshold = ifelse(temp < temp.threshold, temp.threshold - temp, 0),
-        temp.above.threshold = ifelse(temp > temp.threshold, temp - temp.threshold, 0)
-    )]
-
+    d.prediction = merge(d.prediction, temp.in, by = "day")
+    
     prediction = predict(m.linear, d.prediction)
-
+    
     d.prediction[, `:=`(
         day = day,
-        year = year.y,
+        year = year,
         value = cumsum(prediction),
         storage.strategic = storage.start.strategic,
         storage.domestic = storage.start.domestic,
@@ -150,12 +165,13 @@ one.prediction = function(year.select, temp.in, m.linear, d.base) {
         gather(variable, value, -day, -year) %>%
         mutate(year = year.select)
 
-    d.prediction
+    d.prediction %>% 
+        mutate(day = as.numeric(day))
 }
 
-d.all.years = bind_rows(lapply(1950:2021, one.prediction, d.hdd, m.linear, d.base)) %>% as.data.table()
+d.all.years = bind_rows(lapply(1950:2021, one.prediction, d.hdd, d.base, Sys.Date())) %>% as.data.table()
 
-d.all.years[, `:=`(day.name = day + 90)]
+d.all.years[, `:=`(day.name = day + diff.days.dec.mar)]
 
 d.all.years[, `:=`(date = as.Date(day.name, origin = "2022-01-01"))]
 
@@ -180,3 +196,16 @@ d.all.years %>%
 ```
 
 Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr kalten Winter würden die Preise massiv steigen, und der Verbrauch würde unter unserer Abschätzung liegen. Da wir rollierend die Temperaturabhängigkeit schätzen, fließt der Effekt sich verändernder Preise aber nur langsam ins Modell ein. Würde der Winter sehr warm, würden die Preise fallen, und der Verbrauch steigen, die Einsparungen wären also geringer, als von uns abgeschätzt. In Summe sollte der Preiseffekt also dazu führen, dass der Speicherstand am Ende des Winters innerhalb der von uns ausgewiesenen Spannbreite liegt: wird der Winter sehr kalt, würde mehr gespart werden als von uns vorhergesagt, wird er sehr warm, weniger.
+
+``` {r model-evaluation}
+
+pred = one.prediction(2022, d.hdd, d.base, as.Date("2015-11-15"))
+
+
+#start 15.11.
+#get consumption since start
+#get temperature since start
+#run model
+
+max.date = as.Date("2022-11-15")
+```
