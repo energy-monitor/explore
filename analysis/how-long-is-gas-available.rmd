@@ -187,7 +187,7 @@ annotation <- tibble(
 )
 
 d.all.years %>%
-    filter(variable != "gas.consumption") %>% 
+    filter(variable != "gas.cons.pred") %>% 
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
     ggplot(aes(x = date, y = value)) +
         geom_line(aes(col = as.character(year)), linewidth = 0.3, alpha = 0.5) +
