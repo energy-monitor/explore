@@ -12,7 +12,7 @@ loadPackages(tidyverse, knitr)
 ```
 
 ```{r setupData, include=FALSE}
-d.base = loadBase(FALSE)
+d.base = loadBase(TRUE)
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017]
