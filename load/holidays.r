@@ -4,11 +4,11 @@ source("_shared.r")
 
 
 # - CONF -----------------------------------------------------------------------
-c.years = 2012:2022
+c.years = 2012:2030
 
 
 # - DOWNLOAD -------------------------------------------------------------------
-if (FALSE) {
+if (TRUE) {
     d.holidays = rbindlist(sapply(c.years, function(year) {
         fromJSON(glue("https://date.nager.at/api/v2/publicholidays/{year}/AT"))
     }, simplify = FALSE))
