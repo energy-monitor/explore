@@ -35,14 +35,15 @@ storage.start.strategic = 20
 #storage levels
 storage.levels = tibble(date = c(as.Date("2022-11-15"), as.Date("2022-11-22")),
                         level = c(27.09, 26.95))
-#22/11/2022
 storage.start.domestic = storage.levels %>% slice_tail(n = 1) %>% .$level
+storage.start.domestic.date = storage.levels %>% slice_tail(n = 1) %>% .$date
+
 
 storage.at = loadFromStorage("storage-AT") %>%
     filter(year(gasDayStart) == 2022)
 
 storage.at.fill.state = storage.at %>%
-    filter(gasDayStart == "2022-11-15") %>%
+    filter(gasDayStart == storage.start.domestic.date) %>%
     mutate(value = gasInStorage)
 
 storage.at.last = storage.at %>%
@@ -73,9 +74,13 @@ Laut [energie.gv.at](https://energie.gv.at) lagen am 15.11.2022 `r round(storage
 In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien für den Gasspeicherstand über den Winter berechnen. Der aktuelle Speicherstand wir so miteinbezogen, dass wir annehmen, dass die Abnahme im Speicherstand der österreichischen Kund/innen proportional zur Abnahme des Speicherstands der ausländischen Kund/innen erfolgt. 
 
 ```{r plot}
+
+max.date = max(d.base$date)
+
 temp.threshold = 14
 
 d.comb = copy(d.base)
+
 addTempThreshold(d.comb, temp.threshold)
 
 d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
@@ -92,11 +97,7 @@ one.prediction = function(year.select, d.hdd, d.base, start.date) {
                         temp.below.threshold.squared +
                         wday + is.holiday + as.factor(vacation.name)
 
-    #max.date = max(d.comb$date)
-    # we add one additional day, as we have to account for the lag in temperature
-    max.date = start.date
-
-    d.train = d.comb[(date > (max.date - learning.period.days) & date <= max.date)]
+    d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
 
     m.linear = lm(model.base, data = d.train)
     
@@ -116,7 +117,7 @@ one.prediction = function(year.select, d.hdd, d.base, start.date) {
 
     d.prediction = copy(d.base)
     
-    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (max.date)) &
+    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (start.date)) &
                                                                  (date < "2023-04-01")][, .(date)]
     
     d.prediction[, `:=`(
@@ -176,7 +177,8 @@ one.prediction = function(year.select, d.hdd, d.base, start.date) {
         mutate(date = as.Date(day.name, origin = "2022-01-01"))
 }
 
-d.all.years = bind_rows(lapply(1950:2021, one.prediction, d.hdd, d.base, Sys.Date())) %>% as.data.table()
+d.all.years = bind_rows(lapply(c(1950:2021), one.prediction, d.hdd, d.base, max.date)) %>% 
+    as.data.table()
 
 annotation <- tibble(
     label = c(
@@ -189,12 +191,14 @@ annotation <- tibble(
 d.all.years %>%
     filter(variable != "gas.cons.pred") %>% 
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
+    mutate(Klimajahr = ifelse(year < 2000, "vor 2000", "nach 2000")) %>% 
     ggplot(aes(x = date, y = value)) +
-        geom_line(aes(col = as.character(year)), linewidth = 0.3, alpha = 0.5) +
+        geom_line(aes(col = Klimajahr, linetype = as.character(year)), linewidth = 0.6, alpha = 0.5) +
         facet_wrap(. ~ variable) +
         geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
         ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
-        scale_color_manual(values = rgb((1:72) / 72, 0, 0), guide = "none") +
+        scale_color_manual(values = COLORS) +
+        scale_linetype_manual(values = 1:72, guide = "none") +
         xlab(NULL) + ylab("Speicherniveau (TWh)") +
         geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3) 
 ```
@@ -205,10 +209,6 @@ Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr k
 
 pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>% 
     spread(variable, value)
-
-
-
-max.date = max(d.base$date)
 
 updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
 
