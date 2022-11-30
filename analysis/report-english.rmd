@@ -1,0 +1,647 @@
+---
+title: "Gas savings & storage prediction report"
+output: html_document
+date: '2022-11-30'
+---
+
+<!--
+Todo:
+- Write and expand text
+- cross validation model
+- Mention population data source
+- Translate everything to English
+- Figure prices vs. savings
+- Alternative model approach? Random forest on detrended data?
+- Coefficient in gas model for gas power is too low!
+-->
+
+```{r setupBase, include=FALSE}
+# - INIT -----------------------------------------------------------------------
+source("calc/prediction-gas-consumption/_shared.r")
+source("export/analysis/_theme.r")
+loadPackages(tidyverse, knitr)
+```
+
+```{r setupData, include=FALSE}
+d.base = loadBase(TRUE)
+# start data with first complete year
+d.base = d.base[year >= min(d.base[day == 1]$year)]
+# d.base = d.base[year >= 2017]
+
+max.date = d.base[max(date) == date]$date
+max.day = yday(max.date)
+
+d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value) * 10^3), by = year]
+mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
+d.gas.years[, rel := mean / mean.gas.before22]
+savings.2022 = 1 - d.gas.years[year == 2022, rel]
+
+temp.threshold = 14
+```
+## Abstract
+As a consequence of limited gas supplys from Russia to Europe, Austria is experiencing a shortfall in gas supply and very high prices on gas markets. To safeguard against supply shortfalls, the EU Comission has asked all member states to reduce gas consumption by 15\%. We assess if Austria was, so far able, to reach this goal. For that purpose, we model temperature dependent gas load with a regression model. We find that Austria has - in absolute numbers - reduced gas consumption by about 19\% since August 2022. However, one of the reasons was a very warm October and November. Taking into account these climatic conditions, we find reductions of only about 5\%. In particular gas power production is above previous years, explaining relatively low savings - industry and households saved about 12\%. We also find that only in a particularly cold winter (comparable to 1963), the Austrian strategic gas reserve would have to be used. If Russian gas flows are completely shut down, without replacements from other sources, the strategic reserve may have to be used if the winter is as cold or colder as the average winter in the past 30 years. 
+
+
+## Introduction
+As a consequence of reduced gas flows from Russia to Europe, Austria is experiencing a shortfall in gas supply. In recent years, about 90\% of Austrian gas has been imported from Russia, and while Austria was successful in substituting these imports to a large extent, there is still the risk of a gas supply shortage this winter. In this context, the EU Comission has asked all members states to reduced gas consumption by 15\% in the period August 2022 - March 2023, based on a comparision with the same period in the years 2017 - 2021. While in absolute values, Austria was able to do so and reduced gas consumption by 19\% since August 2022, this may have been the result of a relatively warm autumn with temperatures well above average. Here, we therefore investigate if Austrian consumers saved gas beyond the warm climate. Furthermore, we use the model to predict gas consumption in Austria until March 2023 to derive scenarios for the level of gas storages under given gas supply scenarios.
+In Germany, similar projects assessing the climate component of observed gas savings are currently available [Link 1, Link 2, Link 3]. With our publication, we want to contribute to a peer-reviewed assessment of our methods, and we openly provide source code and data so others can replicate our analysis, extend it to other European countries, and learn from the errors we made.
+
+## Results
+```{r setupModel, include=FALSE}
+# - MODEL ----------------------------------------------------------------------
+
+# AUGMENT
+d.comb = copy(d.base)
+addTempThreshold(d.comb, temp.threshold)
+
+estimate = function(model, d, train.years = c(2000:2021)) {
+    d.train = d[year %in% train.years]
+    d.ret = copy(d)
+
+    m.linear = lm(model, data = d.train)
+    print(summary(m.linear))
+
+    prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
+        as.data.table()
+
+    prediction.confidence = predict(m.linear, d.ret, interval = "confidence", level = 0.95) %>%
+        as.data.table()
+
+    d.ret[, `:=`(
+        prediction = prediction.prediction$fit,
+        lower.pred = prediction.prediction$lwr,
+        upper.pred = prediction.prediction$upr,
+        lower.conf = prediction.confidence$lwr,
+        upper.conf = prediction.confidence$upr
+    )]
+
+    d.ret[, `:=`(
+        difference = (value - prediction) / prediction,
+        diff.pred.lower = (value - lower.pred) / lower.pred,
+        diff.pred.upper = (value - upper.pred) / upper.pred,
+        diff.conf.lower = (value - lower.conf) / lower.conf,
+        diff.conf.upper = (value - upper.conf) / upper.conf
+    )]
+
+    d.ret[, `:=`(
+        difference.mean = rollmean(difference, 14, fill = NA)
+    )]
+
+    d.plot = d.ret[, .(
+        date, value, prediction, difference,
+        diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper
+    )]
+
+    d.plot = melt(d.plot, id.vars = "date")
+    d.plot[, rollmean := rollmean(value, 14, fill = NA, align = "right"), by = variable]
+
+    list(
+        m = m.linear,
+        d.pred = d.ret,
+        d.plot = d.plot
+    )
+}
+
+model.base = value ~
+    t + t.squared + # week +
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+l.model.base = estimate(model.base, d.comb)
+```
+
+```{r regressionResulDef, include=FALSE}
+c.nice.names = c(
+    `(Intercept)` = "(Intercept)",
+    t = "t",
+    t.squared = "t²",
+    temp.below.threshold = "Temp",
+    temp.below.threshold.lag = "Temp Lag",
+    temp.below.threshold.squared = "Temp²",
+    wdayTue = "Dummy Dienstag",
+    wdayWed = "Dummy Mittwoch",
+    wdayThu = "Dummy Donnerstag",
+    wdayFri = "Dummy Freitag",
+    wdaySat = "Dummy Samstag",
+    wdaySun = "Dummy Sonntag",
+    is.holidayTRUE = "Dummy Feiertag",
+    `as.factor(vacation.name)august` = "Dummy Sommerferien (August)",
+    `as.factor(vacation.name)christmasNewYear` = "Dummy Weihnachtsferien (1. Woche)",
+    `as.factor(vacation.name)eastern` = "Dummy Osterferien",
+    `as.factor(vacation.name)holy` = "Dummy Karwoche",
+    `as.factor(vacation.name)july` = "Dummy Sommerferien (Juli)",
+    `as.factor(vacation.name)newYearEpiphany` = "Dummy Weihnachtsferien (2. Woche)",
+    is.lockdownTRUE = "Lockdown Soft",
+    is.hard.lockdownTRUE = "Lockdown Hard",
+    gas.power = "Gasverbrauch zur Stromerzeugung"
+)
+
+getSummaryTable = function(m) {
+    d = data.table(coef(summary(m)), keep.rownames = "term")
+    d[, Variable := c.nice.names[term]]
+    d[is.na(Variable), Variable := term]
+    d$`Pr(>|t|)` = NULL
+    d$term = NULL
+    d$`t value` = NULL
+    setcolorder(d, "Variable")
+    kable(d, align = "r", digits = 3)
+}
+
+```
+
+```{r setupModelPower, include=FALSE}
+model.power = value ~
+    t + t.squared + gas.power + # week +
+    temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
+    wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+l.model.power = estimate(model.power, d.comb)
+```
+
+```{r modelResultLevelsBase}
+d.plot = rbind(
+    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
+    l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-11-10"][, .(
+        date = as.Date(paste("2022", month(date), day(date), sep = "-")),
+        variable = "value21", value, rollmean
+    )]
+)
+
+d.baseline.savings = d.base %>% 
+    dplyr::select(date, value) %>% 
+    filter(date >= "2017-01-01" & date <= "2021-12-31") %>% 
+    mutate(day = yday(date)) %>% 
+    group_by(day) %>% 
+    summarize(value = mean(value)) %>% 
+    ungroup() %>% 
+    mutate(date = as.Date(day, origin = "2022-01-01")) %>% 
+    dplyr::select(date, value) %>% 
+    merge(d.base %>% dplyr::select(date, value.22 = value)) %>% 
+    mutate(difference = (value.22 - value) / value) %>% 
+    gather(variable, value, -date) %>% 
+    group_by(variable) %>% 
+    mutate(rollmean = rollmean(value, 14, fill = NA))
+    
+
+dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+    mutate(model = "base") %>% 
+    bind_rows(dcast(l.model.power$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "rollmean") %>%
+                  mutate(model = "power")) %>% 
+    bind_rows(dcast(d.baseline.savings, date ~ variable, value.var = "rollmean")%>% 
+    mutate(model = "difference \n2017-2021")) %>% 
+    ggplot(aes(x = date, y = difference * 100)) +
+        geom_line(linewidth = 1, aes(col = model)) +
+        geom_abline(slope = 0, intercept = 0, linewidth = 0.5, linetype = 2) +
+        # geom_ribbon(aes(ymin = diff.pred.lower, ymax = diff.pred.upper), alpha=0.3) +
+        geom_ribbon(aes(ymin = diff.conf.lower * 100, ymax = diff.conf.upper * 100, fill = model), alpha = 0.3) +
+        xlab(NULL) + ylab(NULL) +
+        scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+        scale_y_continuous(n.breaks = 10) +
+        labs(
+            title = "Veränderung Gasverbrauch - Modellvariante 1",
+            subtitle = "Relative Differenz zwischen Schätzung und Beobachtung, in %")
+
+
+
+    
+
+
+```
+## Gas savings
+Figure YY compares gas savings in comparison to 2017-2021, and gas savings as estimated by our 2 models, m.total being a model that does not control for power production from gas, while m.power does. Absolute savings in autumn 2022 are larger than the modelled ones - due to comparably high temperatures. In late October, gas savings reduced in the models and in observations. A very likely reason are lower gas prices in a period when European gas storages were full, while demand had not picked up yet. We assume that price elastic gas consumers have increased consumption in this period. With the arrival of lower temperatures, prices increased again mid November and so did savings of gas. <!-- other things we can observe on the figure ...-->
+```{r regressionResultComparison}
+
+startDate = "2022-03-01"
+c.years.avg = 2017:2021
+
+d.comp.pred = rbind(
+    l.model.base$d.plot[variable %in% c("prediction")][date >= startDate][, .(
+        date, variable = "pred.base", value
+    )],
+    l.model.power$d.plot[variable %in% c("prediction")][date >= startDate][, .(
+        date, variable = "pred.power", value
+    )]
+)[, .(value = sum(value)), by = .(month = month(date), variable)]
+
+d.data.agg = d.base[day <= max.day & month >= 3, .(
+    value = sum(value)
+), by = .(month = month(date), year = year(date))]
+
+d.comp = rbind(
+    d.comp.pred,
+    d.data.agg[year %in% c.years.avg, .(variable = "avg", value = mean(value)), by = month],
+    d.data.agg[year == 2022, .(month, variable = "value.22", value)],
+    d.data.agg[year == 2021, .(month, variable = "value.21", value)]
+)
+
+d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, locale = "de_AT.UTF-8"))]
+
+
+d.comp.a = rbind(
+    d.comp[, .(month.name, variable, value)],
+    d.comp[month >= 3, .(month.name = "**Seit März**", value = sum(value)), by = variable],
+    d.comp[month >= 8, .(month.name = "**Seit August**", value = sum(value)), by = variable]
+)
+
+d.comp.a[, month.name := factor(
+    month.name, unique(d.comp.a$month.name), unique(d.comp.a$month.name)
+)]
+
+
+d.comp.c = merge(
+    d.comp.a[variable == "value.22", .(month.name, value)],
+    d.comp.a[, .(month.name, variable, comparison = value)],
+    by = "month.name"
+)
+
+d.comp.c[, rel := value / comparison]
+d.comp.c[, g100 := round((rel - 1) * 100, 2)]
+
+d.comp.f = dcast(d.comp.c, month.name ~ variable, value.var = "g100")
+d.comp.f[, value.22 := NULL]
+
+setcolorder(d.comp.f, c("month.name", "value.21", "avg", "pred.base", "pred.power"))
+
+c.trans = c(
+    month.name = "2022",
+    value.21   = "zum Vorjahr",
+    avg        = glue("zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}"),
+    pred.base  = "in Modellvariante 1",
+    pred.power = "in Modellvariante 2"
+)
+
+setnames(d.comp.f, names(c.trans), c.trans)
+
+kable(d.comp.f, align = "r", escape = FALSE)
+```
+In total, gas savings since August 2022 were at XX, yY and ZZ%. Only absolute gas savings therefore are above the EU goal of 15%, while temperature adjusted savings are below. This may mean that a particularly cold winter may need significantly more savings (see Discussion.). We also observe that the model which controls for power production from gas has significantly higher savings, i.e. power generation from gas was higher than in the comparison period. Although electric load has been reduced slightly compared to the previous 5 years, being in cumulative terms at the level of the COVID year 2020, gas power generation has increased due to a comparably low hydro-power year - and as, in the European grid, capacities from French nuclear power plants are lacking.
+
+## Storage levels throughout winter
+We find that even assuming that the winter 2022/2023 is comparable to the coldest winter in the period 1950 - 2021, i.e. 1963, the strategic gas reserve will not have to be used in Austria. However, commercial storages will be almost completely emptied under such a scenario. If the winter is more closely as the warmest winter in the period 1950 - 2021, the gas storage level will only drop by XX\%, leaving sufficient gas quantities available in storage for the coming year 2023. In an average winter (period 1990 - 2021), gas storage levels will not fall below XX\%. 
+
+Gas availability changes drastically, if Russia cuts off all gas supplies. Under such conditions, in x out of n scenarios, the strategic gas reserve will have to be used. The coldest winter in the last 30 years would be sufficient to activate the gas reserve - and storage levels after winter 2022/2023 are well below the levels compared to a scenario with gas supply. Even in the warmest year, the storage will fall to XX\% of initial levels.
+``` {r gas-availability}
+
+days_of_months = c(31, 30, 31, 31, 28, 31)
+
+diff.days.dec.mar = as.numeric(as.Date("2023-03-31") - as.Date("2022-12-31") + 1)
+
+learning.period.days = 365
+
+### these values are taken from https://energie.gv.at/gut-zu-wissen/wie-wird-der-winter
+gas.from.russia = 10
+gas.from.russia.per.day = gas.from.russia / (sum(days_of_months))
+
+gas.domestic = 4
+gas.domestic.per.day = gas.domestic / (sum(days_of_months))
+
+gas.from.others = 33
+gas.from.others.per.day = gas.from.others / (sum(days_of_months))
+
+### values from energie.gv.at (Eigentumsverhältnisse Gasspeicher)
+### these values are not updated regularly
+### I therefore update them proportional to emptying the complete gas storage
+### Date of the initial data is 15/11/2022
+storage.start.strategic = 20
+
+#storage levels
+storage.levels = tibble(date = c(as.Date("2022-11-15"), as.Date("2022-11-22")),
+                        level = c(27.09, 26.95))
+storage.start.domestic = storage.levels %>% slice_tail(n = 1) %>% .$level
+storage.start.domestic.date = storage.levels %>% slice_tail(n = 1) %>% .$date
+
+
+storage.at = loadFromStorage("storage-AT") %>%
+    filter(year(gasDayStart) == 2022)
+
+storage.at.fill.state = storage.at %>%
+    filter(gasDayStart == storage.start.domestic.date) %>%
+    mutate(value = gasInStorage)
+
+storage.at.last = storage.at %>%
+    arrange(gasDayStart) %>%
+    slice_tail() %>%
+    mutate(value = gasInStorage)
+
+prop.dom.int = (storage.start.domestic) / (storage.at.fill.state$value -  storage.start.strategic)
+
+change.in.storage = (storage.at.fill.state$value - storage.at.last$value) * prop.dom.int
+
+storage.start.domestic = storage.start.domestic - change.in.storage
+
+d.base = loadBase(update = TRUE)
+
+```
+
+```{r plot}
+
+max.date = max(d.base$date)
+
+temp.threshold = 14
+
+d.comb = copy(d.base)
+
+addTempThreshold(d.comb, temp.threshold)
+
+d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
+    date = as.Date(date), temp
+)]
+
+d.hdd.average = d.hdd %>% 
+    mutate(day = yday(date)) %>% 
+    group_by(day) %>% 
+    summarize(temp = mean(temp)) %>% 
+    ungroup() %>%
+    mutate(date = as.Date(day, origin = "1901-01-01")) %>% 
+    dplyr::select(date, temp)
+
+d.hdd = bind_rows(d.hdd,
+                  d.hdd.average)
+    
+
+one.prediction = function(year.select, d.hdd, d.base, start.date) {
+    
+    model.base = value ~
+                        #t + t.squared + # week +
+                        temp.below.threshold + 
+                        temp.below.threshold.lag +
+                        temp.below.threshold.squared +
+                        wday + is.holiday + as.factor(vacation.name)
+
+    d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
+
+    m.linear = lm(model.base, data = d.train)
+    
+    temp.in = d.hdd[((year(date) == year.select) & (month(date) >= 10)) | 
+                          ((year(date) == (year.select + 1)) & (month(date) <= 3))]
+    
+    temp.in[, `:=`(
+        date = date - diff.days.dec.mar
+        )]
+
+    temp.in[, `:=`(
+        day = yday(date),
+        year = year(date)
+    )]
+    
+    addTempThreshold(temp.in, temp.threshold)
+
+    d.prediction = copy(d.base)
+    
+    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (start.date)) &
+                                                                 (date < "2023-04-01")][, .(date)]
+    
+    d.prediction[, `:=`(
+        wday = factor(
+            as.character(clock::date_weekday_factor(date)),
+            c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        )
+    )]
+    
+    holidays = loadFromStorage(id = "holidays")
+    
+    d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date, 
+                                                                   wday, 
+                                                                   is.holiday, 
+                                                                   vacation.name)]
+    
+
+
+    d.prediction[, `:=`(date = date - diff.days.dec.mar), ]
+
+    d.prediction[, `:=`(day = yday(date)), ]
+
+    d.prediction = merge(d.prediction, temp.in, by = "day")
+    
+    prediction = predict(m.linear, d.prediction)
+    
+    d.prediction[, `:=`(
+        day = day,
+        year = year,
+        gas.cons.cum = cumsum(prediction),
+        prediction = prediction,
+        storage.strategic = storage.start.strategic,
+        storage.domestic = storage.start.domestic,
+        gas.from.russia = gas.from.russia.per.day,
+        gas.other = gas.from.others.per.day + gas.domestic.per.day
+    )]
+
+    d.prediction[, `:=`(
+        storage.with.russia = storage.domestic + storage.strategic - gas.cons.cum +
+            cumsum(gas.from.russia) + cumsum(gas.other),
+        storage.without.russia = storage.domestic + storage.strategic - gas.cons.cum + cumsum(gas.other)
+    )]
+
+    d.prediction = d.prediction %>%
+        dplyr::select(
+            day, year,
+            storage.with.russia,
+            storage.without.russia,
+            gas.cons.pred = prediction
+        ) %>%
+        gather(variable, value, -day, -year) %>%
+        mutate(year = year.select)
+
+    d.prediction %>% 
+        mutate(day = as.numeric(day)) %>% 
+        mutate(day.name = day + diff.days.dec.mar - 1) %>% 
+        mutate(date = as.Date(day.name, origin = "2022-01-01"))
+}
+
+d.all.years = bind_rows(lapply(c(1901, 1950:2021), one.prediction, d.hdd, d.base, max.date)) %>% 
+    as.data.table()
+
+annotation <- tibble(
+    label = c(
+        "Strategische Gasreserve"
+    ),
+    x = c(as.Date("2023-01-01")),
+    y = c(22)
+)
+
+d.all.years %>%
+    mutate(type = ifelse(year == 1901, "Average year", "Single year")) %>% 
+    #filter(type == "Average year") %>% 
+    filter(variable != "gas.cons.pred") %>% 
+    mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
+    mutate(Klimajahr = ifelse(year < 1990, "vor 1990", "nach 1990")) %>% 
+    arrange((year)) %>% 
+    ggplot(aes(x = date, y = value)) +
+        geom_line(aes(col = Klimajahr, linetype = as.character(year)), size = 0.1, alpha = 0.6) +
+        facet_wrap(Klimajahr ~ variable) +
+        geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
+        geom_smooth() +
+        ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
+        scale_color_manual(values = COLORS) +
+        scale_linetype_manual(values = rep(1, 73), guide = "none") +
+        #scale_size_manual(values = c(3, 0.6)) +
+        xlab(NULL) + ylab("Speicherniveau (TWh)") +
+        geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3) 
+```
+
+## Discussion & Conclusions
+We have shown that Austria attained its gas reduction goals until now (DATE), but we have also shown that this, to a large extent, has been achieved because of high outdoor temperatures. Using the currently governing relationship between gas demand and outdoor temperatures, we estimate that, if Russian gas keeps flowing, only a really extraordinarily cold winter would make the use of the strategic gas reserve necessary. However, once Russian gas flows stop completely, up to XX\% of the gas reserve have to be used.
+There is a major caveat in our analysis: we use only temperatures to control for a change in demand. Therefore, our scenarios have to be seen as bounding scenarios. In a very warm winter, gas prices would fall compared to a winter with average temperatures, thus increasing gas demand most likely. In a very cold winter, on the other hand, gas prices would increase compared to a winter with average temperatures, thus decreasing gas demand beyond our current observations. The best and the worst scenarios in our analysis should therefore be interpreted with caution.
+
+## Data & Methods
+
+### Data
+
+We use, as data basis, publicly available time series. All download- and pre-processing scripts can be found [here](https://github.com/energy-monitor/explore). 
+
+The three most important time series are: 
+
+- Gas consumption: [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
+- Gas storage level: [https://www.gie.eu/](https://www.gie.eu/)
+- Gridded temperature: [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels?tab=overview) The ERA5 gridded data is aggregated to a population weighted average Austrian daily temperature.
+- Electricity production from gas power: [ENTSO-E](https://transparency.entsoe.eu)
+
+Furthermore, we use data about public holidays, school holidays, and COVID lockdowns. The data is completely available from 2015 - 2022 with a delay of 6 days due to a delay in the publication of ERA5 temperature data. Figure XX shows boxplots and seasonality of input data.
+
+```{r data-visualization}
+d.base %>% 
+    dplyr::select(date,
+                  value, 
+                  temp,
+                  gas.power) %>% 
+    gather(variable, value, -date) %>% 
+    ggplot(aes(x = variable, y = value)) +
+    geom_boxplot() +
+    facet_wrap( . ~ variable, scale = "free")
+
+d.base %>% 
+    dplyr::select(year,
+                  day,
+                  value, 
+                  temp,
+                  gas.power) %>% 
+    gather(variable, value, -day, -year) %>% 
+    #mutate(value = rollmean(value, 14, fill = NA)) %>% 
+    ggplot(aes(x = day, y = value)) +
+    geom_smooth(aes(col = as.character(year))) +
+    facet_wrap( . ~ variable, scale = "free")
+
+```
+Figure 1: Boxplots of input data for the period 2015 - 2022. Seasonality of input data over years.
+
+### Methods
+Temperature has a significant impact on gas consumption, as can be observed in Figure YY. Below temperatures of 14 °C, there seems to be an almost linear inverse relationship between temperature and gas consumption. As XX% of Austrian households are heating using gas, this is not a major suprise. We, therefore, use temp = -1 * temperature, if temperature < 14, 0 otherwwise.
+
+```{r consumTemp}
+d.loess = d.base[, .(
+    date, temp,
+    value = value * 1000
+)]
+
+m.loess = loess(value ~ temp, d.loess)
+
+order.loess = order(d.loess$temp)
+
+d.lines = data.table(
+    temp = d.loess$temp[order.loess],
+    value = m.loess$fitted[order.loess]
+)
+
+ggplot(d.loess, aes(x = temp, y = value)) +
+    geom_point(size = 0.4, alpha = 0.3) +
+    geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +
+    ylab(NULL) + xlab("Temperatur in °C")  +
+    # theme(legend.position="top")
+    labs(title = "Gaskonsum vs Temperatur", subtitle = "in GWh, LOESS Linie")
+
+
+```
+
+
+
+We therefore model gas consumption as a function of temperature terms, limiting temperature at 14 °C, and dummy variable which explain weekdays, weekends, holidays, school holidays, and COVID lockdowns in a linear model (OLS). The full model specification is:
+```{=markdown}
+$$\begin{aligned} consum_d = \alpha + &\beta_{\bullet} t + \beta_{\bullet} t^2 + \\ &\beta_{\bullet} {temp}_d + \beta_{\bullet} {temp}_{d-1} + \beta_{\bullet} {temp}_d^2 + \\ &\beta_{\bullet} holiday_d + \beta_{\bullet} lockdown^{hard}_d + \beta_{\bullet} lockdown^{soft}_d + \\ &\sum_i{\beta_{\bullet} weekday_{id}} + \sum_i{\beta_{\bullet} holidaytype_{id}} \end{aligned}$$
+```
+`t` is a linear Trend and `temp` is the previously described modified mean daily temperature. In total, we can use `r nrow(d.base)` observations to estimate the model.
+
+The results of the regression show, that as expected, the higher `temp` (i.e. the lower temperaturs), the higher demand. On weekends, in particular on Saturdays, on holidays - and during the 1st lockdown in March/April 2020 gas consumption was lower.
+
+```{r regressionResultBase}
+getSummaryTable(l.model.base$m)
+```
+
+
+As gas consumption depends significantly on gas power generation, we estimate a seperate model where we include gas power production as independent variable. This allows to understand inhowfar gas savings were driven by gas power production or by other factors. Of course, gas power generation is endogenous to our problem, but it still may be useful. The model shows that gas power has a signficant impact on gas consumption - and we estimate an efficiency of gas power production of XX. Both models are consequently used to predict gas consumption in 2022, using 2022 climate data. The difference in observed gas consumption to model predictions will indicate gas savings beyond temperature effects. 
+
+
+```{r regressionResultPower}
+getSummaryTable(l.model.power$m)
+```
+We use a similar approach, i.e. a slightly reduced linear model without a time trend, to predict gas consumption during winter 2022/2023, training the model however only on the past year. The rationale behind this training period is that gas consumption dependency on temperature and demand levels in the recent year are structurally different from previous year, in particular to significantly increasing prices. We then predict gas consumption during the winter using 72 realizations of temperature from the past 72 years. Using observed gas storage levels, we then predict how much gas will be in the storage after the winter. We also have to know expected flows of gas into the country, which we take from official gas supply scenarios ([energie.gv.at](https://energie.gv.at)), as we also take weekly updates of how much of the gas in Austrian gas storages is available for Austrias. Of the total available gas in storage, XXX, at the start of the winter, 27TWh were destined to Austrian consumers. Additionally, the Austrian government has built up a strategic gas reserve of 20TWh, to secure supply even under extreme conditions. Daily gas flows in the winter period are estimated to be at XXTWh, YYTWh, and ZZTWh for Austrian production, imports without Russia, and Russian gas, respectively. We calculate storage levels with and without Russian gas supply to show the impact of a complete cut of gas flows from Russia to Austria.
+
+## Model evaluation
+<!-- cross validation of regression model -->
+
+Here, we validate our demand prediction against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
+``` {r model-evaluation-1}
+
+pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>% 
+    spread(variable, value)
+
+updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
+
+predict.one.day = function(year.select, d.hdd, d.base, updating.period){
+    one.prediction(year.select, d.hdd, d.base, updating.period) %>% 
+        filter(date == min(date)) %>% 
+        return()
+    
+}
+
+pred.update.daily = bind_rows(mapply(predict.one.day, list(2022), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE)) %>% 
+    dplyr::select(date, variable, value) %>% 
+    spread(variable, value)
+    
+
+d.eval = d.base %>% 
+    dplyr::select(date, gas.cons.obs = value) %>% 
+    merge(pred.from.start, by = "date") %>% 
+    merge(pred.update.daily, by = "date")
+    
+    
+d.eval %>% 
+    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
+    gather(variable, value, -date) %>% 
+    mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>% 
+    mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>% 
+     mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>% 
+    group_by(variable) %>% 
+    mutate(value = cumsum(value)) %>% 
+    ggplot(aes(x = date, y = value)) +
+    geom_line(aes(col = variable)) +
+    scale_color_manual(values = COLORS) +
+        labs(
+            title = "Validierung des Modells",
+            subtitle = "kumulativer Verbrauch seit 15.11.2022, in TWh"
+        ) +
+    xlab(NULL) +
+    ylab(NULL)
+
+
+
+```
+
+
+
+``` {r model-evaluation-2}
+storage.levels %>% 
+    mutate(level = level + storage.start.strategic) %>% 
+    merge(pred.from.start, by = "date") %>% 
+    merge(pred.update.daily, by = "date")  %>% 
+    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, level) %>% 
+    gather(variable, value, -date) %>% 
+    mutate(value = round(value, 2)) %>% 
+    mutate(variable = str_replace(variable, "storage", "stor")) %>% 
+    mutate(variable = str_replace(variable, "with", "w")) %>% 
+    #mutate(variable = str_replace(variable, "wout", "w/o")) %>% 
+    mutate(variable = str_replace(variable, "x", "from.start")) %>% 
+    mutate(variable = str_replace(variable, "y", "daily.updt")) %>% 
+    spread(variable, value)
+
+```
+
