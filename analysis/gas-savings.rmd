@@ -12,7 +12,7 @@ loadPackages(tidyverse, knitr)
 ```
 
 ```{r setupData, include=FALSE}
-d.base = loadBase(FALSE)
+d.base = loadBase(update = TRUE)
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017]
@@ -33,7 +33,7 @@ savings.2022 = 1 - d.gas.years[year == 2022, rel]
 
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn bspw. der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch ist damit bisher sogar niedriger als im *Lockdown-Jahr* 2020.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn bspw. der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown-Jahr 2020.
 
 Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin [↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
 
