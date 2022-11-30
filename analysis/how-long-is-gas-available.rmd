@@ -191,14 +191,15 @@ annotation <- tibble(
 d.all.years %>%
     filter(variable != "gas.cons.pred") %>% 
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
-    mutate(Klimajahr = ifelse(year < 2000, "vor 2000", "nach 2000")) %>% 
+    mutate(Klimajahr = ifelse(year < 1990, "vor 1990", "nach 1990")) %>% 
+    arrange((year)) %>% 
     ggplot(aes(x = date, y = value)) +
-        geom_line(aes(col = Klimajahr, linetype = as.character(year)), linewidth = 0.6, alpha = 0.5) +
-        facet_wrap(. ~ variable) +
+        geom_line(aes(col = Klimajahr, linetype = as.character(year)), linewidth = 0.6, alpha = 0.2) +
+        facet_wrap(Klimajahr ~ variable) +
         geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
         ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
         scale_color_manual(values = COLORS) +
-        scale_linetype_manual(values = 1:72, guide = "none") +
+        scale_linetype_manual(values = rep(1, 72), guide = "none") +
         xlab(NULL) + ylab("Speicherniveau (TWh)") +
         geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3) 
 ```
