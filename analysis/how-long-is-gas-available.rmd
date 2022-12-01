@@ -11,7 +11,6 @@ source("export/analysis/_theme.r")
 loadPackages(tidyverse, knitr)
 
 source("analysis/setup-storage-prediction.R")
-source("analysis/setup-model-evaluation.R")
 
 ```
 
@@ -35,7 +34,6 @@ annotation <- tibble(
     y = c(22)
 )
 
-
 d.all.years %>%
     filter(variable != "gas.cons.pred") %>% 
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
@@ -55,6 +53,8 @@ d.all.years %>%
 Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr kalten Winter würden die Preise massiv steigen, und der Verbrauch würde unter unserer Abschätzung liegen. Da wir rollierend die Temperaturabhängigkeit schätzen, fließt der Effekt sich verändernder Preise aber nur langsam ins Modell ein. Würde der Winter sehr warm, würden die Preise fallen, und der Verbrauch steigen, die Einsparungen wären also geringer, als von uns abgeschätzt. In Summe sollte der Preiseffekt also dazu führen, dass der Speicherstand am Ende des Winters innerhalb der von uns ausgewiesenen Spannbreite liegt: wird der Winter sehr kalt, würde mehr gespart werden als von uns vorhergesagt, wird er sehr warm, weniger.
 
 ``` {r model-evaluation-1}
+
+d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
     dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
@@ -78,10 +78,9 @@ d.eval %>%
 
 ```
 ``` {r model-evaluation-2}
-storage.levels %>% 
+storage.levels.domestic %>% 
     mutate(level = level + storage.start.strategic) %>% 
-    merge(pred.from.start, by = "date") %>% 
-    merge(pred.update.daily, by = "date")  %>% 
+    merge(d.eval, by = "date") %>% 
     dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, level) %>% 
     gather(variable, value, -date) %>% 
     mutate(value = round(value, 2)) %>% 

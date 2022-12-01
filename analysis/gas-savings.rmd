@@ -45,7 +45,10 @@ Der Verlauf des täglichen Gaskonsums[↗](/single/gas~consumption-aggm) lässt 
 Die Temperatur hat allerdings erwartungsgemäß einen großen Einfluss auf den Gaskonsum, wie die folgende Grafik zeigt:
 
 ```{r consumTemp}
-source("analysis/setup-loess.R")
+d.loess = get.d.loess(d.base)
+
+d.lines = get.d.lines(d.loess)
+
 ggplot(d.loess, aes(x = temp, y = value)) +
     geom_point(size = 0.4, alpha = 0.3) +
     geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +

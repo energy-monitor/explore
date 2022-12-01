@@ -256,3 +256,67 @@ one.prediction = function(year.select, d.hdd, d.base, start.date) {
         mutate(day.name = day + diff.days.dec.mar - 1) %>%
         mutate(date = as.Date(day.name, origin = "2022-01-01"))
 }
+
+reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.date){
+    pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>%
+        spread(variable, value)
+
+    updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
+
+    predict.one.day = function(year.select, d.hdd, d.base, updating.period){
+        one.prediction(year.select, d.hdd, d.base, updating.period) %>%
+            filter(date == min(date)) %>%
+            return()
+    }
+
+    pred.update.daily = bind_rows(mapply(predict.one.day, list(2022), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE)) %>%
+        dplyr::select(date, variable, value) %>%
+        spread(variable, value)
+
+    d.base %>%
+        dplyr::select(date, gas.cons.obs = value) %>%
+        merge(pred.from.start, by = "date") %>%
+        merge(pred.update.daily, by = "date") %>%
+        return()
+}
+
+get.d.loess = function(d.base){
+    d.base[, .(
+        date, temp,
+        value = value * 1000
+    )]
+}
+
+get.d.lines = function(d.loess){
+    m.loess = loess(value ~ temp, d.loess)
+
+    order.loess = order(d.loess$temp)
+
+    d.lines = data.table(
+        temp = d.loess$temp[order.loess],
+        value = m.loess$fitted[order.loess]
+    )
+}
+
+calc.stor.start.domestic = function(storage.start.domestic,
+                                    storage.start.domestic.date){
+
+    storage.at = loadFromStorage("storage-AT") %>%
+        filter(year(gasDayStart) == 2022)
+
+    storage.at.fill.state = storage.at %>%
+        filter(gasDayStart == storage.start.domestic.date) %>%
+        mutate(value = gasInStorage)
+
+    storage.at.last = storage.at %>%
+        arrange(gasDayStart) %>%
+        slice_tail() %>%
+        mutate(value = gasInStorage)
+
+    prop.dom.int = (storage.start.domestic) / (storage.at.fill.state$value -  storage.start.strategic)
+
+    change.in.storage = (storage.at.fill.state$value - storage.at.last$value) * prop.dom.int
+
+    storage.start.domestic = storage.start.domestic - change.in.storage
+}
+

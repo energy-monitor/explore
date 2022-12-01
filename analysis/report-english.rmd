@@ -103,8 +103,9 @@ In total, gas savings since August 2022 were at XX, yY and ZZ%. Only absolute ga
 We find that even assuming that the winter 2022/2023 is comparable to the coldest winter in the period 1950 - 2021, i.e. 1963, the strategic gas reserve will not have to be used in Austria. However, commercial storages will be almost completely emptied under such a scenario. If the winter is more closely as the warmest winter in the period 1950 - 2021, the gas storage level will only drop by XX\%, leaving sufficient gas quantities available in storage for the coming year 2023. In an average winter (period 1990 - 2021), gas storage levels will not fall below XX\%. 
 
 Gas availability changes drastically, if Russia cuts off all gas supplies. Under such conditions, in x out of n scenarios, the strategic gas reserve will have to be used. The coldest winter in the last 30 years would be sufficient to activate the gas reserve - and storage levels after winter 2022/2023 are well below the levels compared to a scenario with gas supply. Even in the warmest year, the storage will fall to XX\% of initial levels.
+
 ``` {r gas-availability}
-source("setup-storage-prediction.R")
+source("analysis/setup-storage-prediction.R")
 
 ```
 
@@ -185,7 +186,9 @@ Figure 1: Boxplots of input data for the period 2015 - 2022. Seasonality of inpu
 Temperature has a significant impact on gas consumption, as can be observed in Figure YY. Below temperatures of 14 °C, there seems to be an almost linear inverse relationship between temperature and gas consumption. As XX% of Austrian households are heating using gas, this is not a major suprise. We, therefore, use temp = -1 * temperature, if temperature < 14, 0 otherwwise.
 
 ```{r consumTemp}
-source("analysis/setup-loess.R")
+d.loess = get.d.loess(d.base)
+
+d.lines = get.d.lines(d.loess)
 
 ggplot(d.loess, aes(x = temp, y = value)) +
     geom_point(size = 0.4, alpha = 0.3) +
@@ -225,7 +228,7 @@ We use a similar approach, i.e. a slightly reduced linear model without a time t
 
 Here, we validate our demand prediction against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
 ``` {r model-evaluation-1}
-source("analysis/setup-model-evaluation.R")
+d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
     dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
@@ -252,10 +255,9 @@ d.eval %>%
 
 
 ``` {r model-evaluation-2}
-storage.levels %>% 
+storage.levels.domestic %>% 
     mutate(level = level + storage.start.strategic) %>% 
-    merge(pred.from.start, by = "date") %>% 
-    merge(pred.update.daily, by = "date")  %>% 
+    merge(d.eval, by = "date") %>% 
     dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, level) %>% 
     gather(variable, value, -date) %>% 
     mutate(value = round(value, 2)) %>% 

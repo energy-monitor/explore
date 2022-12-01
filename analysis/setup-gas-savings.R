@@ -1,9 +1,12 @@
+###### code for gas savings ######
+
 d.base = loadBase(TRUE)
 # start data with first complete year
 d.base = d.base[year >= min(d.base[day == 1]$year)]
 # d.base = d.base[year >= 2017]
 
 max.date = d.base[max(date) == date]$date
+
 max.day = yday(max.date)
 
 d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value) * 10^3), by = year]
@@ -15,18 +18,17 @@ temp.threshold = 14
 
 # - MODEL ----------------------------------------------------------------------
 
-# AUGMENT
+# AUGMENT DATA
 d.comb = copy(d.base)
 addTempThreshold(d.comb, temp.threshold)
 
-
+# MODEL DEFINITION
 model.base = value ~
     t + t.squared + # week +
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
 l.model.base = estimate(model.base, d.comb)
-
 
 model.power = value ~
     t + t.squared + gas.power + # week +
@@ -35,6 +37,7 @@ model.power = value ~
 
 l.model.power = estimate(model.power, d.comb)
 
+# PLOTTING DATA
 d.plot = rbind(
     l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
     l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-11-10"][, .(
@@ -59,7 +62,10 @@ d.baseline.savings = d.base %>%
     mutate(rollmean = rollmean(value, 14, fill = NA)) %>%
     as.data.table()
 
+# COMPARISON TABLE
+
 startDate = "2022-03-01"
+
 c.years.avg = 2017:2021
 
 d.comp.pred = rbind(
