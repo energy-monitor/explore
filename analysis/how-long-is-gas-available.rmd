@@ -10,58 +10,11 @@ source("calc/prediction-gas-consumption/_shared.r")
 source("export/analysis/_theme.r")
 loadPackages(tidyverse, knitr)
 
-days_of_months = c(31, 30, 31, 31, 28, 31)
+source("analysis/setup-storage-prediction.R")
+source("analysis/setup-model-evaluation.R")
 
-diff.days.dec.mar = as.numeric(as.Date("2023-03-31") - as.Date("2022-12-31") + 1)
-
-learning.period.days = 365
-
-### these values are taken from https://energie.gv.at/gut-zu-wissen/wie-wird-der-winter
-gas.from.russia = 10
-gas.from.russia.per.day = gas.from.russia / (sum(days_of_months))
-
-gas.domestic = 4
-gas.domestic.per.day = gas.domestic / (sum(days_of_months))
-
-gas.from.others = 33
-gas.from.others.per.day = gas.from.others / (sum(days_of_months))
-
-### values from energie.gv.at (Eigentumsverhältnisse Gasspeicher)
-### these values are not updated regularly
-### I therefore update them proportional to emptying the complete gas storage
-### Date of the initial data is 15/11/2022
-storage.start.strategic = 20
-
-#storage levels
-storage.levels = tibble(date = c(as.Date("2022-11-15"), as.Date("2022-11-22")),
-                        level = c(27.09, 26.95))
-storage.start.domestic = storage.levels %>% slice_tail(n = 1) %>% .$level
-storage.start.domestic.date = storage.levels %>% slice_tail(n = 1) %>% .$date
-
-
-storage.at = loadFromStorage("storage-AT") %>%
-    filter(year(gasDayStart) == 2022)
-
-storage.at.fill.state = storage.at %>%
-    filter(gasDayStart == storage.start.domestic.date) %>%
-    mutate(value = gasInStorage)
-
-storage.at.last = storage.at %>%
-    arrange(gasDayStart) %>%
-    slice_tail() %>%
-    mutate(value = gasInStorage)
-
-prop.dom.int = (storage.start.domestic) / (storage.at.fill.state$value -  storage.start.strategic)
-
-change.in.storage = (storage.at.fill.state$value - storage.at.last$value) * prop.dom.int
-
-storage.start.domestic = storage.start.domestic - change.in.storage
 ```
 
-
-```{r setupData, include=FALSE}
-d.base = loadBase(update = TRUE)
-```
 
 # Reicht das Gas über den Winter?
 <p class="meta">
@@ -74,112 +27,6 @@ Laut [energie.gv.at](https://energie.gv.at) lagen am 15.11.2022 `r round(storage
 In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien für den Gasspeicherstand über den Winter berechnen. Der aktuelle Speicherstand wir so miteinbezogen, dass wir annehmen, dass die Abnahme im Speicherstand der österreichischen Kund/innen proportional zur Abnahme des Speicherstands der ausländischen Kund/innen erfolgt. 
 
 ```{r plot}
-
-max.date = max(d.base$date)
-
-temp.threshold = 14
-
-d.comb = copy(d.base)
-
-addTempThreshold(d.comb, temp.threshold)
-
-d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
-    date = as.Date(date), temp
-)]
-
-
-one.prediction = function(year.select, d.hdd, d.base, start.date) {
-    
-    model.base = value ~
-                        #t + t.squared + # week +
-                        temp.below.threshold + 
-                        temp.below.threshold.lag +
-                        temp.below.threshold.squared +
-                        wday + is.holiday + as.factor(vacation.name)
-
-    d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
-
-    m.linear = lm(model.base, data = d.train)
-    
-    temp.in = d.hdd[((year(date) == year.select) & (month(date) >= 10)) | 
-                          ((year(date) == (year.select + 1)) & (month(date) <= 3))]
-    
-    temp.in[, `:=`(
-        date = date - diff.days.dec.mar
-        )]
-
-    temp.in[, `:=`(
-        day = yday(date),
-        year = year(date)
-    )]
-    
-    addTempThreshold(temp.in, temp.threshold)
-
-    d.prediction = copy(d.base)
-    
-    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (start.date)) &
-                                                                 (date < "2023-04-01")][, .(date)]
-    
-    d.prediction[, `:=`(
-        wday = factor(
-            as.character(clock::date_weekday_factor(date)),
-            c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-        )
-    )]
-    
-    holidays = loadFromStorage(id = "holidays")
-    
-    d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date, 
-                                                                   wday, 
-                                                                   is.holiday, 
-                                                                   vacation.name)]
-    
-
-
-    d.prediction[, `:=`(date = date - diff.days.dec.mar), ]
-
-    d.prediction[, `:=`(day = yday(date)), ]
-
-    d.prediction = merge(d.prediction, temp.in, by = "day")
-    
-    prediction = predict(m.linear, d.prediction)
-    
-    d.prediction[, `:=`(
-        day = day,
-        year = year,
-        gas.cons.cum = cumsum(prediction),
-        prediction = prediction,
-        storage.strategic = storage.start.strategic,
-        storage.domestic = storage.start.domestic,
-        gas.from.russia = gas.from.russia.per.day,
-        gas.other = gas.from.others.per.day + gas.domestic.per.day
-    )]
-
-    d.prediction[, `:=`(
-        storage.with.russia = storage.domestic + storage.strategic - gas.cons.cum +
-            cumsum(gas.from.russia) + cumsum(gas.other),
-        storage.without.russia = storage.domestic + storage.strategic - gas.cons.cum + cumsum(gas.other)
-    )]
-
-    d.prediction = d.prediction %>%
-        dplyr::select(
-            day, year,
-            storage.with.russia,
-            storage.without.russia,
-            gas.cons.pred = prediction
-        ) %>%
-        gather(variable, value, -day, -year) %>%
-        mutate(year = year.select)
-
-    d.prediction %>% 
-        mutate(day = as.numeric(day)) %>% 
-        mutate(day.name = day + diff.days.dec.mar - 1) %>% 
-        mutate(date = as.Date(day.name, origin = "2022-01-01"))
-}
-
-d.all.years = bind_rows(lapply(c(1950:2021), one.prediction, d.hdd, d.base, max.date)) %>% 
-    as.data.table()
-
 annotation <- tibble(
     label = c(
         "Strategische Gasreserve"
@@ -187,6 +34,7 @@ annotation <- tibble(
     x = c(as.Date("2023-01-01")),
     y = c(22)
 )
+
 
 d.all.years %>%
     filter(variable != "gas.cons.pred") %>% 
@@ -208,29 +56,6 @@ Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr k
 
 ``` {r model-evaluation-1}
 
-pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>% 
-    spread(variable, value)
-
-updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
-
-predict.one.day = function(year.select, d.hdd, d.base, updating.period){
-    one.prediction(year.select, d.hdd, d.base, updating.period) %>% 
-        filter(date == min(date)) %>% 
-        return()
-    
-}
-
-pred.update.daily = bind_rows(mapply(predict.one.day, list(2022), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE)) %>% 
-    dplyr::select(date, variable, value) %>% 
-    spread(variable, value)
-    
-
-d.eval = d.base %>% 
-    dplyr::select(date, gas.cons.obs = value) %>% 
-    merge(pred.from.start, by = "date") %>% 
-    merge(pred.update.daily, by = "date")
-    
-    
 d.eval %>% 
     dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
     gather(variable, value, -date) %>% 

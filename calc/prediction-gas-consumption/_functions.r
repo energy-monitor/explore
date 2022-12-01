@@ -19,7 +19,7 @@ loadBase = function(update) {
     # Electricity generation gas
     d.power.gas = loadFromStorage(id = "electricity-generation-g1")[
         country == "AT" & source.group == "Gas", .(
-        date = as.Date(date), gas.power = value / 0.55
+        date = as.Date(date), gas.power = value
     )]
 
     # Holidays
@@ -107,4 +107,152 @@ growth.rate = function(d.economic.activity) {
         dplyr::select(economic.activity) %>%
         unlist()
 
+}
+
+estimate = function(model, d, train.years = c(2000:2021)) {
+    d.train = d[year %in% train.years]
+    d.ret = copy(d)
+
+    m.linear = lm(model, data = d.train)
+    print(summary(m.linear))
+
+    prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
+        as.data.table()
+
+    prediction.confidence = predict(m.linear, d.ret, interval = "confidence", level = 0.95) %>%
+        as.data.table()
+
+    d.ret[, `:=`(
+        prediction = prediction.prediction$fit,
+        lower.pred = prediction.prediction$lwr,
+        upper.pred = prediction.prediction$upr,
+        lower.conf = prediction.confidence$lwr,
+        upper.conf = prediction.confidence$upr
+    )]
+
+    d.ret[, `:=`(
+        difference = (value - prediction) / prediction,
+        diff.pred.lower = (value - lower.pred) / lower.pred,
+        diff.pred.upper = (value - upper.pred) / upper.pred,
+        diff.conf.lower = (value - lower.conf) / lower.conf,
+        diff.conf.upper = (value - upper.conf) / upper.conf
+    )]
+
+    d.ret[, `:=`(
+        difference.mean = rollmean(difference, 14, fill = NA)
+    )]
+
+    d.plot = d.ret[, .(
+        date, value, prediction, difference,
+        diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper
+    )]
+
+    d.plot = melt(d.plot, id.vars = "date")
+    d.plot[, rollmean := rollmean(value, 14, fill = NA, align = "right"), by = variable]
+
+    list(
+        m = m.linear,
+        d.pred = d.ret,
+        d.plot = d.plot
+    )
+}
+
+getSummaryTable = function(m) {
+    d = data.table(coef(summary(m)), keep.rownames = "term")
+    d[, Variable := c.nice.names[term]]
+    d[is.na(Variable), Variable := term]
+    d$`Pr(>|t|)` = NULL
+    d$term = NULL
+    d$`t value` = NULL
+    setcolorder(d, "Variable")
+    kable(d, align = "r", digits = 3)
+}
+
+one.prediction = function(year.select, d.hdd, d.base, start.date) {
+
+    model.base = value ~
+        #t + t.squared + # week +
+        temp.below.threshold +
+        temp.below.threshold.lag +
+        temp.below.threshold.squared +
+        wday + is.holiday + as.factor(vacation.name)
+
+    d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
+
+    m.linear = lm(model.base, data = d.train)
+
+    temp.in = d.hdd[((year(date) == year.select) & (month(date) >= 10)) |
+                        ((year(date) == (year.select + 1)) & (month(date) <= 3))]
+
+    temp.in[, `:=`(
+        date = date - diff.days.dec.mar
+    )]
+
+    temp.in[, `:=`(
+        day = yday(date),
+        year = year(date)
+    )]
+
+    addTempThreshold(temp.in, temp.threshold)
+
+    d.prediction = copy(d.base)
+
+    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (start.date)) &
+                                                                 (date < "2023-04-01")][, .(date)]
+
+    d.prediction[, `:=`(
+        wday = factor(
+            as.character(clock::date_weekday_factor(date)),
+            c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        )
+    )]
+
+    holidays = loadFromStorage(id = "holidays")
+
+    d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date,
+                                                                   wday,
+                                                                   is.holiday,
+                                                                   vacation.name)]
+
+
+
+    d.prediction[, `:=`(date = date - diff.days.dec.mar), ]
+
+    d.prediction[, `:=`(day = yday(date)), ]
+
+    d.prediction = merge(d.prediction, temp.in, by = "day")
+
+    prediction = predict(m.linear, d.prediction)
+
+    d.prediction[, `:=`(
+        day = day,
+        year = year,
+        gas.cons.cum = cumsum(prediction),
+        prediction = prediction,
+        storage.strategic = storage.start.strategic,
+        storage.domestic = storage.start.domestic,
+        gas.from.russia = gas.from.russia.per.day,
+        gas.other = gas.from.others.per.day + gas.domestic.per.day
+    )]
+
+    d.prediction[, `:=`(
+        storage.with.russia = storage.domestic + storage.strategic - gas.cons.cum +
+            cumsum(gas.from.russia) + cumsum(gas.other),
+        storage.without.russia = storage.domestic + storage.strategic - gas.cons.cum + cumsum(gas.other)
+    )]
+
+    d.prediction = d.prediction %>%
+        dplyr::select(
+            day, year,
+            storage.with.russia,
+            storage.without.russia,
+            gas.cons.pred = prediction
+        ) %>%
+        gather(variable, value, -day, -year) %>%
+        mutate(year = year.select)
+
+    d.prediction %>%
+        mutate(day = as.numeric(day)) %>%
+        mutate(day.name = day + diff.days.dec.mar - 1) %>%
+        mutate(date = as.Date(day.name, origin = "2022-01-01"))
 }
