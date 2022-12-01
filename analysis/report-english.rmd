@@ -7,7 +7,6 @@ date: '2022-11-30'
 <!--
 Todo:
 - Write and expand text
-- cross validation model
 - Mention population data source
 - Translate everything to English
 - Figure prices vs. savings
@@ -52,8 +51,7 @@ c.nice.names = c(
 
 ```
 ## Abstract
-As a consequence of limited gas supplys from Russia to Europe, Austria is experiencing a shortfall in gas supply and very high prices on gas markets. To safeguard against supply shortfalls, the EU Comission has asked all member states to reduce gas consumption by 15\%. We assess if Austria was, so far able, to reach this goal. For that purpose, we model temperature dependent gas load with a regression model. We find that Austria has - in absolute numbers - reduced gas consumption by about 19\% since August 2022. However, one of the reasons was a very warm October and November. Taking into account these climatic conditions, we find reductions of only about 5\%. In particular gas power production is above previous years, explaining relatively low savings - industry and households saved about 12\%. We also find that only in a particularly cold winter (comparable to 1963), the Austrian strategic gas reserve would have to be used. If Russian gas flows are completely shut down, without replacements from other sources, the strategic reserve may have to be used if the winter is as cold or colder as the average winter in the past 30 years. 
-
+As a consequence of limited gas supplys from Russia to Europe, Austria is experiencing a shortfall in gas supply and very high prices on gas markets. To safeguard against supply shortfalls, the EU Comission has asked all member states to reduce gas consumption by 15\%. We assess if Austria was, so far able, to reach this goal. For that purpose, we model temperature dependent gas load with a regression model. We find that Austria has - in absolute numbers - reduced gas consumption by about 19\% since August 2022. However, one of the reasons was a very warm October and November. Taking into account these climatic conditions, we find reductions of only about 5\%. In particular gas power production is above previous years, explaining relatively low savings - industry and households saved about 12\%. We also find that only in a particularly cold winter (comparable to 1963), the Austrian strategic gas reserve would have to be used. If Russian gas flows are completely shut down, without replacements from other sources, the strategic reserve may have to be used if the winter is as cold or colder as the average winter in the past 30 years.
 
 ## Introduction
 As a consequence of reduced gas flows from Russia to Europe, Austria is experiencing a shortfall in gas supply. In recent years, about 90\% of Austrian gas has been imported from Russia, and while Austria was successful in substituting these imports to a large extent, there is still the risk of a gas supply shortage this winter. In this context, the EU Comission has asked all members states to reduced gas consumption by 15\% in the period August 2022 - March 2023, based on a comparision with the same period in the years 2017 - 2021. While in absolute values, Austria was able to do so and reduced gas consumption by 19\% since August 2022, this may have been the result of a relatively warm autumn with temperatures well above average. Here, we therefore investigate if Austrian consumers saved gas beyond the warm climate. Furthermore, we use the model to predict gas consumption in Austria until March 2023 to derive scenarios for the level of gas storages under given gas supply scenarios.
@@ -82,7 +80,9 @@ dcast(l.model.base$d.plot[date >= "2022-03-01"], date ~ variable, value.var = "r
             subtitle = "Relative difference between models and observation in 2022, in %")
 ```
 ## Gas savings
-Figure YY compares gas savings in comparison to 2017-2021, and gas savings as estimated by our 2 models, m.total being a model that does not control for power production from gas, while m.power does. Absolute savings in autumn 2022 are larger than the modelled ones - due to comparably high temperatures. In late October, gas savings reduced in the models and in observations. A very likely reason are lower gas prices in a period when European gas storages were full, while demand had not picked up yet. We assume that price elastic gas consumers have increased consumption in this period. With the arrival of lower temperatures, prices increased again mid November and so did savings of gas. <!-- other things we can observe on the figure ...-->
+Figure YY compares gas savings in comparison to 2017-2021, and gas savings as estimated by our 2 models, m.total being a model that does not control for power production from gas, while m.power does. The figure indicates that sizable absolute gas savings started in July, however largely driven by temperature, as modeled gas savings only start to materialize in August. 
+Absolute savings for large periods in autumn 2022 are larger than the modeled ones - due to comparably high temperatures. There is one exception in September, where temperatures were comparably low. From October to mid-November, gas savings reduced in the models and also in observations. A very likely reason are lower gas prices in a period when European gas storages were full, while demand had not picked up yet. We assume that price elastic gas consumers have increased consumption in this period. With the arrival of lower temperatures, prices increased again mid November and so did savings of gas. 
+Gas savings, when controlling for power generation from gas, are significantly higher in autumn compared to overall gas savings. We discuss reasons further below.
 ```{r regressionResultComparison}
 
 c.trans = c(
@@ -98,6 +98,39 @@ setnames(d.comp.f, names(c.trans), c.trans)
 kable(d.comp.f, align = "r", escape = FALSE)
 ```
 In total, gas savings since August 2022 were at XX, yY and ZZ%. Only absolute gas savings therefore are above the EU goal of 15%, while temperature adjusted savings are below. This may mean that a particularly cold winter may need significantly more savings (see Discussion.). We also observe that the model which controls for power production from gas has significantly higher savings, i.e. power generation from gas was higher than in the comparison period. Although electric load has been reduced slightly compared to the previous 5 years, being in cumulative terms at the level of the COVID year 2020, gas power generation has increased due to a comparably low hydro-power year - and as, in the European grid, capacities from French nuclear power plants are lacking.
+
+## Gas prices vs. savings
+
+``` {r prices-vs-savings.2022}
+
+d.gas.price= loadFromStorage("price-gas")
+
+d.savings.prices = l.model.base$d.plot |> 
+    mutate(model = "base") |> 
+    bind_rows(
+        l.model.power$d.plot |> 
+            mutate(model = "power")) |> 
+    bind_rows(
+        d.baseline.savings |> 
+            mutate(model = "diff 2015-2021")
+    ) |> 
+    merge(d.gas.price, by = "date") |> 
+    filter(date >= "2022-03-01")
+
+d.savings.prices |> 
+    group_by(model) |> 
+    summarize(cor = cor(value, price)) |> 
+    print()
+
+d.savings.prices |> 
+    filter(variable == "value") |> 
+    ggplot(aes(x = price, y = value)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    facet_wrap(. ~ model)
+
+
+```
 
 ## Storage levels throughout winter
 We find that even assuming that the winter 2022/2023 is comparable to the coldest winter in the period 1950 - 2021, i.e. 1963, the strategic gas reserve will not have to be used in Austria. However, commercial storages will be almost completely emptied under such a scenario. If the winter is more closely as the warmest winter in the period 1950 - 2021, the gas storage level will only drop by XX\%, leaving sufficient gas quantities available in storage for the coming year 2023. In an average winter (period 1990 - 2021), gas storage levels will not fall below XX\%. 
@@ -195,7 +228,7 @@ ggplot(d.loess, aes(x = temp, y = value)) +
     geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +
     ylab(NULL) + xlab("Temperatur in °C")  +
     # theme(legend.position="top")
-    labs(title = "Gaskonsum vs Temperatur", subtitle = "in GWh, LOESS Linie")
+    labs(title = "Gas consumption vs temperature", subtitle = "in GWh, LOESS line")
 
 
 ```
@@ -224,9 +257,19 @@ getSummaryTable(l.model.power$m)
 We use a similar approach, i.e. a slightly reduced linear model without a time trend, to predict gas consumption during winter 2022/2023, training the model however only on the past year. The rationale behind this training period is that gas consumption dependency on temperature and demand levels in the recent year are structurally different from previous year, in particular to significantly increasing prices. We then predict gas consumption during the winter using 72 realizations of temperature from the past 72 years. Using observed gas storage levels, we then predict how much gas will be in the storage after the winter. We also have to know expected flows of gas into the country, which we take from official gas supply scenarios ([energie.gv.at](https://energie.gv.at)), as we also take weekly updates of how much of the gas in Austrian gas storages is available for Austrias. Of the total available gas in storage, XXX, at the start of the winter, 27TWh were destined to Austrian consumers. Additionally, the Austrian government has built up a strategic gas reserve of 20TWh, to secure supply even under extreme conditions. Daily gas flows in the winter period are estimated to be at XXTWh, YYTWh, and ZZTWh for Austrian production, imports without Russia, and Russian gas, respectively. We calculate storage levels with and without Russian gas supply to show the impact of a complete cut of gas flows from Russia to Austria.
 
 ## Model evaluation
+We cross validate our gas consumption model by leaving one year out of the training period 2015 - 2021 and predicting for this year. The results are shown in table XX. We find that the model performs equally well in all tested years - and that including power generation increases the model fit significantly. However, the interpretation of the models differ - as the base model informs about overall gas savings independent of temperature, while the power model informs about savings in industry and households, without considering power generation.
+``` {r cross validation}
+
+cross.validation(model.base, d.comb, 2015:2021) |> 
+    mutate(model = "base") |> 
+    bind_rows(cross.validation(model.power, d.comb, 2015:2021) |> 
+                  mutate(model = "power")) |> 
+    kable(align = "r", escape = FALSE)
+```
+
 <!-- cross validation of regression model -->
 
-Here, we validate our demand prediction against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
+Furthermore, we validate our demand prediction model used in the storage model against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
 ``` {r model-evaluation-1}
 d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 

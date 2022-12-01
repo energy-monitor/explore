@@ -114,7 +114,6 @@ estimate = function(model, d, train.years = c(2000:2021)) {
     d.ret = copy(d)
 
     m.linear = lm(model, data = d.train)
-    print(summary(m.linear))
 
     prediction.prediction = predict(m.linear, d.ret, interval = "prediction", level = 0.95) %>%
         as.data.table()
@@ -155,6 +154,21 @@ estimate = function(model, d, train.years = c(2000:2021)) {
         d.pred = d.ret,
         d.plot = d.plot
     )
+}
+
+cross.validation <- function(model, d, train.years){
+
+    f = function(year){
+        years.in = train.years[train.years != year]
+        d.res = estimate(model, d, years.in)$d.pred
+        val.year = d.res[year == year]
+        r2 = round(cor(val.year$value, val.year$prediction, use = "pairwise.complete.obs")^2, 2)
+        rmse = round(rmse(val.year$value, val.year$prediction), 2)
+        return(tibble(year = c(year), r2 = c(r2), rmse = c(rmse)))
+    }
+
+    mapply(f, train.years, SIMPLIFY = FALSE) |>
+        bind_rows()
 }
 
 getSummaryTable = function(m) {
@@ -320,3 +334,9 @@ calc.stor.start.domestic = function(storage.start.domestic,
     storage.start.domestic = storage.start.domestic - change.in.storage
 }
 
+rmse = function(a, b){
+    tibble(a, b) |>
+        na.omit() |>
+        summarize(rmse = sqrt(mean((a - b)^2))) |>
+        unlist()
+}
