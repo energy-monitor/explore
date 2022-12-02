@@ -115,15 +115,16 @@ d.savings.prices = l.model.base$d.plot |>
             mutate(model = "diff 2015-2021")
     ) |> 
     merge(d.gas.price, by = "date") |> 
-    filter(date >= "2022-03-01")
+    filter(date >= "2022-08-01")
 
 d.savings.prices |> 
+    filter(variable == "difference") |> 
     group_by(model) |> 
     summarize(cor = cor(value, price)) |> 
     print()
 
 d.savings.prices |> 
-    filter(variable == "value") |> 
+    filter(variable == "difference") |> 
     ggplot(aes(x = price, y = value)) +
     geom_point() +
     geom_smooth(method = "lm") +
