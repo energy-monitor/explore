@@ -6,6 +6,7 @@ date: '2022-11-30'
 
 <!--
 Todo:
+- storage calculation in last table is somehow wrong. Scenario stor.w.russia should be higher than the others.
 - Write and expand text
 - Mention population data source
 - Translate everything to English
@@ -100,6 +101,7 @@ kable(d.comp.f, align = "r", escape = FALSE)
 In total, gas savings since August 2022 were at XX, yY and ZZ%. Only absolute gas savings therefore are above the EU goal of 15%, while temperature adjusted savings are below. This may mean that a particularly cold winter may need significantly more savings (see Discussion.). We also observe that the model which controls for power production from gas has significantly higher savings, i.e. power generation from gas was higher than in the comparison period. Although electric load has been reduced slightly compared to the previous 5 years, being in cumulative terms at the level of the COVID year 2020, gas power generation has increased due to a comparably low hydro-power year - and as, in the European grid, capacities from French nuclear power plants are lacking.
 
 ## Gas prices vs. savings
+Prices are of course the main drivers of gas savings. We therefore assess if our estimates of gas savings are consistent with price developments - and for that purpose, we calculate correlations between prices and savings in the three different approaches. When temperature is not accounted for, the correlation between prices and gas savings is low - this can be expected as gas consumption is closely related with temperatures, and the temperature effect can be larger than the gas price effect. In our temperature corrected base model, however, the correlation increases to 0.41: once we account for changes in temperature, we see that higher gas prices increase gas savings.  However, in the power model, the correlation is lower. This is also expected, as power production in gas power plants is of course sensitive to changes in gas prices - and as gas power producers are large gas consumers, which almost immediately face spot market prices, while smaller consumers and in particular households are not exposed directly to spot market prices. 
 
 ``` {r prices-vs-savings.2022}
 
@@ -115,7 +117,7 @@ d.savings.prices = l.model.base$d.plot |>
             mutate(model = "diff 2015-2021")
     ) |> 
     merge(d.gas.price, by = "date") |> 
-    filter(date >= "2022-08-01")
+    filter(date >= "2022-01-01")
 
 d.savings.prices |> 
     filter(variable == "difference") |> 
@@ -275,16 +277,17 @@ Furthermore, we validate our demand prediction model used in the storage model a
 d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
-    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
+    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>% 
     gather(variable, value, -date) %>% 
     mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>% 
     mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>% 
      mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>% 
+     mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>% 
     group_by(variable) %>% 
     mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
     geom_line(aes(col = variable)) +
-    scale_color_manual(values = COLORS) +
+    #scale_color_manual(values = COLORS) +
         labs(
             title = "Validation of model",
             subtitle = "Cumulative consumption since 2022-11-15, in TWh"
@@ -302,7 +305,7 @@ d.eval %>%
 storage.levels.domestic %>% 
     mutate(level = level + storage.start.strategic) %>% 
     merge(d.eval, by = "date") %>% 
-    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, level) %>% 
+    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, storage.with.russia, level) %>% 
     gather(variable, value, -date) %>% 
     mutate(value = round(value, 2)) %>% 
     mutate(variable = str_replace(variable, "storage", "stor")) %>% 

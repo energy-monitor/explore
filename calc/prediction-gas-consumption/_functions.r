@@ -182,7 +182,7 @@ getSummaryTable = function(m) {
     kable(d, align = "r", digits = 3)
 }
 
-one.prediction = function(year.select, d.hdd, d.base, start.date) {
+one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
 
     model.base = value ~
         #t + t.squared + # week +
@@ -211,7 +211,7 @@ one.prediction = function(year.select, d.hdd, d.base, start.date) {
 
     d.prediction = copy(d.base)
 
-    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (start.date)) &
+    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (prediction.start)) &
                                                                  (date < "2023-04-01")][, .(date)]
 
     d.prediction[, `:=`(
@@ -275,6 +275,10 @@ reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.
     pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>%
         spread(variable, value)
 
+    pred.from.end = one.prediction(2022, d.hdd, d.base, max.date, as.Date("2022-11-15")) %>%
+        spread(variable, value)
+
+
     updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
 
     predict.one.day = function(year.select, d.hdd, d.base, updating.period){
@@ -291,6 +295,7 @@ reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.
         dplyr::select(date, gas.cons.obs = value) %>%
         merge(pred.from.start, by = "date") %>%
         merge(pred.update.daily, by = "date") %>%
+        merge(pred.from.end, by = "date") %>%
         return()
 }
 

@@ -57,16 +57,17 @@ Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr k
 d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
-    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y) %>% 
+    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>% 
     gather(variable, value, -date) %>% 
     mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>% 
     mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>% 
      mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>% 
+         mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>% 
     group_by(variable) %>% 
     mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
     geom_line(aes(col = variable)) +
-    scale_color_manual(values = COLORS) +
+    #scale_color_manual(values = COLORS) +
         labs(
             title = "Validierung des Modells",
             subtitle = "kumulativer Verbrauch seit 15.11.2022, in TWh"
@@ -81,7 +82,7 @@ d.eval %>%
 storage.levels.domestic %>% 
     mutate(level = level + storage.start.strategic) %>% 
     merge(d.eval, by = "date") %>% 
-    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, level) %>% 
+    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, storage.with.russia, level) %>% 
     gather(variable, value, -date) %>% 
     mutate(value = round(value, 2)) %>% 
     mutate(variable = str_replace(variable, "storage", "stor")) %>% 
