@@ -19,8 +19,10 @@ gas.from.others.per.day = gas.from.others / (sum(days_of_months))
 ### values from energie.gv.at (Eigentumsverhältnisse Gasspeicher)
 storage.start.strategic = 20
 
-storage.levels.domestic = tibble(date = c(as.Date("2022-11-15"), as.Date("2022-11-22")),
-                        level = c(27.09, 26.95))
+storage.levels.domestic = tibble(date = c(as.Date("2022-11-15"),
+                                          as.Date("2022-11-22"),
+                                          as.Date("2022-11-29")),
+                        level = c(27.09, 26.95, 26.55))
 
 storage.start.domestic.data = storage.levels.domestic %>% slice_tail(n = 1) %>% .$level
 
@@ -43,6 +45,22 @@ d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
     date = as.Date(date), temp
 )]
 
-d.all.years = bind_rows(lapply(c(1950:2021), one.prediction, d.hdd, d.base, max.date)) %>%
-    as.data.table()
+d.all.years = bind_rows(lapply(c(1950:2021),
+                               one.prediction,
+                               d.hdd,
+                               d.base,
+                               max.date)) %>%
+    as.data.table() |>
+    mutate(type = "Observed climate")
+
+d.all.years.trend = bind_rows(lapply(c(1950:2021),
+                               one.prediction,
+                               add.temperature.trend(d.hdd),
+                               d.base,
+                               max.date)) %>%
+    as.data.table() |>
+    mutate(type = "Detrended climate")
+
+d.all.years = bind_rows(d.all.years,
+                        d.all.years.trend)
 

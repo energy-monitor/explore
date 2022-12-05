@@ -182,14 +182,14 @@ getSummaryTable = function(m) {
     kable(d, align = "r", digits = 3)
 }
 
-one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
+prediction.consumption = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
 
     model.base = value ~
         #t + t.squared + # week +
         temp.below.threshold +
         temp.below.threshold.lag +
         temp.below.threshold.squared +
-        wday + is.holiday + as.factor(vacation.name)
+        wday + is.holiday + as.factor(is.vacation)
 
     d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
 
@@ -226,7 +226,8 @@ one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.sta
     d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date,
                                                                    wday,
                                                                    is.holiday,
-                                                                   vacation.name)]
+                                                                   vacation.name,
+                                                                   is.vacation)]
 
 
 
@@ -237,6 +238,20 @@ one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.sta
     d.prediction = merge(d.prediction, temp.in, by = "day")
 
     prediction = predict(m.linear, d.prediction)
+
+    return(list(d.prediction, prediction))
+
+}
+
+one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
+
+    l = prediction.consumption(year.select, d.hdd, d.base, start.date, prediction.start)
+
+    calculate.storage.level(l[[1]], l[[2]], year.select)
+
+}
+
+calculate.storage.level = function(d.prediction, prediction, year.select){
 
     d.prediction[, `:=`(
         day = day,
@@ -269,26 +284,44 @@ one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.sta
         mutate(day = as.numeric(day)) %>%
         mutate(day.name = day + diff.days.dec.mar - 1) %>%
         mutate(date = as.Date(day.name, origin = "2022-01-01"))
+
 }
 
+
 reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.date){
-    pred.from.start = one.prediction(2022, d.hdd, d.base, as.Date("2022-11-15")) %>%
+
+
+    pred.from.start = one.prediction(year, d.hdd, d.base, as.Date("2022-11-15")) %>%
         spread(variable, value)
 
-    pred.from.end = one.prediction(2022, d.hdd, d.base, max.date, as.Date("2022-11-15")) %>%
+    pred.from.end = one.prediction(year, d.hdd, d.base, max.date, as.Date("2022-11-15")) %>%
         spread(variable, value)
 
 
     updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
 
     predict.one.day = function(year.select, d.hdd, d.base, updating.period){
-        one.prediction(year.select, d.hdd, d.base, updating.period) %>%
-            filter(date == min(date)) %>%
-            return()
+
+        ret = prediction.consumption(year.select,
+                                     d.hdd,
+                                     d.base,
+                                     updating.period,
+                                     updating.period)
+
+        ret[[2]] = ret[[2]][1]
+
+        return(ret)
+
     }
 
-    pred.update.daily = bind_rows(mapply(predict.one.day, list(2022), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE)) %>%
-        dplyr::select(date, variable, value) %>%
+    pred.update.daily.list = (mapply(predict.one.day, list(year), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE))
+
+
+
+    d.prediction.in = pred.update.daily.list[[1]][1] |> as.data.table()
+    prediction.in = map_dbl(pred.update.daily.list, 2)
+
+    pred.update.daily = calculate.storage.level(d.prediction.in, prediction.in, year) |>
         spread(variable, value)
 
     d.base %>%
@@ -345,3 +378,29 @@ rmse = function(a, b){
         summarize(rmse = sqrt(mean((a - b)^2))) |>
         unlist()
 }
+
+
+estimate.temperature.trend = function(d.hdd){
+
+    d.hdd = d.hdd |>
+        mutate(t = 1:n())
+
+    return(summary(lm(temp ~ t, data = d.hdd))$coefficients[2, 1])
+
+}
+
+
+add.temperature.trend = function(d.hdd){
+
+    t.inc = estimate.temperature.trend(d.hdd)
+
+    d.hdd = d.hdd |>
+        mutate(t = n():1) |>
+        mutate(temp = temp + t * t.inc)
+
+    return(d.hdd)
+
+
+}
+
+

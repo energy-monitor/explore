@@ -36,15 +36,18 @@ annotation <- tibble(
 
 d.all.years %>%
     filter(variable != "gas.cons.pred") %>% 
+    mutate(Klima = ifelse(type == "Observed climate", "Klima 1950-2021", "Klima 1950-2021\nkorrigiert")) |> 
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
     mutate(Klimajahr = ifelse(year < 1990, "vor 1990", "nach 1990")) %>% 
     arrange((year)) %>% 
     ggplot(aes(x = date, y = value)) +
-        geom_line(aes(col = Klimajahr, linetype = as.character(year)), linewidth = 0.6, alpha = 0.2) +
-        facet_wrap(Klimajahr ~ variable) +
+        geom_line(aes(col = Klima, linetype = as.character(year)), 
+                  linewidth = 0.6, alpha = 0.3) +
+        geom_smooth(aes(col = Klima), linewidth = 2) +
+        facet_wrap(. ~ variable) +
         geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
         ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
-        scale_color_manual(values = COLORS) +
+        scale_color_manual(values = c(COLORS[c(1)], "black")) +
         scale_linetype_manual(values = rep(1, 72), guide = "none") +
         xlab(NULL) + ylab("Speicherniveau (TWh)") +
         geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3) 
@@ -59,10 +62,10 @@ d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-1
 d.eval %>% 
     dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>% 
     gather(variable, value, -date) %>% 
-    mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>% 
-    mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>% 
+    mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell 2022-11-15", variable)) %>% 
+    mutate(variable = ifelse(variable == "gas.cons.pred.y", "Modell tägliches Update", variable)) %>% 
      mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>% 
-         mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>% 
+         mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell {max.date}"), variable)) %>% 
     group_by(variable) %>% 
     mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
@@ -90,6 +93,7 @@ storage.levels.domestic %>%
     #mutate(variable = str_replace(variable, "wout", "w/o")) %>% 
     mutate(variable = str_replace(variable, "x", "from.start")) %>% 
     mutate(variable = str_replace(variable, "y", "daily.updt")) %>% 
+    mutate(variable = ifelse(variable == "stor.w.russia", "stor.w.russia.from.end", variable)) |> 
     spread(variable, value)
 
 ```
