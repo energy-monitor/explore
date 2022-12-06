@@ -12,8 +12,15 @@ agg = function(d) d[, .(
 # - LOAD -----------------------------------------------------------------------
 if (!file.exists(historic.file.name)) {
     # Split data range (else would be slow or not work)
-    d.historic = getGasConsumption("2018-12-30", "2022-01-02")
-    d.t0 = agg(d.historic)[year(date) %in% 2019:2021]
+
+    cache.path = file.path(g$d$tmp, "consumption-gas-aggm-historic-cache.csv")
+
+    d.t0 = fread(cache.path)[, date := as.Date(date)] |>
+        spread(variable, value) |>
+        dplyr::select(date, value)
+
+    #d.historic = getGasConsumption("2018-12-30", "2022-01-02")
+    #d.t0 = agg(d.historic)[year(date) %in% 2019:2021]
 
     d.historic = getGasConsumption("2015-12-30", "2019-01-02")
     d.t1 = agg(d.historic)[year(date) %in% 2016:2018]
@@ -28,7 +35,7 @@ if (!file.exists(historic.file.name)) {
 
 d.historic = fread(historic.file.name)[, date := as.Date(date)]
 update.time = now()
-d.base = agg(getGasConsumption(startDate = "2021-12-30"))[order(date)]
+d.base = agg(getGasConsumption(startDate = "2022-11-20"))[order(date)]
 
 # loadPackages('ggplot2')
 # ggplot(d.base, aes(x = date, y = value)) + geom_line()
