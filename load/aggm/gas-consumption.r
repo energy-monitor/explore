@@ -30,6 +30,9 @@ d.historic = fread(historic.file.name)[, date := as.Date(date)]
 update.time = now()
 d.base = agg(getGasConsumption(startDate = "2021-12-30"))[order(date)]
 
+# loadPackages('ggplot2')
+# ggplot(d.base, aes(x = date, y = value)) + geom_line()
+
 # Combine
 d.full = rbind(d.historic, d.base[date > max(d.historic$date)])
 
@@ -41,3 +44,4 @@ saveToStorages(d.full, list(
     format = "csv",
     update.time = update.time
 ))
+
