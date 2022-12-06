@@ -157,14 +157,16 @@ annotation <- tibble(
 d.all.years %>%
     #filter(type == "Average year") %>% 
     filter(variable != "gas.cons.pred") %>% 
+        mutate(Klima = ifelse(type == "Observed climate", "Klima 1950-2021", "Klima 1950-2021\nkorrigiert")) |> 
+
     mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
     mutate(Klimajahr = ifelse(year < 1990, "before 1990", "after 1990")) %>% 
     arrange((year)) %>% 
     ggplot(aes(x = date, y = value)) +
-        geom_line(aes(col = Klimajahr, linetype = as.character(year)), size = 0.1, alpha = 0.6) +
-        facet_wrap(Klimajahr ~ variable) +
+        geom_line(aes(col = Klima, linetype = as.character(year)), size = 0.1, alpha = 0.6) +
+        facet_wrap(. ~ variable) +
         geom_abline(slope = 0, intercept = storage.start.strategic, linetype = 2) +
-        geom_smooth() +
+        geom_smooth(aes(col = Klima)) +
         ylim(c(0, storage.start.strategic + storage.start.domestic + 2)) +
         scale_color_manual(values = COLORS) +
         scale_linetype_manual(values = rep(1, 73), guide = "none") +
@@ -274,6 +276,9 @@ cross.validation(model.base, d.comb, 2015:2021) |>
 
 Furthermore, we validate our demand prediction model used in the storage model against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
 ``` {r model-evaluation-1}
+storage.start.domestic = storage.start.domestic.data = storage.levels.domestic %>% slice_head(n = 1) %>% .$level
+
+
 d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
@@ -286,7 +291,7 @@ d.eval %>%
     group_by(variable) %>% 
     mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
-    geom_line(aes(col = variable)) +
+    geom_line(aes(col =variable)) +
     #scale_color_manual(values = COLORS) +
         labs(
             title = "Validation of model",

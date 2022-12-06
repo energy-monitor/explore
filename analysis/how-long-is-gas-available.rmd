@@ -57,6 +57,8 @@ Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr k
 
 ``` {r model-evaluation-1}
 
+storage.start.domestic = storage.start.domestic.data = storage.levels.domestic %>% slice_head(n = 1) %>% .$level
+
 d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>% 
