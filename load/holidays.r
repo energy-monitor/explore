@@ -8,7 +8,7 @@ c.years = 2012:2030
 
 
 # - DOWNLOAD -------------------------------------------------------------------
-if (TRUE) {
+if (FALSE) {
     d.holidays = rbindlist(sapply(c.years, function(year) {
         fromJSON(glue("https://date.nager.at/api/v2/publicholidays/{year}/AT"))
     }, simplify = FALSE))

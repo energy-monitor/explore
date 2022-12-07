@@ -230,17 +230,18 @@ one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.sta
 
 }
 
-calculate.storage.level = function(d.prediction, prediction, year.select){
+# uses l.gas.info
+calculate.storage.level = function(d.prediction, prediction, year.select) {
 
     d.prediction[, `:=`(
         day = day,
         year = year,
         gas.cons.cum = cumsum(prediction),
         prediction = prediction,
-        storage.strategic = storage.start.strategic,
-        storage.domestic = storage.start.domestic,
-        gas.from.russia = gas.from.russia.per.day,
-        gas.other = gas.from.others.per.day + gas.domestic.per.day
+        storage.strategic = l.gas.info$l.storage$strategic,
+        storage.domestic = l.gas.info$l.storage$d.domestic.last$level,
+        gas.from.russia = l.gas.info$c.sources.daily["russia"],
+        gas.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
     )]
 
     d.prediction[, `:=`(
@@ -295,8 +296,6 @@ reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.
 
     pred.update.daily.list = (mapply(predict.one.day, list(year), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE))
 
-
-
     d.prediction.in = pred.update.daily.list[[1]][1] |> as.data.table()
     prediction.in = map_dbl(pred.update.daily.list, 2)
 
@@ -329,28 +328,6 @@ get.d.lines = function(d.loess){
     )
 }
 
-calc.stor.start.domestic = function(storage.start.domestic,
-                                    storage.start.domestic.date){
-
-    storage.at = loadFromStorage("storage-AT") %>%
-        filter(year(gasDayStart) == 2022)
-
-    storage.at.fill.state = storage.at %>%
-        filter(gasDayStart == storage.start.domestic.date) %>%
-        mutate(value = gasInStorage)
-
-    storage.at.last = storage.at %>%
-        arrange(gasDayStart) %>%
-        slice_tail() %>%
-        mutate(value = gasInStorage)
-
-    prop.dom.int = (storage.start.domestic) / (storage.at.fill.state$value -  storage.start.strategic)
-
-    change.in.storage = (storage.at.fill.state$value - storage.at.last$value) * prop.dom.int
-
-    storage.start.domestic = storage.start.domestic - change.in.storage
-}
-
 rmse = function(a, b){
     tibble(a, b) |>
         na.omit() |>
@@ -361,17 +338,16 @@ rmse = function(a, b){
 
 estimate.temperature.trend = function(d.hdd){
     d.hdd = d.hdd |>
-        mutate(t = 1:n())
+        mutate(t = seq_len(n()))
 
     summary(lm(temp ~ t, data = d.hdd))$coefficients[2, 1]
 }
 
 
 add.temperature.trend = function(d.hdd){
-
     t.inc = estimate.temperature.trend(d.hdd)
 
     d.hdd |>
-        mutate(t = n():1) |>
+        mutate(t = rev(seq_len(n()))) |>
         mutate(temp = temp + t * t.inc)
 }

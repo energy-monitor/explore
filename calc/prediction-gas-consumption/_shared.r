@@ -46,14 +46,6 @@ model.power = value ~
 l.model.power = estimate(model.power, d.comb)
 
 # PLOTTING DATA
-d.plot = rbind(
-    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
-    l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-12-31"][, .(
-        date = as.Date(paste("2022", month(date), day(date), sep = "-")),
-        variable = "value21", value, rollmean
-    )]
-)
-
 d.baseline.savings = d.base %>%
     dplyr::select(date, value) %>%
     filter(date >= "2017-01-01" & date <= "2021-12-31") %>%

@@ -114,19 +114,26 @@ getSummaryTable(l.model.base$m, c.nice.names)
 Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 geschätzt. Der Unterschied der in 2022 beobachteten Werte von unserer Prognose kann als temperaturunabhängige Konsumänderung interpretiert werden. Von Juni bis Mitte Oktober war der beobachtete Wert fast immer unter unserer Schätzung, wir gehen daher für diesen Zeitraum von Einsparungen, die über die klimatischen Bedingungen hinausgehen, aus.
 
 ```{r modelResultLevelsBase}
-d.plot %>%
-    ggplot(aes(x = date, y = rollmean, color = variable, group = variable)) +
-        geom_line(linewidth = 1) +
-        scale_color_manual(values = COLORS, name = NULL, labels = c(
-            value = "Beobachtung", prediction = "Schätzung - Modellvariante 1", value21 = "Vorjahr")
-        ) +
-        # scale_y_continuous(labels = scales::comma())
-        scale_x_date(date_labels = "%b", date_breaks = "1 month") +
-        xlab(NULL) + ylab(NULL) +
-        labs(
-            title = "Täglicher Gasverbrauch",
-            subtitle = "in TWh, 14-tägiges Mittel"
-        )
+d.plot = rbind(
+    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
+    l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-12-31"][, .(
+        date = as.Date(paste("2022", month(date), day(date), sep = "-")),
+        variable = "value21", value, rollmean
+    )]
+)
+
+ggplot(d.plot, aes(x = date, y = rollmean, color = variable, group = variable)) +
+    geom_line(linewidth = 1) +
+    scale_color_manual(values = COLORS, name = NULL, labels = c(
+        value = "Beobachtung", prediction = "Schätzung - Modellvariante 1", value21 = "Vorjahr")
+    ) +
+    # scale_y_continuous(labels = scales::comma())
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    xlab(NULL) + ylab(NULL) +
+    labs(
+        title = "Täglicher Gasverbrauch",
+        subtitle = "in TWh, 14-tägiges Mittel"
+    )
 ```
 
 Noch deutlicher kann dies gezeigt werden, imdem wir die relativen Abweichungen der beiden Kurven plotten. Hier zeigt sich allerdings deutlich, dass ab Mitte Oktober die Einsparungen stark zurückgehen - das passt zu den seit Anfang September stark gefallenen Gaspreisen[↗](/single/gas~price).
