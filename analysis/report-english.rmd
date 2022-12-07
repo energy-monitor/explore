@@ -17,13 +17,9 @@ Todo:
 # Gas Savings in Austria
 ```{r setupBase, include=FALSE}
 # - INIT -----------------------------------------------------------------------
-source("calc/prediction-gas-consumption/_shared.r")
 source("export/analysis/_theme.r")
-loadPackages(tidyverse, knitr)
-```
-
-```{r setupData, include=FALSE}
-source("analysis/setup-gas-savings.R")
+source("calc/prediction-gas-consumption/_shared.r")
+loadPackages(knitr)
 
 c.nice.names = c(
     `(Intercept)` = "(Intercept)",
@@ -49,8 +45,8 @@ c.nice.names = c(
     is.hard.lockdownTRUE = "Lockdown Hard",
     gas.power = "Power generation from gas"
 )
-
 ```
+
 ## Abstract
 As a consequence of limited gas supplys from Russia to Europe, Austria is experiencing a shortfall in gas supply and very high prices on gas markets. To safeguard against supply shortfalls, the EU Comission has asked all member states to reduce gas consumption by 15\%. We assess if Austria was, so far able, to reach this goal. For that purpose, we model temperature dependent gas load with a regression model. We find that Austria has - in absolute numbers - reduced gas consumption by about 19\% since August 2022. However, one of the reasons was a very warm October and November. Taking into account these climatic conditions, we find reductions of only about 5\%. In particular gas power production is above previous years, explaining relatively low savings - industry and households saved about 12\%. We also find that only in a particularly cold winter (comparable to 1963), the Austrian strategic gas reserve would have to be used. If Russian gas flows are completely shut down, without replacements from other sources, the strategic reserve may have to be used if the winter is as cold or colder as the average winter in the past 30 years.
 
@@ -85,7 +81,6 @@ Figure YY compares gas savings in comparison to 2017-2021, and gas savings as es
 Absolute savings for large periods in autumn 2022 are larger than the modeled ones - due to comparably high temperatures. There is one exception in September, where temperatures were comparably low. From October to mid-November, gas savings reduced in the models and also in observations. A very likely reason are lower gas prices in a period when European gas storages were full, while demand had not picked up yet. We assume that price elastic gas consumers have increased consumption in this period. With the arrival of lower temperatures, prices increased again mid November and so did savings of gas.
 Gas savings, when controlling for power generation from gas, are significantly higher in autumn compared to overall gas savings. We discuss reasons further below.
 ```{r regressionResultComparison}
-
 c.trans = c(
     month.name = "2022",
     value.21   = "to 2021",
@@ -103,9 +98,9 @@ In total, gas savings since August 2022 were at XX, yY and ZZ%. Only absolute ga
 ## Gas prices vs. savings
 Prices are of course the main drivers of gas savings. We therefore assess if our estimates of gas savings are consistent with price developments - and for that purpose, we calculate correlations between prices and savings in the three different approaches. When temperature is not accounted for, the correlation between prices and gas savings is low - this can be expected as gas consumption is closely related with temperatures, and the temperature effect can be larger than the gas price effect. In our temperature corrected base model, however, the correlation increases to 0.41: once we account for changes in temperature, we see that higher gas prices increase gas savings.  However, in the power model, the correlation is lower. This is also expected, as power production in gas power plants is of course sensitive to changes in gas prices - and as gas power producers are large gas consumers, which almost immediately face spot market prices, while smaller consumers and in particular households are not exposed directly to spot market prices.
 
-``` {r prices-vs-savings.2022}
+```{r prices-vs-savings.2022}
 
-d.gas.price= loadFromStorage("price-gas")
+d.gas.price = loadFromStorage("price-gas")
 
 d.savings.prices = l.model.base$d.plot |>
     mutate(model = "base") |>
@@ -140,12 +135,9 @@ We find that even assuming that the winter 2022/2023 is comparable to the coldes
 
 Gas availability changes drastically, if Russia cuts off all gas supplies. Under such conditions, in x out of n scenarios, the strategic gas reserve will have to be used. The coldest winter in the last 30 years would be sufficient to activate the gas reserve - and storage levels after winter 2022/2023 are well below the levels compared to a scenario with gas supply. Even in the warmest year, the storage will fall to XX\% of initial levels.
 
-``` {r gas-availability}
-source("analysis/setup-storage-prediction.R")
+```{r gas-availability}
+source("calc/setup-storage-prediction.r")
 
-```
-
-```{r plot}
 annotation <- tibble(
     label = c(
         "Strategic gas reserve"
@@ -203,7 +195,7 @@ d.base %>%
     gather(variable, value, -date) %>%
     ggplot(aes(x = variable, y = value)) +
     geom_boxplot() +
-    facet_wrap( . ~ variable, scale = "free")
+    facet_wrap(. ~ variable, scale = "free")
 
 d.base %>%
     dplyr::select(year,
@@ -215,7 +207,7 @@ d.base %>%
     #mutate(value = rollmean(value, 14, fill = NA)) %>%
     ggplot(aes(x = day, y = value)) +
     geom_smooth(aes(col = as.character(year))) +
-    facet_wrap( . ~ variable, scale = "free")
+    facet_wrap(. ~ variable, scale = "free")
 
 ```
 Figure 1: Boxplots of input data for the period 2015 - 2022. Seasonality of input data over years.
@@ -263,8 +255,8 @@ We use a similar approach, i.e. a slightly reduced linear model without a time t
 
 ## Model evaluation
 We cross validate our gas consumption model by leaving one year out of the training period 2015 - 2021 and predicting for this year. The results are shown in table XX. We find that the model performs equally well in all tested years - and that including power generation increases the model fit significantly. However, the interpretation of the models differ - as the base model informs about overall gas savings independent of temperature, while the power model informs about savings in industry and households, without considering power generation.
-``` {r cross validation}
 
+``` {r crossValidation}
 cross.validation(model.base, d.comb, 2015:2021) |>
     mutate(model = "base") |>
     bind_rows(cross.validation(model.power, d.comb, 2015:2021) |>
@@ -275,7 +267,8 @@ cross.validation(model.base, d.comb, 2015:2021) |>
 <!-- cross validation of regression model -->
 
 Furthermore, we validate our demand prediction model used in the storage model against observed demand in Austria. We do so for a model that was trained until 2022-11-15 only, i.e. the start of our prediction period. In a second attempt, we do so for a model that was trained on data for a period up to 1 day before the prediction period. I.e. in the second case, we predict demand only one day ahead with the most up-to-date data. On purpose, we do not use auto-regressive terms, therefore our model estimates demand only from temperature and dummies. We see that both models overestimate demand compared to observations, however, the second model slowly adapts to observed demand. In our current version, the model therefore can be considered to be a conservative estimate of gas demand. In total, we therefore also underestimate storage levels, as shown in Table XX.
-``` {r model-evaluation-1}
+
+```{r model-evaluation-1}
 storage.start.domestic = storage.start.domestic.data = storage.levels.domestic %>% slice_head(n = 1) %>% .$level
 
 
@@ -286,8 +279,8 @@ d.eval %>%
     gather(variable, value, -date) %>%
     mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>%
     mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>%
-     mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>%
-     mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>%
+    mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>%
+    mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>%
     group_by(variable) %>%
     mutate(value = cumsum(value)) %>%
     ggplot(aes(x = date, y = value)) +
@@ -301,9 +294,7 @@ d.eval %>%
     ylab(NULL)
 ```
 
-
-
-``` {r model-evaluation-2}
+```{r model-evaluation-2}
 storage.levels.domestic %>%
     mutate(level = level + storage.start.strategic) %>%
     merge(d.eval, by = "date") %>%

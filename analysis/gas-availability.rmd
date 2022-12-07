@@ -6,12 +6,9 @@ date: '2022-11-20'
 
 ```{r setupBase, include=FALSE}
 # - INIT -----------------------------------------------------------------------
-source("calc/prediction-gas-consumption/_shared.r")
 source("export/analysis/_theme.r")
-loadPackages(tidyverse, knitr)
-
-source("analysis/setup-storage-prediction.R")
-
+source("calc/setup-storage-prediction.r")
+loadPackages(knitr)
 ```
 
 
@@ -55,7 +52,7 @@ d.all.years %>%
 
 Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr kalten Winter würden die Preise massiv steigen, und der Verbrauch würde unter unserer Abschätzung liegen. Da wir rollierend die Temperaturabhängigkeit schätzen, fließt der Effekt sich verändernder Preise aber nur langsam ins Modell ein. Würde der Winter sehr warm, würden die Preise fallen, und der Verbrauch steigen, die Einsparungen wären also geringer, als von uns abgeschätzt. In Summe sollte der Preiseffekt also dazu führen, dass der Speicherstand am Ende des Winters innerhalb der von uns ausgewiesenen Spannbreite liegt: wird der Winter sehr kalt, würde mehr gespart werden als von uns vorhergesagt, wird er sehr warm, weniger.
 
-``` {r model-evaluation-1}
+```{r model-evaluation-1}
 
 storage.start.domestic = storage.start.domestic.data = storage.levels.domestic %>% slice_head(n = 1) %>% .$level
 
@@ -83,7 +80,7 @@ d.eval %>%
 
 
 ```
-``` {r model-evaluation-2}
+```{r model-evaluation-2}
 storage.levels.domestic %>%
     mutate(level = level + storage.start.strategic) %>%
     merge(d.eval, by = "date") %>%

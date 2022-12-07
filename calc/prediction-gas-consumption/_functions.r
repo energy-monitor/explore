@@ -84,31 +84,6 @@ addTempThreshold = function(d, threshold) {
 }
 
 
-### the economic indicator is published at monthly resolution, t + 45 days
-### to be able to predict up to the current moment,
-### I do a very dirty prediction of the economic indicator:
-### it is economic activity of (t - 365 days) times
-### the growth rate of the current year for the available time period
-### compared to last year
-growth.rate = function(d.economic.activity) {
-    maximum.month.last.year = as_tibble(d.economic.activity) %>%
-        filter(year == max(year)) %>%
-        filter(month == max(month)) %>%
-        dplyr::select(month) %>%
-        unlist()
-
-    as_tibble(d.economic.activity) %>%
-        filter(year >= max(year) - 1) %>%
-        filter(month <= maximum.month.last.year) %>%
-        group_by(year) %>%
-        summarize(economic.activity = sum(economic.activity)) %>%
-        add_row(.[2, ] / .[1, ]) %>%
-        slice_tail(n = 1) %>%
-        dplyr::select(economic.activity) %>%
-        unlist()
-
-}
-
 estimate = function(model, d, train.years = c(2000:2021)) {
     d.train = d[year %in% train.years]
     d.ret = copy(d)
@@ -156,9 +131,9 @@ estimate = function(model, d, train.years = c(2000:2021)) {
     )
 }
 
-cross.validation <- function(model, d, train.years){
+cross.validation = function(model, d, train.years){
 
-    f = function(year){
+    f = function(year) {
         years.in = train.years[train.years != year]
         d.res = estimate(model, d, years.in)$d.pred
         val.year = d.res[year == year]
@@ -190,6 +165,10 @@ prediction.consumption = function(year.select, d.hdd, d.base, start.date, predic
         temp.below.threshold.lag +
         temp.below.threshold.squared +
         wday + is.holiday + as.factor(is.vacation)
+
+    d.comb = copy(d.base)
+    addTempThreshold(d.comb, temp.threshold)
+    
 
     d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
 
@@ -381,12 +360,10 @@ rmse = function(a, b){
 
 
 estimate.temperature.trend = function(d.hdd){
-
     d.hdd = d.hdd |>
         mutate(t = 1:n())
 
-    return(summary(lm(temp ~ t, data = d.hdd))$coefficients[2, 1])
-
+    summary(lm(temp ~ t, data = d.hdd))$coefficients[2, 1]
 }
 
 
@@ -394,11 +371,7 @@ add.temperature.trend = function(d.hdd){
 
     t.inc = estimate.temperature.trend(d.hdd)
 
-    d.hdd = d.hdd |>
+    d.hdd |>
         mutate(t = n():1) |>
         mutate(temp = temp + t * t.inc)
-
-    return(d.hdd)
-
-
 }
