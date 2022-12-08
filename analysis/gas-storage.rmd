@@ -1,14 +1,13 @@
 ---
 title: "Gas Savings estimation explanation"
-output: html_document
+output: md_document
 date: '2022-11-20'
 ---
 
 ```{r setupBase, include=FALSE}
 # - INIT -----------------------------------------------------------------------
-source("_shared.r")
-source("export/analysis/_theme.r")
 source("calc/setup-storage-prediction.r")
+source("export/analysis/_theme.r")
 loadPackages(knitr)
 ```
 
@@ -19,9 +18,9 @@ loadPackages(knitr)
     Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-availability.rmd" target="_blank">↗</a>
 </p>
 
-Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern welches für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer österreichischen Gaseigenproduktion von 4 TWh rechnen - und mit Importen von 33 TWh. Falls Russland die Exporte stoppt, würden Importe von 22 TWh in dieser Periode erwartet werden. 
+Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern das für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer österreichischen Gaseigenproduktion von 4 TWh rechnen - und mit Importen von 33 TWh. Falls Russland die Exporte stoppt, würden Importe von 22 TWh in dieser Periode erwartet werden. 
 
-In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien für den Gasspeicherstand über den Winter berechnen. Der aktuelle Speicherstand wir so miteinbezogen, dass wir annehmen, dass die Abnahme im Speicherstand der österreichischen Kund/innen proportional zur Abnahme des Speicherstands der ausländischen Kund/innen erfolgt. 
+In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im Winter 22/23 berechnen. Der aktuelle Speicherstand wir so miteinbezogen, dass wir annehmen, dass die Abnahme im Speicherstand der österreichischen Kund/innen proportional zur Abnahme des Speicherstands der ausländischen Kund/innen erfolgt. 
 
 ```{r plot, fig.height=7}
 annotation <- tibble(
@@ -54,7 +53,7 @@ d.all.years %>%
 Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr kalten Winter würden die Preise massiv steigen, und der Verbrauch würde unter unserer Abschätzung liegen. Da wir rollierend die Temperaturabhängigkeit schätzen, fließt der Effekt sich verändernder Preise aber nur langsam ins Modell ein. Würde der Winter sehr warm, würden die Preise fallen, und der Verbrauch steigen, die Einsparungen wären also geringer, als von uns abgeschätzt. In Summe sollte der Preiseffekt also dazu führen, dass der Speicherstand am Ende des Winters innerhalb der von uns ausgewiesenen Spannbreite liegt: wird der Winter sehr kalt, würde mehr gespart werden als von uns vorhergesagt, wird er sehr warm, weniger.
 
 ```{r model-evaluation-1}
-d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
+d.eval = reforecast.consumption.model(2022, d.temp, d.base, as.Date("2022-11-15"), max.date)
 
 d.eval %>%
     dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>%

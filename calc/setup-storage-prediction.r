@@ -5,7 +5,15 @@ source("calc/prediction-gas-consumption/_functions.r")
 
 
 # - CONF -----------------------------------------------------------------------
-temp.threshold = 14
+l.options = list(
+    temp.threshold = 14,
+    lag.max = 1,
+    period = list(
+        start = as.Date("2022-10-01"),
+        end = as.Date("2023-04-01")
+    ),
+    learning.days = 365
+)
 
 # these values are taken from https://energie.gv.at
 l.gas.info = list(
@@ -25,14 +33,12 @@ l.gas.info = list(
     )
 )
 
-learning.period.days = 365
-
 
 # - PREP -----------------------------------------------------------------------
-days_of_months = c(31, 30, 31, 31, 28, 31)
+# augment gas info
+l.options$period$length = as.integer(l.options$period$end - l.options$period$start)
 
-# AUGMENT GAS INFO DICT
-l.gas.info$c.sources.daily = sapply(l.gas.info$c.sources, function(a) a / sum(days_of_months))
+l.gas.info$c.sources.daily = sapply(l.gas.info$c.sources, function(a) a / l.options$period$length)
 
 l.gas.info$l.storage$d.domestic = data.table(
     date = as.Date(names(l.gas.info$l.storage$c.domestic)),
@@ -65,22 +71,25 @@ l.gas.info$l.storage$d.domestic.last = calc.stor.start.domestic(l.gas.info$l.sto
 
 # load
 d.base = loadBase(update = TRUE)
+max.date = max(d.base[!is.na(temp), date])
 
-max.date = max(d.base$date)
+d.base = d.base[date >= max.date - l.options$learning.days - l.options$lag.max & date <= l.options$period$end]
+
+addTempThreshold(d.base,  l.options$temp.threshold)
 
 diff.days.dec.mar = as.numeric(as.Date("2023-03-31") - as.Date("2022-12-31") + 1)
 
 
-d.hdd = loadFromStorage(id = "temperature-hdd")[, .(
+d.temp = loadFromStorage(id = "temperature-hdd")[, .(
     date = as.Date(date), temp
 )]
 
 d.all.years = bind_rows(lapply(
-    c(1950:2021), one.prediction, d.hdd, d.base, max.date
+    1950:2021, one.prediction, d.temp, d.base, max.date
 )) %>% mutate(type = "Observed climate")
 
 d.all.years.trend = bind_rows(lapply(
-    c(1950:2021), one.prediction, add.temperature.trend(d.hdd), d.base, max.date
+    1950:2021, one.prediction, add.temperature.trend(d.temp), d.base, max.date
 )) %>% mutate(type = "Detrended climate")
 
 d.all.years = bind_rows(d.all.years, d.all.years.trend)

@@ -11,14 +11,14 @@ c.years.avg = 2017:2021
 
 
 # - BASE -----------------------------------------------------------------------
-d.base = loadBase(TRUE)
+d.base = loadBase(TRUE)[!is.na(gas.consumption) & !is.na(temp)]
 # start data with first complete year
-d.base = d.base[year >= min(d.base[day == 1]$year)]
+# d.base = d.base[year >= min(d.base[day == 1]$year)]
 
 max.date = d.base[max(date) == date]$date
 max.day = yday(max.date)
 
-d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(value) * 10^3), by = year]
+d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(gas.consumption) * 10^3), by = year]
 mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
 d.gas.years[, rel := mean / mean.gas.before22]
 savings.2022 = 1 - d.gas.years[year == 2022, rel]
@@ -29,16 +29,17 @@ savings.2022 = 1 - d.gas.years[year == 2022, rel]
 # AUGMENT DATA
 d.comb = copy(d.base)
 addTempThreshold(d.comb, temp.threshold)
+addTrend(d.comb)
 
 # MODEL DEFINITION
-model.base = value ~
+model.base = gas.consumption ~
     t + t.squared + # week +
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 
 l.model.base = estimate(model.base, d.comb)
 
-model.power = value ~
+model.power = gas.consumption ~
     t + t.squared + gas.power + # week +
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
@@ -46,7 +47,7 @@ model.power = value ~
 l.model.power = estimate(model.power, d.comb)
 
 # PLOTTING DATA
-d.baseline.savings = d.base %>%
+d.baseline.savings = d.base[, value := gas.consumption] %>%
     dplyr::select(date, value) %>%
     filter(date >= "2017-01-01" & date <= "2021-12-31") %>%
     mutate(day = yday(date)) %>%
@@ -76,7 +77,7 @@ d.comp.pred = rbind(
 )[, .(value = sum(value)), by = .(month = month(date), variable)]
 
 d.data.agg = d.base[day <= max.day & month >= 3, .(
-    value = sum(value)
+    value = sum(gas.consumption)
 ), by = .(month = month(date), year = year(date))]
 
 d.comp = rbind(
@@ -85,7 +86,6 @@ d.comp = rbind(
     d.data.agg[year == 2022, .(month, variable = "value.22", value)],
     d.data.agg[year == 2021, .(month, variable = "value.21", value)]
 )
-
 d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, locale = "de_AT.UTF-8"))]
 
 

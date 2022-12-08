@@ -7,13 +7,13 @@ loadBase = function(update) {
 
     # - LOAD -------------------------------------------------------------------
     # Temp & HDD
-    d.hdd = loadFromStorage(id = "temperature-hdd")[, `:=`(
+    d.temp = loadFromStorage(id = "temperature-hdd")[, `:=`(
         date = as.Date(date)
     )]
 
     # Gas Consumption
     d.consumption = loadFromStorage(id = "consumption-gas-aggm")[, .(
-        date = as.Date(date), value
+        date = as.Date(date), gas.consumption = value
     )]
 
     # Electricity generation gas
@@ -36,22 +36,17 @@ loadBase = function(update) {
     )]
 
     # - MERGE ------------------------------------------------------------------
-    d.comb = merge(d.consumption, d.hdd, by = "date")
-    d.comb = merge(d.comb, d.holidays, by = "date")
+    d.comb = merge(d.consumption, d.temp, by = "date", all = TRUE)
+    d.comb = merge(d.comb, d.holidays, by = "date", all = TRUE)
 
-    d.comb = merge(d.comb, d.lockdowns, by = "date", all.x = TRUE)
+    d.comb = merge(d.comb, d.lockdowns, by = "date", all = TRUE)
     d.comb[is.na(is.hard.lockdown), is.hard.lockdown := FALSE]
     d.comb[is.na(is.lockdown), is.lockdown := FALSE]
 
-    d.comb = merge(d.comb, d.power.gas, by = "date")
-
-    min(d.comb$date)
-
-    d.comb[, `:=`(value.without.power = value - gas.power)]
+    d.comb = merge(d.comb, d.power.gas, by = "date", all = TRUE)
 
     # - AUGMENT ----------------------------------------------------------------
     d.comb[, `:=`(
-        t = as.integer(date - min(date)),
         year = year(date),
         month = month(date),
         day = yday(date),
@@ -63,7 +58,6 @@ loadBase = function(update) {
     )]
 
     d.comb[, `:=`(
-        t.squared = t^2,
         workday = ifelse(wday %in% c("Sat", "Sun"), as.character(wday), "Working day")
     )]
 
@@ -80,6 +74,16 @@ addTempThreshold = function(d, threshold) {
     d[, `:=`(
         temp.below.threshold.squared = temp.below.threshold^2,
         temp.below.threshold.lag = shift(temp.below.threshold, 1)
+    )]
+}
+
+addTrend = function(d, threshold) {
+    d[, `:=`(
+        t = as.integer(date - min(date))
+    )]
+
+    d[, `:=`(
+        t.squared = t^2
     )]
 }
 
@@ -104,12 +108,14 @@ estimate = function(model, d, train.years = c(2000:2021)) {
         upper.conf = prediction.confidence$upr
     )]
 
+    dep.var = names(m.linear$model)[1]
+
     d.ret[, `:=`(
-        difference = (value - prediction) / prediction,
-        diff.pred.lower = (value - lower.pred) / lower.pred,
-        diff.pred.upper = (value - upper.pred) / upper.pred,
-        diff.conf.lower = (value - lower.conf) / lower.conf,
-        diff.conf.upper = (value - upper.conf) / upper.conf
+        difference = (get(dep.var) - prediction) / prediction,
+        diff.pred.lower = (get(dep.var) - lower.pred) / lower.pred,
+        diff.pred.upper = (get(dep.var) - upper.pred) / upper.pred,
+        diff.conf.lower = (get(dep.var) - lower.conf) / lower.conf,
+        diff.conf.upper = (get(dep.var) - upper.conf) / upper.conf
     )]
 
     d.ret[, `:=`(
@@ -117,7 +123,7 @@ estimate = function(model, d, train.years = c(2000:2021)) {
     )]
 
     d.plot = d.ret[, .(
-        date, value, prediction, difference,
+        date, value = get(dep.var), prediction, difference,
         diff.conf.lower, diff.conf.upper, diff.pred.lower, diff.pred.upper
     )]
 
@@ -131,8 +137,7 @@ estimate = function(model, d, train.years = c(2000:2021)) {
     )
 }
 
-cross.validation = function(model, d, train.years){
-
+cross.validation = function(model, d, train.years) {
     f = function(year) {
         years.in = train.years[train.years != year]
         d.res = estimate(model, d, years.in)$d.pred
@@ -157,133 +162,99 @@ getSummaryTable = function(m, c.nice.names) {
     kable(d, align = "r", digits = 3)
 }
 
-prediction.consumption = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
+change.year = function(date, year) {
+    new.date = copy(date)
+    year(new.date) = year
+    new.date
+}
 
-    model.base = value ~
+# year.select = 2000
+# start.date = max.date
+prediction.consumption = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
+    # estimate model
+    model.base = gas.consumption ~
         #t + t.squared + # week +
         temp.below.threshold +
         temp.below.threshold.lag +
         temp.below.threshold.squared +
         wday + is.holiday + as.factor(is.vacation)
 
-    d.comb = copy(d.base)
-    addTempThreshold(d.comb, temp.threshold)
-    
-
-    d.train = d.comb[(date > (start.date - learning.period.days) & date <= start.date)]
-
+    d.train = d.base[(date > (start.date - l.options$learning.days) & date <= start.date)]
     m.linear = lm(model.base, data = d.train)
 
-    temp.in = d.hdd[((year(date) == year.select) & (month(date) >= 10)) |
-                        ((year(date) == (year.select + 1)) & (month(date) <= 3))]
+    # get temp of selected year
+    year.date.start = change.year(l.options$period$start, year.select)
+    year.date.end = year.date.start + l.options$period$length
 
-    temp.in[, `:=`(
-        date = date - diff.days.dec.mar
+    d.temp.in = d.temp[date >= year.date.start - l.options$lag.max & date < year.date.end][, .(
+        date.org = date, date = date + (l.options$period$start - year.date.start), temp.in = temp
     )]
 
-    temp.in[, `:=`(
-        day = yday(date),
-        year = year(date)
+    # merge and predict
+    d.prediction = merge(d.base, d.temp.in, by = "date")[, `:=`(
+        temp = ifelse(is.na(temp.in), temp, temp.in) 
     )]
+    addTempThreshold(d.prediction, l.options$temp.threshold)
+    d.prediction[, gas.consumption.pred := predict(m.linear, d.prediction)]
 
-    addTempThreshold(temp.in, temp.threshold)
-
-    d.prediction = copy(d.base)
-
-    d.prediction = d.prediction[, `:=`(date = date + 365), ][(date >= (prediction.start)) &
-                                                                 (date < "2023-04-01")][, .(date)]
-
-    d.prediction[, `:=`(
-        wday = factor(
-            as.character(clock::date_weekday_factor(date)),
-            c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-        )
-    )]
-
-    holidays = loadFromStorage(id = "holidays")
-
-    d.prediction = merge(d.prediction, holidays, by = "date") [ ,.(date,
-                                                                   wday,
-                                                                   is.holiday,
-                                                                   vacation.name,
-                                                                   is.vacation)]
-
-
-
-    d.prediction[, `:=`(date = date - diff.days.dec.mar), ]
-
-    d.prediction[, `:=`(day = yday(date)), ]
-
-    d.prediction = merge(d.prediction, temp.in, by = "day")
-
-    prediction = predict(m.linear, d.prediction)
-
-    return(list(d.prediction, prediction))
-
+    d.prediction[date >= l.options$period$start]
 }
 
-one.prediction = function(year.select, d.hdd, d.base, start.date, prediction.start = start.date) {
-
-    l = prediction.consumption(year.select, d.hdd, d.base, start.date, prediction.start)
-
-    calculate.storage.level(l[[1]], l[[2]], year.select)
-
+one.prediction = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
+    d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date, prediction.start)
+    calculate.storage.level(d.prediction, year.select)
 }
 
-# uses l.gas.info
-calculate.storage.level = function(d.prediction, prediction, year.select) {
-
-    d.prediction[, `:=`(
-        day = day,
-        year = year,
-        gas.cons.cum = cumsum(prediction),
-        prediction = prediction,
+calculate.storage.level = function(d.prediction, year.select) {
+    d.t = d.prediction[, .(
+        date, date.org, day, year,
+        gas.cons.cum = cumsum(gas.consumption.pred),
+        gas.cons.pred = gas.consumption.pred,
         storage.strategic = l.gas.info$l.storage$strategic,
         storage.domestic = l.gas.info$l.storage$d.domestic.last$level,
         gas.from.russia = l.gas.info$c.sources.daily["russia"],
         gas.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
     )]
 
-    d.prediction[, `:=`(
+    d.t[, `:=`(
         storage.with.russia = storage.domestic + storage.strategic - gas.cons.cum +
             cumsum(gas.from.russia) + cumsum(gas.other),
         storage.without.russia = storage.domestic + storage.strategic - gas.cons.cum + cumsum(gas.other)
     )]
 
-    d.prediction = d.prediction %>%
-        dplyr::select(
-            day, year,
-            storage.with.russia,
-            storage.without.russia,
-            gas.cons.pred = prediction
-        ) %>%
-        gather(variable, value, -day, -year) %>%
-        mutate(year = year.select)
+    # d.tt = d.t %>%
+    #     dplyr::select(
+    #         day, year,
+    #         storage.with.russia,
+    #         storage.without.russia,
+    #         gas.cons.pred = gas.cons.pred
+    #     ) %>%
+    #     gather(variable, value, -day, -year) %>%
+    #     mutate(year = year.select)
 
-    d.prediction %>%
-        mutate(day = as.numeric(day)) %>%
-        mutate(day.name = day + diff.days.dec.mar - 1) %>%
-        mutate(date = as.Date(day.name, origin = "2022-01-01"))
+    # d.tt %>%
+    #     mutate(day = as.numeric(day)) %>%
+    #     mutate(day.name = day + diff.days.dec.mar - 1) %>%
+    #     mutate(date = as.Date(day.name, origin = "2022-01-01"))
 
 }
 
 
-reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.date){
+reforecast.consumption.model = function(year, d.temp, d.base, start.date, max.date) {
 
-
-    pred.from.start = one.prediction(year, d.hdd, d.base, as.Date("2022-11-15")) %>%
+    pred.from.start = one.prediction(year, d.temp, d.base, as.Date("2022-11-15")) %>%
         spread(variable, value)
 
-    pred.from.end = one.prediction(year, d.hdd, d.base, max.date, as.Date("2022-11-15")) %>%
+    pred.from.end = one.prediction(year, d.temp, d.base, max.date, as.Date("2022-11-15")) %>%
         spread(variable, value)
 
 
     updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
 
-    predict.one.day = function(year.select, d.hdd, d.base, updating.period){
+    predict.one.day = function(year.select, d.temp, d.base, updating.period) {
 
         ret = prediction.consumption(year.select,
-                                     d.hdd,
+                                     d.temp,
                                      d.base,
                                      updating.period,
                                      updating.period)
@@ -294,7 +265,10 @@ reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.
 
     }
 
-    pred.update.daily.list = (mapply(predict.one.day, list(year), list(d.hdd), list(d.base), updating.period, SIMPLIFY = FALSE))
+    pred.update.daily.list = mapply(
+        predict.one.day, list(year), list(d.temp), list(d.base), updating.period,
+        SIMPLIFY = FALSE
+    )
 
     d.prediction.in = pred.update.daily.list[[1]][1] |> as.data.table()
     prediction.in = map_dbl(pred.update.daily.list, 2)
@@ -310,14 +284,14 @@ reforecasting_consumption_model = function(year, d.hdd, d.base, start.date, max.
         return()
 }
 
-get.d.loess = function(d.base){
+get.d.loess = function(d.base) {
     d.base[, .(
         date, temp,
         value = value * 1000
     )]
 }
 
-get.d.lines = function(d.loess){
+get.d.lines = function(d.loess) {
     m.loess = loess(value ~ temp, d.loess)
 
     order.loess = order(d.loess$temp)
@@ -328,7 +302,7 @@ get.d.lines = function(d.loess){
     )
 }
 
-rmse = function(a, b){
+rmse = function(a, b) {
     tibble(a, b) |>
         na.omit() |>
         summarize(rmse = sqrt(mean((a - b)^2))) |>
@@ -336,18 +310,18 @@ rmse = function(a, b){
 }
 
 
-estimate.temperature.trend = function(d.hdd){
-    d.hdd = d.hdd |>
+estimate.temperature.trend = function(d.temp) {
+    d.temp = d.temp |>
         mutate(t = seq_len(n()))
 
-    summary(lm(temp ~ t, data = d.hdd))$coefficients[2, 1]
+    summary(lm(temp ~ t, data = d.temp))$coefficients[2, 1]
 }
 
 
-add.temperature.trend = function(d.hdd){
-    t.inc = estimate.temperature.trend(d.hdd)
+add.temperature.trend = function(d.temp) {
+    t.inc = estimate.temperature.trend(d.temp)
 
-    d.hdd |>
+    d.temp |>
         mutate(t = rev(seq_len(n()))) |>
         mutate(temp = temp + t * t.inc)
 }
