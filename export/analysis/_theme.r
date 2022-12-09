@@ -26,7 +26,8 @@ theme_update(
     axis.line = element_line(colour = line.color, linewidth = 0.5),
     axis.ticks.y = element_line(colour = line.color, linewidth = 0.5),
     axis.ticks.x = element_line(colour = line.color, linewidth = 0.5),
-    axis.ticks.length = unit(5, "points")
+    axis.ticks.length = unit(5, "points"),
+    strip.text.x = element_text(size = 14)
 )
 
 knitr::opts_chunk$set(

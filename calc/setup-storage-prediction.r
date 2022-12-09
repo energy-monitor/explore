@@ -86,10 +86,28 @@ d.temp = loadFromStorage(id = "temperature-hdd")[, .(
 
 d.all.years = bind_rows(lapply(
     1950:2021, one.prediction, d.temp, d.base, max.date
-)) %>% mutate(type = "Observed climate")
+)) %>% mutate(type = "observed")
+
+
+# Detrend functions
+estimate.temperature.trend = function(d.temp) {
+    d.temp = d.temp |>
+        mutate(t = seq_len(n()))
+
+    summary(lm(temp ~ t, data = d.temp))
+    summary(lm(temp ~ t, data = d.temp))$coefficients[2, 1]
+}
+
+add.temperature.trend = function(d.temp) {
+    t.inc = estimate.temperature.trend(d.temp)
+
+    d.temp |>
+        mutate(t = rev(seq_len(n()))) |>
+        mutate(temp = temp + t * t.inc)
+}
 
 d.all.years.trend = bind_rows(lapply(
     1950:2021, one.prediction, add.temperature.trend(d.temp), d.base, max.date
-)) %>% mutate(type = "Detrended climate")
+)) %>% mutate(type = "detrended")
 
 d.all.years = bind_rows(d.all.years, d.all.years.trend)

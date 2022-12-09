@@ -170,6 +170,8 @@ change.year = function(date, year) {
 
 # year.select = 2000
 # start.date = max.date
+
+# TODO: Prediciton is always the same, maybe extract
 prediction.consumption = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
     # estimate model
     model.base = gas.consumption ~
@@ -202,41 +204,29 @@ prediction.consumption = function(year.select, d.temp, d.base, start.date, predi
 
 one.prediction = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
     d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date, prediction.start)
-    calculate.storage.level(d.prediction, year.select)
+    calculate.storage.level(d.prediction)
 }
 
-calculate.storage.level = function(d.prediction, year.select) {
+calculate.storage.level = function(d.prediction) {
     d.t = d.prediction[, .(
-        date, date.org, day, year,
-        gas.cons.cum = cumsum(gas.consumption.pred),
-        gas.cons.pred = gas.consumption.pred,
-        storage.strategic = l.gas.info$l.storage$strategic,
-        storage.domestic = l.gas.info$l.storage$d.domestic.last$level,
-        gas.from.russia = l.gas.info$c.sources.daily["russia"],
-        gas.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
+        date, date.org,
+        cons.pred = gas.consumption.pred,
+        src.russia = l.gas.info$c.sources.daily["russia"],
+        src.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
     )]
+
+    store = l.gas.info$l.storage$strategic + l.gas.info$l.storage$d.domestic.last$level
 
     d.t[, `:=`(
-        storage.with.russia = storage.domestic + storage.strategic - gas.cons.cum +
-            cumsum(gas.from.russia) + cumsum(gas.other),
-        storage.without.russia = storage.domestic + storage.strategic - gas.cons.cum + cumsum(gas.other)
+        store.with.russia = store - cumsum(cons.pred - src.russia - src.other),
+        store.without.russia = store - cumsum(cons.pred - src.other),
+        src.russia = NULL,
+        src.other = NULL
     )]
 
-    # d.tt = d.t %>%
-    #     dplyr::select(
-    #         day, year,
-    #         storage.with.russia,
-    #         storage.without.russia,
-    #         gas.cons.pred = gas.cons.pred
-    #     ) %>%
-    #     gather(variable, value, -day, -year) %>%
-    #     mutate(year = year.select)
-
-    # d.tt %>%
-    #     mutate(day = as.numeric(day)) %>%
-    #     mutate(day.name = day + diff.days.dec.mar - 1) %>%
-    #     mutate(date = as.Date(day.name, origin = "2022-01-01"))
-
+    d.tt = melt(d.t, id.vars = c("date", "date.org"))
+    d.tt[, winter := paste(unique(year(d.t$date.org)), collapse = "-")]
+    d.tt
 }
 
 
@@ -307,21 +297,4 @@ rmse = function(a, b) {
         na.omit() |>
         summarize(rmse = sqrt(mean((a - b)^2))) |>
         unlist()
-}
-
-
-estimate.temperature.trend = function(d.temp) {
-    d.temp = d.temp |>
-        mutate(t = seq_len(n()))
-
-    summary(lm(temp ~ t, data = d.temp))$coefficients[2, 1]
-}
-
-
-add.temperature.trend = function(d.temp) {
-    t.inc = estimate.temperature.trend(d.temp)
-
-    d.temp |>
-        mutate(t = rev(seq_len(n()))) |>
-        mutate(temp = temp + t * t.inc)
 }
