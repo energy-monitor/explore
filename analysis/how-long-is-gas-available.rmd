@@ -59,19 +59,59 @@ Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr k
 
 storage.start.domestic = storage.start.domestic.data = storage.levels.domestic %>% slice_head(n = 1) %>% .$level
 
-d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date)
+naming = tibble(variable = c("gas.cons.obs",
+                    "gas.cons.pred.x",
+                    "storage.with.russia.x",
+                    "storage.without.russia.x",
+                    "gas.cons.pred.y",
+                    "storage.with.russia.y",
+                    "storage.without.russia.y",
+                    "gas.cons.pred",
+                    "storage.with.russia",
+                    "storage.without.russia"),
+       model = c("observation",
+                 "model.from.start",
+                 "model.from.start",
+                 "model.from.start",
+                 "model.continuous",
+                 "model.continuous",
+                 "model.continuous",
+                 "model.from.end",
+                 "model.from.end",
+                 "model.from.end"),
+       name.new = c("gas.cons",
+                    "gas.cons",
+                    "storage.with.russia",
+                    "storage.without.russia",
+                    "gas.cons",
+                    "storage.with.russia",
+                    "storage.without.russia",
+                    "gas.cons",
+                    "storage.with.russia",
+                    "storage.without.russia"))
 
-d.eval %>% 
-    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>% 
+d.eval = reforecasting_consumption_model(2022, d.hdd, d.base, as.Date("2022-11-15"), max.date) %>% 
+    dplyr::select(-day.x, 
+                  -day.name.x, 
+                  -year.x, 
+                  -day.y, 
+                  -day.name.y, 
+                  -year.y, 
+                  -year,
+                  -day,
+                  -day.name) %>% 
     gather(variable, value, -date) %>% 
-    mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell 2022-11-15", variable)) %>% 
-    mutate(variable = ifelse(variable == "gas.cons.pred.y", "Modell tägliches Update", variable)) %>% 
-     mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>% 
-         mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell {max.date}"), variable)) %>% 
-    group_by(variable) %>% 
+    merge(naming, by = "variable") %>% 
+    dplyr::select(date, variable = name.new, model, value) %>% 
+    group_by(variable, model) %>% 
+    mutate(cumulative = cumsum(value))
+    
+d.eval %>% 
+    filter(variable == "gas.cons") %>% 
+    group_by(model) %>% 
     mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
-    geom_line(aes(col = variable)) +
+    geom_line(aes(col = model)) +
     #scale_color_manual(values = COLORS) +
         labs(
             title = "Validierung des Modells",
@@ -84,18 +124,34 @@ d.eval %>%
 
 ```
 ``` {r model-evaluation-2}
-storage.levels.domestic %>% 
-    mutate(level = level + storage.start.strategic) %>% 
-    merge(d.eval, by = "date") %>% 
-    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, storage.with.russia, level) %>% 
-    gather(variable, value, -date) %>% 
-    mutate(value = round(value, 2)) %>% 
-    mutate(variable = str_replace(variable, "storage", "stor")) %>% 
-    mutate(variable = str_replace(variable, "with", "w")) %>% 
-    #mutate(variable = str_replace(variable, "wout", "w/o")) %>% 
-    mutate(variable = str_replace(variable, "x", "from.start")) %>% 
-    mutate(variable = str_replace(variable, "y", "daily.updt")) %>% 
-    mutate(variable = ifelse(variable == "stor.w.russia", "stor.w.russia.from.end", variable)) |> 
-    spread(variable, value)
+variables.joined = storage.levels.domestic %>% 
+    mutate(variable = "storage.with.russia") %>% 
+    mutate(model = "observation") %>% 
+    mutate(level = level + 20) %>% 
+    dplyr::select(date, variable, model, value = level) %>% 
+    mutate(cumulative = cumsum(value)) %>% 
+    bind_rows(d.eval) %>%
+    mutate(value.final = ifelse(variable %in% c("gas.cons"), cumulative, value)) %>% 
+    filter(date %in% storage.levels.domestic$date) 
 
+variables.joined.upt = variables.joined %>% 
+    filter(variable != "storage.without.russia") %>% 
+    group_by(variable, model) %>% 
+    mutate(diff = value.final - lag(value.final)) %>% 
+    na.omit() %>% 
+    dplyr::select(date, variable, model, diff) %>% 
+    spread(variable, diff) %>% 
+    mutate(sum.supply = gas.cons + storage.with.russia) %>% 
+    mutate(variable = "sum.supply") %>% 
+    group_by(model) %>% 
+    mutate(cumulative = cumsum(sum.supply)) %>% 
+    dplyr::select(date, variable, model, value = sum.supply, cumulative = cumulative, value.final = cumulative) %>% 
+    bind_rows(variables.joined)
+
+variables.joined.upt %>% 
+    ggplot(aes(x = date, y = value.final)) +
+    geom_bar(stat = "identity", position = "dodge", aes(fill = model)) +
+    facet_wrap(. ~ variable, scale = "free") + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
+
