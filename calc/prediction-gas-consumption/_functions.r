@@ -149,8 +149,8 @@ cross.validation = function(model, d, train.years) {
         years.in = train.years[train.years != year]
         d.res = estimate(model, d, years.in)$d.pred
         val.year = d.res[year == year]
-        r2 = round(cor(val.year$value, val.year$prediction, use = "pairwise.complete.obs")^2, 2)
-        rmse = round(rmse(val.year$value, val.year$prediction), 2)
+        r2 = round(cor(val.year$gas.consumption, val.year$prediction, use = "pairwise.complete.obs")^2, 2)
+        rmse = round(rmse(val.year$gas.consumption, val.year$prediction), 2)
         return(tibble(year = c(year), r2 = c(r2), rmse = c(rmse)))
     }
 
@@ -201,17 +201,19 @@ prediction.consumption = function(
     train.start.date, prediction.start.date = l.gas.info$l.storage$d.domestic.last$date + 1
 ) {
     d.train = d.base[(date > (train.start.date - l.options$learning.days - l.options$lag.max) & date <= train.start.date)]
+    addTempThreshold(d.train, l.options$temp.threshold)
     m.linear = lm(l.models$base.without.trend, data = d.train)
 
     # get temp of selected year
     # year.date.start = change.year(l.options$period$start, year.select)
     # year.date.end = year.date.start + l.options$period$length
 
-    year.date.start = change.year(l.gas.info$l.storage$d.domestic.last$date, year.select)
+#    year.date.start = change.year(l.gas.info$l.storage$d.domestic.last$date, year.select)
+    year.date.start = change.year(prediction.start.date, year.select)
     year.date.end = year.date.start + (l.options$period$end - prediction.start.date)
 
     d.temp.in = d.temp[date >= year.date.start - l.options$lag.max & date < year.date.end][, .(
-        season = paste(unique(year(date)), collapse = "/"), date.org = date, 
+        season = paste(unique(year(date)), collapse = "/"), date.org = date,
         date = date + (prediction.start.date - year.date.start), temp.in = temp
     )]
 
@@ -228,12 +230,12 @@ prediction.consumption = function(
     d.prediction[date >= prediction.start.date]
 }
 
-one.prediction = function(year.select, d.temp, d.base, start.date) {
-    d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date)
+one.prediction = function(year.select, d.temp, d.base, start.date, prediction.start.date = l.gas.info$l.storage$d.domestic.last$date + 1) {
+    d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date, prediction.start.date)
     calculate.storage.level(d.prediction)
 }
 
-calculate.storage.level = function(d.prediction) {
+calculate.storage.level = function(d.prediction, storage.level.start = l.gas.info$l.storage$d.domestic.last$level) {
     d.t = d.prediction[, .(
         date, season,
         cons.pred = gas.consumption.pred,
@@ -241,7 +243,7 @@ calculate.storage.level = function(d.prediction) {
         src.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
     )]
 
-    store = l.gas.info$l.storage$strategic + l.gas.info$l.storage$d.domestic.last$level
+    store = l.gas.info$l.storage$strategic + storage.level.start
 
     d.t[, `:=`(
         store.with.russia = store - cumsum(cons.pred - src.russia - src.other),
@@ -256,14 +258,20 @@ calculate.storage.level = function(d.prediction) {
 
 reforecast.consumption.model = function(year, d.temp, d.base, start.date, max.date) {
 
-    pred.from.start = one.prediction(year, d.temp, d.base, as.Date("2022-11-15")) %>%
+    storage.level.start = l.gas.info$l.storage$d.domestic[date == l.options$period$pred.start]$level %>%
+        unlist()
+
+    pred.from.start = prediction.consumption(year, d.temp, d.base, l.options$period$pred.start, l.options$period$pred.start) %>%
+        calculate.storage.level(storage.level.start = storage.level.start) %>%
         spread(variable, value)
 
-    pred.from.end = one.prediction(year, d.temp, d.base, max.date, as.Date("2022-11-15")) %>%
+    pred.from.end = prediction.consumption(year, d.temp, d.base, max.date, l.options$period$pred.start) %>%
+        calculate.storage.level(storage.level.start = storage.level.start) %>%
         spread(variable, value)
 
 
-    updating.period = seq(as.Date("2022-11-15"), max.date, by = 1)
+
+    updating.period = seq(l.options$period$pred.start, max.date, by = 1)
 
     predict.one.day = function(year.select, d.temp, d.base, updating.period) {
 
@@ -273,9 +281,7 @@ reforecast.consumption.model = function(year, d.temp, d.base, start.date, max.da
                                      updating.period,
                                      updating.period)
 
-        ret[[2]] = ret[[2]][1]
-
-        return(ret)
+        return(ret[1, ])
 
     }
 
@@ -284,35 +290,72 @@ reforecast.consumption.model = function(year, d.temp, d.base, start.date, max.da
         SIMPLIFY = FALSE
     )
 
-    d.prediction.in = pred.update.daily.list[[1]][1] |> as.data.table()
-    prediction.in = map_dbl(pred.update.daily.list, 2)
+    d.prediction.in = pred.update.daily.list %>% bind_rows()
 
-    pred.update.daily = calculate.storage.level(d.prediction.in, prediction.in, year) |>
+    pred.update.daily = calculate.storage.level(d.prediction.in, storage.level.start) |>
         spread(variable, value)
 
+    naming = tibble(variable = c("gas.cons.obs",
+                                 "cons.pred.x",
+                                 "store.with.russia.x",
+                                 "store.without.russia.x",
+                                 "cons.pred.y",
+                                 "store.with.russia.y",
+                                 "store.without.russia.y",
+                                 "cons.pred",
+                                 "store.with.russia",
+                                 "store.without.russia"),
+                    model = c("observation",
+                              "model.from.start",
+                              "model.from.start",
+                              "model.from.start",
+                              "model.continuous",
+                              "model.continuous",
+                              "model.continuous",
+                              "model.from.end",
+                              "model.from.end",
+                              "model.from.end"),
+                    name.new = c("gas.cons",
+                                 "gas.cons",
+                                 "storage.with.russia",
+                                 "storage.without.russia",
+                                 "gas.cons",
+                                 "storage.with.russia",
+                                 "storage.without.russia",
+                                 "gas.cons",
+                                 "storage.with.russia",
+                                 "storage.without.russia"))
     d.base %>%
-        dplyr::select(date, gas.cons.obs = value) %>%
+        dplyr::select(date, gas.cons.obs = gas.consumption) %>%
         merge(pred.from.start, by = "date") %>%
         merge(pred.update.daily, by = "date") %>%
         merge(pred.from.end, by = "date") %>%
+        dplyr::select(-season.x,
+                      -season.y,
+                      -season) %>%
+        gather(variable, value, -date) %>%
+        merge(naming, by = "variable") %>%
+        dplyr::select(date, variable = name.new, model, value) %>%
+        group_by(variable, model) %>%
+        mutate(cumulative = cumsum(value)) %>%
         return()
 }
 
 get.d.loess = function(d.base) {
     d.base[, .(
         date, temp,
-        value = value * 1000
+        gas.consumption = gas.consumption * 1000
     )]
 }
 
 get.d.lines = function(d.loess) {
-    m.loess = loess(value ~ temp, d.loess)
+    m.loess = loess(gas.consumption ~ temp, d.loess)
 
     order.loess = order(d.loess$temp)
 
     d.lines = data.table(
         temp = d.loess$temp[order.loess],
-        value = m.loess$fitted[order.loess]
+        gas.consumption = m.loess$fitted[order.loess]
     )
 }
 
