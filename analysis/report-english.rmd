@@ -138,33 +138,53 @@ Gas availability changes drastically, if Russia cuts off all gas supplies. Under
 ```{r gas-availability, fig.height=7}
 source("calc/setup-storage-prediction.r")
 
+d.t.storage = d.base[date >= l.options$period$start & !is.na(storage.dom), .(
+    date, value = storage.dom + l.gas.info$l.storage$strategic
+)]
+
+c.store.names = c(
+    store.with.russia = "With Russian Gas",
+    store.without.russia = "Without Russian Gas"
+)
+
+d.t.pred = d.all.years[variable %in% c("store.with.russia", "store.without.russia")][type == "observed"][, .(
+    date, season, value,
+    variable = factor(variable, names(c.store.names), c.store.names),
+    year.before = substring(season, 1, 4) < 1990
+)]
+
+# Add start point
+d.t.pred = rbind(
+    d.t.pred,
+    d.t.pred[date == min(date), .(
+    date = tail(d.t.storage, 1)$date, season, value = tail(d.t.storage, 1)$value,
+    variable, year.before
+)])
+
 annotation <- tibble(
     label = c(
         "Strategic gas reserve"
     ),
     x = c(as.Date("2023-01-01")),
-    y = c(22)
+    y = c(19)
 )
 
-d.all.years %>%
-    #filter(type == "Average year") %>%
-    filter(variable != "gas.cons.pred") %>%
-        mutate(Klima = ifelse(type == "Observed climate", "Klima 1950-2021", "Klima 1950-2021\nkorrigiert")) |>
-
-    mutate(variable = ifelse(variable == "storage.with.russia", "Mit russischem Gas", "Ohne russisches Gas")) %>%
-    mutate(Klimajahr = ifelse(year < 1990, "before 1990", "after 1990")) %>%
-    arrange((year)) %>%
-    ggplot(aes(x = date, y = value)) +
-        geom_line(aes(col = Klima, linetype = as.character(year)), size = 0.1, alpha = 0.6) +
-        facet_wrap(. ~ variable) +
-        geom_abline(slope = 0, intercept = l.gas.info$l.storage$strategic, linetype = 2) +
-        geom_smooth(aes(col = Klima)) +
-        ylim(c(0, l.gas.info$l.storage$strategic + l.gas.info$l.storage$d.domestic.last$level + 1)) +
-        scale_color_manual(values = COLORS) +
-        scale_linetype_manual(values = rep(1, 73), guide = "none") +
-        #scale_size_manual(values = c(3, 0.6)) +
-        xlab(NULL) + ylab("Storage level (TWh)") +
-        geom_text(data = annotation, aes(x = x, y = y, label = label), size = 3)
+ggplot(d.t.pred, aes(x = date, y = value)) +
+    geom_line(aes(color = year.before, group = season), linewidth = 0.5, alpha = 0.3) +
+    geom_smooth(aes(color = year.before), linewidth = 1.5, alpha = 1, fill = NA) +
+    geom_line(data = d.t.storage, linewidth = 0.8, color = "black") +
+    facet_wrap(variable ~ .) +
+    scale_color_manual(
+        values = COLORS, name = "Temperatures of period:",
+        labels = function(t) c("since 1990", "until 1989")[t + 1]
+    ) +
+    xlab(NULL) + ylab(NULL) +
+    geom_abline(slope = 0, intercept = l.gas.info$l.storage$strategic, linetype = 2) +
+    geom_text(data = annotation, aes(x = x, y = y, label = label), size = 4) +
+    labs(
+        title = "Development storage level",
+        subtitle = "Heating season 22/23, Storage level in TWh"
+    )
 ```
 
 ## Discussion & Conclusions
@@ -271,19 +291,13 @@ Furthermore, we validate our demand prediction model used in the storage model a
 ```{r model-evaluation-1}
 d.eval = reforecast.consumption.model(2022, d.temp, d.base, as.Date("2022-11-15"), max.date)
 
-d.eval %>%
-    dplyr::select(date, gas.cons.obs, gas.cons.pred.x, gas.cons.pred.y, gas.cons.pred) %>%
-    gather(variable, value, -date) %>%
-    mutate(variable = ifelse(variable == "gas.cons.pred.x", "Modell vom 15.11.2022", variable)) %>%
-    mutate(variable = ifelse(variable == "gas.cons.pred.y", "Täglich upgedates Modell", variable)) %>%
-    mutate(variable = ifelse(variable == "gas.cons.obs", "Beobachtung", variable)) %>%
-    mutate(variable = ifelse(variable == "gas.cons.pred", glue("Modell vom {max.date}"), variable)) %>%
-    group_by(variable) %>%
-    mutate(value = cumsum(value)) %>%
+d.eval %>% 
+    filter(variable == "gas.cons") %>% 
+    group_by(model) %>% 
+    mutate(value = cumsum(value)) %>% 
     ggplot(aes(x = date, y = value)) +
-    geom_line(aes(col =variable)) +
-    #scale_color_manual(values = COLORS) +
-        labs(
+    geom_line(aes(col = model)) +
+    labs(
             title = "Validation of model",
             subtitle = "Cumulative consumption since 2022-11-15, in TWh"
         ) +
@@ -292,17 +306,35 @@ d.eval %>%
 ```
 
 ```{r model-evaluation-2}
-l.gas.info$l.storage$d.domestic %>%
-    mutate(level = level + l.gas.info$l.storage$strategic) %>%
-    merge(d.eval, by = "date") %>%
-    dplyr::select(date, storage.with.russia.x,  storage.with.russia.y, storage.with.russia, level) %>%
-    gather(variable, value, -date) %>%
-    mutate(value = round(value, 2)) %>%
-    mutate(variable = str_replace(variable, "storage", "stor")) %>%
-    mutate(variable = str_replace(variable, "with", "w")) %>%
-    #mutate(variable = str_replace(variable, "wout", "w/o")) %>%
-    mutate(variable = str_replace(variable, "x", "from.start")) %>%
-    mutate(variable = str_replace(variable, "y", "daily.updt")) %>%
-    spread(variable, value)
+
+variables.joined = l.gas.info$l.storage$d.domestic %>% 
+    mutate(variable = "storage.with.russia") %>% 
+    mutate(model = "observation") %>% 
+    mutate(level = level + 20) %>% 
+    dplyr::select(date, variable, model, value = level) %>% 
+    mutate(cumulative = cumsum(value)) %>% 
+    bind_rows(d.eval) %>%
+    mutate(value.final = ifelse(variable %in% c("gas.cons"), cumulative, value)) %>% 
+    filter(date %in% l.gas.info$l.storage$d.domestic$date) 
+
+variables.joined.upt = variables.joined %>% 
+    filter(variable != "storage.without.russia") %>% 
+    group_by(variable, model) %>% 
+    mutate(diff = value.final - lag(value.final)) %>% 
+    na.omit() %>% 
+    dplyr::select(date, variable, model, diff) %>% 
+    spread(variable, diff) %>% 
+    mutate(sum.supply = gas.cons + storage.with.russia) %>% 
+    mutate(variable = "sum.supply") %>% 
+    group_by(model) %>% 
+    mutate(cumulative = cumsum(sum.supply)) %>% 
+    dplyr::select(date, variable, model, value = sum.supply, cumulative = cumulative, value.final = cumulative) %>% 
+    bind_rows(variables.joined)
+
+variables.joined.upt %>% 
+    ggplot(aes(x = date, y = value.final)) +
+    geom_bar(stat = "identity", position = "dodge", aes(fill = model)) +
+    facet_wrap(. ~ variable, scale = "free") + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
