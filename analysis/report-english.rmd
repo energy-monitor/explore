@@ -6,11 +6,8 @@ date: '2022-11-30'
 
 <!--
 Todo:
-- storage calculation in last table is somehow wrong. Scenario stor.w.russia should be higher than the others.
 - Write and expand text
 - Mention population data source
-- Translate everything to English
-- Figure prices vs. savings
 - Alternative model approach? Random forest on detrended data?
 -->
 
@@ -207,9 +204,12 @@ The three most important time series are:
 Furthermore, we use data about public holidays, school holidays, and COVID lockdowns. The data is completely available from 2015 - 2022 with a delay of 6 days due to a delay in the publication of ERA5 temperature data. Figure XX shows boxplots and seasonality of input data.
 
 ```{r data-visualization}
+
+d.base = loadBase(TRUE)[!is.na(gas.consumption) & !is.na(temp) & year > 2014]
+
 d.base %>%
     dplyr::select(date,
-                  value,
+                  gas.consumption,
                   temp,
                   gas.power) %>%
     gather(variable, value, -date) %>%
@@ -220,10 +220,10 @@ d.base %>%
 d.base %>%
     dplyr::select(year,
                   day,
-                  value,
+                  gas.consumption,
                   temp,
                   gas.power) %>%
-    gather(variable, value, -day, -year) %>%
+    gather(variable, value, -day, -year)  %>%
     #mutate(value = rollmean(value, 14, fill = NA)) %>%
     ggplot(aes(x = day, y = value)) +
     geom_smooth(aes(col = as.character(year))) +
@@ -240,10 +240,10 @@ d.loess = get.d.loess(d.base)
 
 d.lines = get.d.lines(d.loess)
 
-ggplot(d.loess, aes(x = temp, y = value)) +
+ggplot(d.loess, aes(x = temp, y = gas.consumption)) +
     geom_point(size = 0.4, alpha = 0.3) +
     geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +
-    ylab(NULL) + xlab("Temperatur in °C")  +
+    ylab(NULL) + xlab("Temperature in °C")  +
     # theme(legend.position="top")
     labs(title = "Gas consumption vs temperature", subtitle = "in GWh, LOESS line")
 
@@ -291,26 +291,10 @@ Furthermore, we validate our demand prediction model used in the storage model a
 ```{r model-evaluation-1}
 d.eval = reforecast.consumption.model(2022, d.temp, d.base, as.Date("2022-11-15"), max.date)
 
-d.eval %>% 
-    filter(variable == "gas.cons") %>% 
-    group_by(model) %>% 
-    mutate(value = cumsum(value)) %>% 
-    ggplot(aes(x = date, y = value)) +
-    geom_line(aes(col = model)) +
-    labs(
-            title = "Validation of model",
-            subtitle = "Cumulative consumption since 2022-11-15, in TWh"
-        ) +
-    xlab(NULL) +
-    ylab(NULL)
-```
-
-```{r model-evaluation-2}
-
 variables.joined = l.gas.info$l.storage$d.domestic %>% 
     mutate(variable = "storage.with.russia") %>% 
     mutate(model = "observation") %>% 
-    mutate(level = level + 20) %>% 
+    mutate(level = level + l.gas.info$l.storage$strategic) %>% 
     dplyr::select(date, variable, model, value = level) %>% 
     mutate(cumulative = cumsum(value)) %>% 
     bind_rows(d.eval) %>%
@@ -332,8 +316,9 @@ variables.joined.upt = variables.joined %>%
     bind_rows(variables.joined)
 
 variables.joined.upt %>% 
+    filter(variable != "storage.without.russia") %>%
     ggplot(aes(x = date, y = value.final)) +
-    geom_bar(stat = "identity", position = "dodge", aes(fill = model)) +
+    geom_line(aes(col = model)) +
     facet_wrap(. ~ variable, scale = "free") + 
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```

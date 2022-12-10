@@ -10,7 +10,8 @@ l.options = list(
     lag.max = 1,
     period = list(
         start = as.Date("2022-10-01"),
-        end = as.Date("2023-04-01")
+        end = as.Date("2023-04-01"),
+        pred.start = as.Date("2022-11-15")
     ),
     learning.days = 365
 )
@@ -28,7 +29,8 @@ l.gas.info = list(
         c.domestic = c(
             "2022-11-15" = 27.09,
             "2022-11-22" = 26.95,
-            "2022-11-29" = 18.76 + 7.79
+            "2022-11-29" = 18.76 + 7.79,
+            "2022-12-06" = 25.67
         )
     )
 )
@@ -67,7 +69,7 @@ d.base[!is.na(storage) & date >= l.options$period$start, prop.dom.int := zoo::na
 d.base[, storage.dom := prop.dom.int  * (storage - l.gas.info$l.storage$strategic)]
 
 l.gas.info$l.storage$d.domestic.last = d.base[
-    date == max(d.base[!is.na(storage.dom)]$date), .(
+    date == max(d.base[!is.na(temp)]$date), .(
         date, level = storage.dom
     )
 ]
