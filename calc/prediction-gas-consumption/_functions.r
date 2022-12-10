@@ -29,6 +29,12 @@ loadBase = function(update) {
         # vacation.name = ifelse(vacation.name == "", NA, vacation.name)
     )]
 
+    # Storage
+    d.storage = loadFromStorage("storage-AT")[, .(
+        date = as.Date(gasDayStart), storage = gasInStorage
+    )]
+
+    # Lockdowns
     d.lockdowns = loadFromStorage(id = "lockdowns")[, `:=`(
         date = as.Date(date),
         is.hard.lockdown = is.hard.lockdown > 0,
@@ -38,6 +44,7 @@ loadBase = function(update) {
     # - MERGE ------------------------------------------------------------------
     d.comb = merge(d.consumption, d.temp, by = "date", all = TRUE)
     d.comb = merge(d.comb, d.holidays, by = "date", all = TRUE)
+    d.comb = merge(d.comb, d.storage, by = "date", all = TRUE)
 
     d.comb = merge(d.comb, d.lockdowns, by = "date", all = TRUE)
     d.comb[is.na(is.hard.lockdown), is.hard.lockdown := FALSE]
@@ -165,51 +172,70 @@ getSummaryTable = function(m, c.nice.names) {
 change.year = function(date, year) {
     new.date = copy(date)
     year(new.date) = year
-    new.date
+    as.Date(new.date)
 }
 
-# year.select = 2000
-# start.date = max.date
 
-# TODO: Prediciton is always the same, maybe extract
-prediction.consumption = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
-    # estimate model
-    model.base = gas.consumption ~
+
+
+
+l.models = list(
+    base.without.trend = gas.consumption ~
         #t + t.squared + # week +
         temp.below.threshold +
         temp.below.threshold.lag +
         temp.below.threshold.squared +
         wday + is.holiday + as.factor(is.vacation)
+)
 
-    d.train = d.base[(date > (start.date - l.options$learning.days) & date <= start.date)]
-    m.linear = lm(model.base, data = d.train)
+
+
+
+# year.select = 2000
+# train.start.date = max.date
+# prediction.start.date = l.gas.info$l.storage$d.domestic.last$date + 1
+
+# TODO: Prediciton is always the same, maybe extract
+prediction.consumption = function(
+    year.select, d.temp, d.base,
+    train.start.date, prediction.start.date = l.gas.info$l.storage$d.domestic.last$date + 1
+) {
+    d.train = d.base[(date > (train.start.date - l.options$learning.days - l.options$lag.max) & date <= train.start.date)]
+    m.linear = lm(l.models$base.without.trend, data = d.train)
 
     # get temp of selected year
-    year.date.start = change.year(l.options$period$start, year.select)
-    year.date.end = year.date.start + l.options$period$length
+    # year.date.start = change.year(l.options$period$start, year.select)
+    # year.date.end = year.date.start + l.options$period$length
+
+    year.date.start = change.year(l.gas.info$l.storage$d.domestic.last$date, year.select)
+    year.date.end = year.date.start + (l.options$period$end - prediction.start.date)
 
     d.temp.in = d.temp[date >= year.date.start - l.options$lag.max & date < year.date.end][, .(
-        date.org = date, date = date + (l.options$period$start - year.date.start), temp.in = temp
+        season = paste(unique(year(date)), collapse = "/"), date.org = date, 
+        date = date + (prediction.start.date - year.date.start), temp.in = temp
     )]
+
+    #  date + (l.options$period$start - year.date.start)
 
     # merge and predict
     d.prediction = merge(d.base, d.temp.in, by = "date")[, `:=`(
-        temp = ifelse(is.na(temp.in), temp, temp.in) 
+        temp = temp.in
     )]
     addTempThreshold(d.prediction, l.options$temp.threshold)
     d.prediction[, gas.consumption.pred := predict(m.linear, d.prediction)]
 
-    d.prediction[date >= l.options$period$start]
+    # d.prediction[date >= l.options$period$start]
+    d.prediction[date >= prediction.start.date]
 }
 
-one.prediction = function(year.select, d.temp, d.base, start.date, prediction.start = start.date) {
-    d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date, prediction.start)
+one.prediction = function(year.select, d.temp, d.base, start.date) {
+    d.prediction = prediction.consumption(year.select, d.temp, d.base, start.date)
     calculate.storage.level(d.prediction)
 }
 
 calculate.storage.level = function(d.prediction) {
     d.t = d.prediction[, .(
-        date, date.org,
+        date, season,
         cons.pred = gas.consumption.pred,
         src.russia = l.gas.info$c.sources.daily["russia"],
         src.other = l.gas.info$c.sources.daily["domestic"] + l.gas.info$c.sources.daily["others"]
@@ -224,9 +250,7 @@ calculate.storage.level = function(d.prediction) {
         src.other = NULL
     )]
 
-    d.tt = melt(d.t, id.vars = c("date", "date.org"))
-    d.tt[, winter := paste(unique(year(d.t$date.org)), collapse = "-")]
-    d.tt
+    melt(d.t, id.vars = c("date", "season"))[]
 }
 
 

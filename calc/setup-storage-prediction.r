@@ -33,6 +33,17 @@ l.gas.info = list(
     )
 )
 
+# - DATA -----------------------------------------------------------------------
+
+d.full = loadBase(update = TRUE)
+
+max.date = max(d.full[!is.na(temp), date])
+d.base = d.full[date >= max.date - l.options$learning.days - l.options$lag.max & date <= l.options$period$end]
+
+addTempThreshold(d.base, l.options$temp.threshold)
+
+d.temp = d.full[!is.na(temp), .(date, temp)]
+
 
 # - PREP -----------------------------------------------------------------------
 # augment gas info
@@ -46,47 +57,27 @@ l.gas.info$l.storage$d.domestic = data.table(
 )
 l.gas.info$l.storage$d.domestic.official.last = l.gas.info$l.storage$d.domestic[date == max(date)]
 
-calc.stor.start.domestic = function(d.official.last = l.gas.info$l.storage$d.domestic.official.last) {
-    d.storage = loadFromStorage("storage-AT")[, .(
-        date = gasDayStart, value = gasInStorage
-    )][order(date)]
+# impute storage.dom
+d.base = merge(
+    d.base, l.gas.info$l.storage$d.domestic[, .(date, storage.dom.org = level)],
+    by = "date", all = TRUE
+)
+d.base[, prop.dom.int.org := storage.dom.org / (storage - l.gas.info$l.storage$strategic)]
+d.base[!is.na(storage) & date >= l.options$period$start, prop.dom.int := zoo::na.fill(prop.dom.int.org, "extend")]
+d.base[, storage.dom := prop.dom.int  * (storage - l.gas.info$l.storage$strategic)]
 
-    d.storage.official.last = d.storage[date == d.official.last$date]
-    d.storage.last = tail(d.storage, 1)
-
-    prop.dom.int = d.official.last$level / (d.storage.official.last$value - l.gas.info$l.storage$strategic)
-
-    change.in.storage = (d.storage.last$value - d.storage.official.last$value) * prop.dom.int
-
-    data.table(
-        date = d.storage.last$date,
-        level = d.official.last$level + change.in.storage
+l.gas.info$l.storage$d.domestic.last = d.base[
+    date == max(d.base[!is.na(storage.dom)]$date), .(
+        date, level = storage.dom
     )
-}
+]
 
-l.gas.info$l.storage$d.domestic.last = calc.stor.start.domestic(l.gas.info$l.storage$d.domestic.official.last)
-
-
-# - DATA -----------------------------------------------------------------------
-
-# load
-d.base = loadBase(update = TRUE)
-max.date = max(d.base[!is.na(temp), date])
-
-d.base = d.base[date >= max.date - l.options$learning.days - l.options$lag.max & date <= l.options$period$end]
-
-addTempThreshold(d.base,  l.options$temp.threshold)
-
-diff.days.dec.mar = as.numeric(as.Date("2023-03-31") - as.Date("2022-12-31") + 1)
-
-
-d.temp = loadFromStorage(id = "temperature-hdd")[, .(
-    date = as.Date(date), temp
-)]
 
 d.all.years = bind_rows(lapply(
     1950:2021, one.prediction, d.temp, d.base, max.date
 )) %>% mutate(type = "observed")
+
+
 
 
 # Detrend functions

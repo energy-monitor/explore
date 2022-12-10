@@ -38,7 +38,7 @@ knitr::opts_chunk$set(
 
 # knitr::opts_knit$set(base.dir = output.folder)
 
-COLORS = c("#c3423f", "#86cae7", "#b5c969")
+COLORS = c("#c3423f", "#2aace3", "#b1d327")
 
 if (exists("output.file")) {
     knitr::opts_chunk$set(fig.path = glue("{output.file}_files/figure-markdown_strict/"))
