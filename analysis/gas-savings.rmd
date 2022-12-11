@@ -48,7 +48,7 @@ d.loess = get.d.loess(d.base)
 
 d.lines = get.d.lines(d.loess)
 
-ggplot(d.loess, aes(x = temp, y = value)) +
+ggplot(d.loess, aes(x = temp, y = gas.consumption)) +
     geom_point(size = 0.4, alpha = 0.3) +
     geom_line(data = d.lines, linewidth = 1, alpha = 1, color = COLORS[1]) +
     ylab(NULL) + xlab("Temperatur in °C")  +

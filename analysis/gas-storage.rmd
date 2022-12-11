@@ -29,7 +29,7 @@ d.t.storage = d.base[date >= l.options$period$start & !is.na(storage.dom), .(
 
 c.store.names = c(
     store.with.russia = "Mit russischem Gas",
-    store.without.russia = "Ohne russischem Gas"
+    store.without.russia = "Ohne russisches Gas"
 )
 
 d.t.pred = d.all.years[variable %in% c("store.with.russia", "store.without.russia")][type == "observed"][, .(
@@ -67,7 +67,10 @@ ggplot(d.t.pred, aes(x = date, y = value)) +
     ) +
     xlab(NULL) + ylab(NULL) +
     geom_abline(slope = 0, intercept = l.gas.info$l.storage$strategic, linetype = 2) +
-    geom_text(data = annotation, aes(x = x, y = y, label = label), size = 4) +
+    geom_text(
+        data = annotation, aes(x = x, y = y, label = label),
+        size = 4, family = "Century Gothic"
+    ) +
     labs(
         title = "Entwicklung Speicherstand",
         subtitle = "Heizsaison 22/23, Speicherniveau in TWh"
