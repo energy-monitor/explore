@@ -14,7 +14,7 @@ loadPackages(knitr)
 
 # Reicht das Gas über den Winter?
 <p class="meta">
-    Datenstand: `r max.date` | 
+    Datenstand: `r max.date.storage` | 
     Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-storage.rmd" target="_blank">↗</a>
 </p>
 
@@ -22,7 +22,7 @@ Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.d
 
 In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im Winter 22/23 berechnen. Wieviel Gas in österreichischen Gasspeichern tatsächlich für österreichische Kund/innen reserviert ist, wird nur wöchentlich publiziert. Täglich publiziert wird aber der Gesamtspeicherstand in österreichischen Speichern. Wir nehmen daher an, dass sich der Gesamtspeicherstand und der Speicherstand des für Österreich bestimmten Gases proportional ändern. 
 
-```{r plot, fig.height=7}
+```{r plot, fig.height=6}
 d.t.storage = d.base[date >= l.options$period$start & !is.na(storage.dom), .(
     date, value = storage.dom + l.gas.info$l.storage$strategic
 )]
@@ -42,11 +42,10 @@ d.t.pred = d.all.years[variable %in% c("store.with.russia", "store.without.russi
 d.t.pred = rbind(
     d.t.pred,
     d.t.pred[date == min(date), .(
-    date = tail(d.t.storage, 1)$date, season, value = tail(d.t.storage, 1)$value,
-    variable, year.before
-)])
-
-
+        date = tail(d.t.storage, 1)$date, season, value = tail(d.t.storage, 1)$value,
+        variable, year.before
+    )]
+)
 
 annotation <- tibble(
     label = c(
@@ -75,29 +74,6 @@ ggplot(d.t.pred, aes(x = date, y = value)) +
         title = "Entwicklung Speicherstand",
         subtitle = "Heizsaison 22/23, Speicherniveau in TWh"
     )
-
-
-# d.all.years %>%
-#     filter(variable != "cons.pred" & type == "observed") %>%
-#     #mutate(Klima = ifelse(type == "observed", "Klima 1950-2021", "Klima 1950-2021\nkorrigiert")) |>
-#     mutate(variable = ifelse(variable == "store.with.russia", "Mit russischem Gas", "Ohne russischen Gas")) %>%
-#     mutate(Klimajahr = ifelse(substring(season, 1, 4) < 1990, "vor 1990", "nach 1990")) %>%
-#     arrange(season) %>%
-#     ggplot(aes(x = date, y = value)) +
-#         geom_line(aes(linetype = as.character(season), color = Klimajahr),
-#                   linewidth = 0.5, alpha = 0.2) +
-#         geom_smooth(aes(color = Klimajahr), linewidth = 1.5, alpha = 1, fill = NA) +
-#         facet_wrap(variable ~ .) +
-#         geom_abline(slope = 0, intercept = l.gas.info$l.storage$strategic, linetype = 2) +
-#         #ylim(c(10, l.gas.info$l.storage$strategic + l.gas.info$l.storage$d.domestic.last$level + 2)) +
-#         scale_color_manual(values = c(COLORS[c(1)], "black")) +
-#         scale_linetype_manual(values = rep(1, 72), guide = "none") +
-#         xlab(NULL) + ylab(NULL) +
-#         geom_text(data = annotation, aes(x = x, y = y, label = label), size = 4) + 
-#         labs(
-#             title = "Entwicklung Speicherstand",
-#             subtitle = "Heizsaison 22/23, Speicherniveau in TWh"
-#         )
 ```
 
 

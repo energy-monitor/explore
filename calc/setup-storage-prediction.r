@@ -40,6 +40,7 @@ l.gas.info = list(
 d.full = loadBase(update = TRUE)
 
 max.date = max(d.full[!is.na(temp), date])
+
 d.base = d.full[date >= max.date - l.options$learning.days - l.options$lag.max & date <= l.options$period$end]
 
 addTempThreshold(d.base, l.options$temp.threshold)
@@ -66,10 +67,12 @@ d.base = merge(
 )
 d.base[, prop.dom.int.org := storage.dom.org / (storage - l.gas.info$l.storage$strategic)]
 d.base[!is.na(storage) & date >= l.options$period$start, prop.dom.int := zoo::na.fill(prop.dom.int.org, "extend")]
-d.base[, storage.dom := prop.dom.int  * (storage - l.gas.info$l.storage$strategic)]
+d.base[, storage.dom := prop.dom.int * (storage - l.gas.info$l.storage$strategic)]
+
+max.date.storage = max(d.base[!is.na(storage.dom)]$date)
 
 l.gas.info$l.storage$d.domestic.last = d.base[
-    date == max(d.base[!is.na(temp)]$date), .(
+    date == max.date.storage, .(
         date, level = storage.dom
     )
 ]
