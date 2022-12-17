@@ -299,11 +299,24 @@ variables.joined = l.gas.info$l.storage$d.domestic %>%
     mutate(cumulative = cumsum(value)) %>% 
     bind_rows(d.eval) %>%
     mutate(value.final = ifelse(variable %in% c("gas.cons"), cumulative, value)) %>% 
-    filter(date %in% l.gas.info$l.storage$d.domestic$date) 
+    dplyr::select(date, variable, model, value.final)
 
-variables.joined.upt = variables.joined %>% 
+
+variables.joined.fill = variables.joined %>% 
+    filter(!(variable == "storage.with.russia" & model == "observation")) %>% 
+    bind_rows(
+        variables.joined %>% 
+        filter(variable == "storage.with.russia" & model == "observation") %>% 
+        merge(variables.joined %>% dplyr::select("date") %>% unique(), by = "date", all = T) %>% 
+        fill(variable, model) %>% 
+        mutate(value.final = na_interpolation(value.final))
+    ) 
+
+
+variables.joined.upt = variables.joined.fill %>% 
     filter(variable != "storage.without.russia") %>% 
     group_by(variable, model) %>% 
+    arrange(date) %>% 
     mutate(diff = value.final - lag(value.final)) %>% 
     na.omit() %>% 
     dplyr::select(date, variable, model, diff) %>% 
@@ -312,8 +325,9 @@ variables.joined.upt = variables.joined %>%
     mutate(variable = "sum.supply") %>% 
     group_by(model) %>% 
     mutate(cumulative = cumsum(sum.supply)) %>% 
-    dplyr::select(date, variable, model, value = sum.supply, cumulative = cumulative, value.final = cumulative) %>% 
-    bind_rows(variables.joined)
+    dplyr::select(date, variable, model, value.final = cumulative) %>% 
+    bind_rows(variables.joined) %>% 
+    ungroup() 
 
 variables.joined.upt %>% 
     filter(variable != "storage.without.russia") %>%
