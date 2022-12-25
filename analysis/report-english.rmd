@@ -291,13 +291,35 @@ Furthermore, we validate our demand prediction model used in the storage model a
 ```{r model-evaluation-1}
 d.eval = reforecast.consumption.model(2022, d.temp, d.base, as.Date("2022-11-15"), max.date)
 
+###load last observed gas consumption data too
+###
+d.recent.cons = loadFromStorage("consumption-gas-aggm") |> 
+    filter(date > max(d.eval$date)) |> 
+    mutate(variable = "gas.cons") |> 
+    mutate(model = "observation") |>
+    mutate(cumulative = 0) |> 
+    dplyr::select(date, 
+                  variable,
+                  model,
+                  value, cumulative) |> 
+    mutate(date = as.Date(date))
+
+d.eval.recent = d.eval |> 
+    bind_rows(d.recent.cons) |> 
+    group_by(variable, model) |> 
+    arrange(date) |> 
+    mutate(cumulative = cumsum(value))
+
+###
+###
+
 variables.joined = l.gas.info$l.storage$d.domestic %>% 
     mutate(variable = "storage.with.russia") %>% 
     mutate(model = "observation") %>% 
     mutate(level = level + l.gas.info$l.storage$strategic) %>% 
     dplyr::select(date, variable, model, value = level) %>% 
     mutate(cumulative = cumsum(value)) %>% 
-    bind_rows(d.eval) %>%
+    bind_rows(d.eval.recent) %>%
     mutate(value.final = ifelse(variable %in% c("gas.cons"), cumulative, value)) %>% 
     dplyr::select(date, variable, model, value.final)
 
