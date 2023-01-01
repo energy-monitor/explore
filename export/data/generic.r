@@ -27,7 +27,7 @@ l.plots = list(
 id = "electricity/price-entsoe"
 # id = "electricity/price"
 invisible(lapply(names(l.plots), function(id) {
-    l('-> ', id, iL = 2);
+    l("-> ", id, iL = 2)
 
     def = modifyList(l.default, l.plots[[id]])
 
@@ -47,12 +47,12 @@ invisible(lapply(names(l.plots), function(id) {
             date = as.Date(min(d.plot$date):max(d.plot$date)),
             variable = unique(d.plot$variable)
         ),
-        by=c('date', 'variable'), all = TRUE
+        by = c("date", "variable"), all = TRUE
     )
 
     c.vars = "rm"
     if (def$cum) {
-        addCum(d.plot, g = 'variable')
+        addCum(d.plot, g = "variable")
         c.vars = c(c.vars, "cum")
     }
 

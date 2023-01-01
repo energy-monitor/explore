@@ -22,4 +22,3 @@ dates2PlotDates = function(d) {
         date20 = c.date20
     )]
 }
-
