@@ -60,7 +60,7 @@ def download_era5_temperature_last_year(until, folder):
     day, month, year = (until.day, until.month, until.year)
     
     filename = folder/'last_year.nc' 
-    if not os.path.exists(filename):
+    if not os.path.exists(filename) and month > 1:
         options = {
             'month': [f"{month:02d}" for month in range(1, month)],
             'year': [str(year)],
