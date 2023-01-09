@@ -5,7 +5,7 @@ loadPackages(stringr, tidyverse, imputeTS)
 source("calc/prediction-gas-consumption/_functions.r")
 
 # - CONF -----------------------------------------------------------------------
-start.date = as.Date("2022-03-01")
+start.date = as.Date("2022-01-01")
 temp.threshold = 14
 c.years.avg = 2017:2021
 
@@ -76,7 +76,7 @@ d.comp.pred = rbind(
     )]
 )[, .(value = sum(value)), by = .(month = month(date), variable)]
 
-d.data.agg = d.base[day <= max.day & month >= 3, .(
+d.data.agg = d.base[day <= max.day & month >= 1, .(
     value = sum(gas.consumption)
 ), by = .(month = month(date), year = year(date))]
 
@@ -91,6 +91,7 @@ d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, loc
 
 d.comp.a = rbind(
     d.comp[, .(month.name, variable, value)],
+    d.comp[month >= 1, .(month.name = "**Seit Jahresbeginn**", value = sum(value)), by = variable],
     d.comp[month >= 3, .(month.name = "**Seit März**", value = sum(value)), by = variable],
     d.comp[month >= 8, .(month.name = "**Seit August**", value = sum(value)), by = variable]
 )
