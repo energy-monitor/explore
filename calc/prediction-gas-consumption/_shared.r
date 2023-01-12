@@ -66,9 +66,6 @@ d.baseline.savings = d.base[, value := gas.consumption] %>%
     as.data.table()
 
 # COMPARISON TABLE
-
-
-
 d.comp.pred = rbind(
     l.model.base$d.plot[variable %in% c("prediction")][date >= start.date][, .(
         date, variable = "pred.base", value
@@ -78,95 +75,71 @@ d.comp.pred = rbind(
     )]
 )[, .(value = sum(value)), by = .(year = year(date), month = month(date), variable)]
 
-d.data.agg = d.base[month(date) != max.month, .(
-    variable = "observation",
-    value = sum(gas.consumption)
+d.base.2017.2021 = d.base %>%
+    filter(year(date) >= 2017 & year(date) <= 2021) %>%
+    mutate(day = yday(date)) %>%
+    group_by(day) %>%
+    summarize(gas.consumption = mean(gas.consumption)) %>%
+    mutate(variable = "observation 2017-2021") %>%
+    as_tibble()
 
-), by = .(month = month(date), year = year(date))]
+d.base.full = d.base %>%
+    mutate(day = yday(date)) %>%
+    mutate(variable = glue('observation')) %>%
+    dplyr::select(date, day, gas.consumption, variable) %>%
+    as_tibble()
 
-d.data.agg.short = d.base[(max.month == month(date)) &
-                              (day(date) <= max.day), .(
-    variable = "observation",
-    value = sum(gas.consumption)
-    ),
-    by = .(month = month(date), year = year(date))]
+d.predictions = bind_rows(l.model.base$d.pred %>%
+    mutate(day = yday(date)) %>%
+    mutate(variable = glue('prediction.base')) %>%
+    dplyr::select(date, day, gas.consumption = prediction, variable),
+    l.model.power$d.pred %>%
+    mutate(day = yday(date)) %>%
+    mutate(variable = glue('prediction.power')) %>%
+    dplyr::select(date, day, gas.consumption = prediction, variable)) %>%
+    as_tibble()
 
-available.months.march = d.comp %>%
-    filter(variable == "pred.base") %>%
-    dplyr::select(month.name) %>%
-    unique()
 
-available.months.august = d.comp %>%
-    filter(variable == "pred.base") %>%
-    dplyr::select(month.name) %>%
-    unique() %>%
-    mutate(n=1:n()) %>%
-    filter(n>5)
+end.date =  max(d.predictions$date)
+months = c("März 2022",
+           "April 2022",
+           "Mai 2022",
+           "Juni 2022",
+           "Juli 2022",
+           "August 2022",
+           "September 2022",
+           "Oktober 2022",
+           "November 2022",
+           "Dezember 2022",
+           "Jänner 2023",
+           "Februar 2023")
 
-d.comp = rbind(
-    d.comp.pred[ , .(year = "prediction", month, variable, value)],
-    d.data.agg[year %in% c.years.avg, .(year="2017-2021", variable = "observation", value = mean(value)), by = month],
-    d.data.agg[year == 2023, .(year = "2023", month, variable, value)],
-    d.data.agg[year == 2022  & month >=3, .(year = "2022", month, variable, value)],
-    d.data.agg[year == 2021, .(year = "2021", month, variable, value)],
-    d.data.agg.short[year %in% c.years.avg, .(year="2017-2021", variable = "observation", value = mean(value)), by = month],
-    d.data.agg.short[year == 2023, .(year = "2023", month, variable, value)],
-    d.data.agg.short[year == 2022 & month >=3, .(year = "2022", month, variable, value)],
-    d.data.agg.short[year == 2021, .(year = "2021", month, variable, value)]
-)
+start.dates = seq(as.Date("2022-03-01"), end.date, by = "month")
+end.dates = c(start.dates[2:length(start.dates)] - 1, end.date)
 
-d.comp[, month.name := as.character(month(month, label = TRUE, abbr = FALSE, locale = "de_AT.UTF-8"))]
+months.rel = mapply(compare.values.complete,
+       start.dates,
+       end.dates,
+       months[1:length(start.dates)],
+       SIMPLIFY = FALSE
+       ) %>%
+    bind_rows()
 
-d.comp = d.comp %>%
-    mutate(year = ifelse(year %in% c("2022", "2023"), "2022-2023", year))
+d.comp.f = bind_rows(months.rel,
+    compare.values.complete(as.Date("2022-01-01"),
+                            as.Date("2022-12-31"),
+                            "Gesamt 2022"),
+    compare.values.complete(as.Date("2022-03-01"),
+                        end.date,
+                        "Seit März 2022"),
+    compare.values.complete(as.Date("2022-08-01"),
+                        end.date,
+                        "Seit August 2022"),
+    compare.values.complete(as.Date("2023-01-01"),
+                        end.date,
+                        "Seit Jänner 2023"))
 
-available.months.march = d.comp %>%
-    filter(variable == "pred.base") %>%
-    dplyr::select(month.name) %>%
-    unique()
 
-available.months.august = d.comp %>%
-    filter(variable == "pred.base") %>%
-    dplyr::select(month.name) %>%
-    unique() %>%
-    mutate(n=1:n()) %>%
-    filter(n>5)
+#d.comp.f = dcast(d.comp.c, month.name ~ full.variable, value.var = "g100")
 
-d.comp.a = rbind(
-    d.comp[, .(year, month.name, variable, value)],
-    d.comp %>%
-        ungroup() %>%
-        filter(month.name %in% available.months.march$month.name) %>%
-        group_by(year, variable) %>%
-        summarize(value = sum(value)) %>%
-        mutate(month.name = "**Seit März**"),
-    d.comp %>%
-        ungroup() %>%
-        filter(month.name %in% available.months.august$month.name) %>%
-        group_by(year, variable) %>%
-        summarize(value = sum(value)) %>%
-        mutate(month.name = "**Seit August**")
-)
-
-d.comp.a[, month.name := factor(
-    month.name, unique(d.comp.a$month.name), unique(d.comp.a$month.name)
-)]
-
-d.comp.c = d.comp.a %>%
-    as_tibble() %>%
-    filter(year == "2022-2023",
-           variable == "observation") %>%
-    left_join(d.comp.a, by= c("month.name")) %>%
-    mutate(comparison = value.y,
-           value = value.x) %>%
-    filter(year.y != "2022-2023") %>%
-    as.data.table()
-
-d.comp.c[, rel := value / comparison]
-d.comp.c[, g100 := round((rel - 1) * 100, 2)]
-d.comp.c = d.comp.c %>%
-    mutate(full.variable = glue('{year.y}.{variable.y}'))
-
-d.comp.f = dcast(d.comp.c, month.name ~ full.variable, value.var = "g100")
-
-setcolorder(d.comp.f, c("month.name", "2021.observation", "2017-2021.observation", "prediction.pred.base", "prediction.pred.power"))
+#setcolorder(d.comp.f, c("month.name", "2021.observation", "2017-2021.observation", "prediction.pred.base", "prediction.pred.power"))
