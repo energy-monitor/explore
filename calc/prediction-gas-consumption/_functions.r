@@ -390,6 +390,10 @@ compare.values = function(start.date,
 
     v1 = d.prediction %>%
         filter((date >= start.date) & (date <= end.date)) %>%
+        mutate(day = yday(date)) %>%
+        group_by(variable, day) %>%
+        summarize(gas.consumption = mean(gas.consumption)) %>%
+        ungroup() %>%
         group_by(variable) %>%
         summarize(gas.consumption = sum(gas.consumption))
 
