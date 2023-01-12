@@ -191,11 +191,11 @@ In Summe wird in Österreich seit Mitte Juli von Haushalten und Industrie also G
 #### Gaskonsumveränderungen in %
 ```{r regressionResultComparison}
 c.trans = c(
-    month.name = "2022",
-    value.21   = "zum Vorjahr",
-    avg        = glue("zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}"),
-    pred.base  = "in Modellvariante 1",
-    pred.power = "in Modellvariante 2"
+    month.name = "2022/2023",
+    `2021.observation`   = "zum Vorjahr",
+    `2017-2021.observation`        = glue("zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}"),
+    prediction.pred.base  = "in Modellvariante 1",
+    prediction.pred.power = "in Modellvariante 2"
 )
 
 setnames(d.comp.f, names(c.trans), c.trans)
