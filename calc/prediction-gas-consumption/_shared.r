@@ -13,17 +13,18 @@ c.years.avg = 2017:2021
 # - BASE -----------------------------------------------------------------------
 d.base = loadBase(TRUE)[!is.na(gas.consumption) & !is.na(temp)]
 # start data with first complete year
-# d.base = d.base[year >= min(d.base[day == 1]$year)]
+d.base = d.base[year >= min(d.base[day == 1]$year)]
 
 max.date = d.base[max(date) == date]$date
 max.day = day(max.date)
 max.year = year(max.date)
 max.month = month(max.date)
 
-#d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(gas.consumption) * 10^3), by = year]
-#mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
-#d.gas.years[, rel := mean / mean.gas.before22]
-#savings.2022 = 1 - d.gas.years[year == 2022, rel]
+d.gas.years = d.base[, .(days = .N, mean = mean(gas.consumption) * 10^3), by = year]
+# d.gas.years = d.base[day <= max.day, .(days = .N, mean = mean(gas.consumption) * 10^3), by = year]
+mean.gas.before22 = d.gas.years[year < 2022, mean(mean)]
+d.gas.years[, rel := mean / mean.gas.before22]
+savings.2022 = 1 - d.gas.years[year == 2022, rel]
 
 
 # - MODEL ----------------------------------------------------------------------
@@ -125,7 +126,8 @@ months.rel = mapply(compare.values.complete,
        ) %>%
     bind_rows()
 
-d.comp.f = bind_rows(months.rel,
+
+totals.rel = bind_rows(
     compare.values.complete(as.Date("2022-01-01"),
                             as.Date("2022-12-31"),
                             "Gesamt 2022"),
@@ -137,9 +139,15 @@ d.comp.f = bind_rows(months.rel,
                         "Seit August 2022"),
     compare.values.complete(as.Date("2023-01-01"),
                         end.date,
-                        "Seit Jänner 2023"))
+                        "Seit Jänner 2023")
+)
+
+totals.rel$name = paste0("**", totals.rel$name, "**")
+
+d.comp.f = bind_rows(months.rel, totals.rel)
 
 
 #d.comp.f = dcast(d.comp.c, month.name ~ full.variable, value.var = "g100")
 
 #setcolorder(d.comp.f, c("month.name", "2021.observation", "2017-2021.observation", "prediction.pred.base", "prediction.pred.power"))
+

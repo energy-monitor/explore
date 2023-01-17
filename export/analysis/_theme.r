@@ -1,4 +1,5 @@
 library(ggplot2)
+# loadPackages(ggplot2) # kableExtra
 theme_set(theme_bw(base_family = "Century Gothic"))
 
 line.color = "black"

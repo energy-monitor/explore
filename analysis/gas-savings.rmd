@@ -14,13 +14,14 @@ loadPackages(knitr)
 # Temperaturkorrigierte Einsparungen des Gasverbrauchs
 <p class="meta">
     Datenstand: `r max(d.base$date)` | 
-    Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-savings.rmd" target="_blank">↗</a>
+    <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-savings.rmd" target="_blank">Code</a> |
+    <a href="https://www.wifo.ac.at/jart/prj3/wifo/resources/person_dokument/person_dokument.jart?publikationsid=70491&mime_type=application/pdf" target="_blank">WIFO Research Brief</a>
 </p>
 
 
 ## Motivation
 
-In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt seit Jahresbeginn bspw. der Verbrauch in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch ist damit bisher sogar niedriger als im Lockdown-Jahr 2020.
+In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt im Jahr 2022 bspw. der Verbrauch[↗](/single/gas~consumption-aggm) in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch war damit sogar niedriger als im Lockdown-Jahr 2020.
 
 Bei diesen Einschätzungen wird aber der wesentliche Treiber des Gaskonsums - die Außentemperatur - vernachlässigt. Dies führt zu falschen Einschätzungen der Einsparungen, da das bisherige Jahr 2022 durchwegs andere Temperaturverläufe[↗](/single/others~temperature) als die Vorjahre aufweist. Wir wollen hier mit dieser Analyse einen Versuch starten, Gaskonsumeinsparungen korrigiert um Temperatureffekte einzuschätzen. Für den Konsum in Deutschland wurde dies z.b. bereits vom DIW Berlin[↗](https://openenergytracker.org/de/docs/germany/naturalgas/) gemacht. Für Österreich gibt es keine tagesaktuellen Gasverbrauchsdaten, welche zwischen industriellen und Haushaltskunden unterscheiden, wir können die deutschen Analysen also nicht im vollen Umfang replizieren.
 
@@ -194,8 +195,8 @@ c.trans = c(
     name = "",
     `to.2021`   = "zu 2021",
     `to.5.years`        = glue("zum Zeitraum {min(c.years.avg)}-{max(c.years.avg)}"),
-    to.model1  = "in Modellvariante 1",
-    to.model2 = "in Modellvariante 2"
+    to.model1  = "in Modell&shy;variante 1",
+    to.model2 = "in Modell&shy;variante 2"
 )
 
 setnames(d.comp.f, names(c.trans), c.trans)
