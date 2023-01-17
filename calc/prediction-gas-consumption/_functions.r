@@ -365,3 +365,78 @@ rmse = function(a, b) {
         summarize(rmse = sqrt(mean((a - b)^2))) |>
         unlist()
 }
+
+extract.daily.values = function(d,
+                                start,
+                                end){
+    start.day = yday(start)
+    end.day = yday(end)
+
+    if(start.day > end.day){
+
+        d %>%
+            filter(day >= start.day | day <= end.day)
+    }else{
+        d %>%
+            filter(day >= start.day & day <= end.day)
+    }
+}
+
+
+compare.values = function(start.date,
+                          end.date,
+                          d.prediction,
+                          d.base){
+
+    v1 = d.prediction %>%
+        filter((date >= start.date) & (date <= end.date)) %>%
+        mutate(day = yday(date)) %>%
+        group_by(variable, day) %>%
+        summarize(gas.consumption = mean(gas.consumption)) %>%
+        ungroup() %>%
+        group_by(variable) %>%
+        summarize(gas.consumption = sum(gas.consumption))
+
+    v2 = d.base %>%
+        extract.daily.values(start.date,
+                             end.date) %>%
+        summarize(gas.consumption = sum(gas.consumption))
+
+    v1 %>%
+        mutate(rel = round(100*(gas.consumption / v2$gas.consumption  - 1), 2)) %>%
+        return()
+}
+
+compare.values.complete = function(start.date, end.date, name){
+
+    to.2021 = compare.values(start.date,
+                             end.date,
+                             d.base.full,
+                             d.base.full %>% filter(year(date) == 2021))
+
+
+    to.5.years = compare.values(start.date,
+                                end.date,
+                                d.base.full,
+                                d.base.2017.2021)
+
+    to.model1 = compare.values(start.date,
+                               end.date,
+                               d.base.full,
+                               d.predictions %>%
+                                   filter(year(date) == 2022) %>%
+                                   filter(variable == "prediction.base"))
+
+    to.model2 = compare.values(start.date,
+                               end.date,
+                               d.base.full,
+                               d.predictions %>%
+                                   filter(year(date) == 2022) %>%
+                                   filter(variable == "prediction.power"))
+
+    return(tibble(name=c(name),
+                  to.2021 = to.2021$rel,
+                  to.5.years = to.5.years$rel,
+                  to.model1 = to.model1$rel,
+                  to.model2 = to.model2$rel))
+}
