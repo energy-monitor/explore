@@ -424,14 +424,14 @@ compare.values.complete = function(start.date, end.date, name){
                                end.date,
                                d.base.full,
                                d.predictions %>%
-                                   filter(year(date) == 2022) %>%
+                                   filter(date >= start.date & date <= end.date) %>%
                                    filter(variable == "prediction.base"))
 
     to.model2 = compare.values(start.date,
                                end.date,
                                d.base.full,
                                d.predictions %>%
-                                   filter(year(date) == 2022) %>%
+                                   filter(date >= start.date & date <= end.date) %>%
                                    filter(variable == "prediction.power"))
 
     return(tibble(name=c(name),
