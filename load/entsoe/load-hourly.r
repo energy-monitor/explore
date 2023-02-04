@@ -1,7 +1,7 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("load/entsoe/_shared.r")
-loadPackages(ggplot2)
+#loadPackages(ggplot2)
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
@@ -10,13 +10,12 @@ d.base = loadEntsoeComb(
     # type = "load", month.start = "2022-08", month.end = month.end, check.updates = FALSE
 )
 
-# unique(d.base[AreaName == "AT CTY", .(
-#     ResolutionCode,
-#     AreaCode,
-#     AreaTypeCode,
-#     AreaName,
-#     MapCode
-# )])
+d.base.f = d.base[AreaName == "AT CTY"]
+
+# sort(unique(d.base.f$ResolutionCode))
+
+d.base.f[, factor := resToFactor[ResolutionCode]]
+d.base.f[, value := factor * TotalLoadValue]
 
 d = d.base[AreaName == "AT CTY", .(
     dateTime = DateTime, load = TotalLoadValue
@@ -26,9 +25,9 @@ rm(d.base)
 
 # Filter, Aggregate
 d.agg = d[, .(
-    value = mean(load)/10^3/4
+    value = mean(load)/10^3
 ), by = .(
-    year = year(dateTime), 
+    year = year(dateTime),
     hour = hour(dateTime)
 )][year > 2018][order(year, hour)]
 
