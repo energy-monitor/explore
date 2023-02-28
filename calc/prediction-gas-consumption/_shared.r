@@ -102,18 +102,22 @@ d.predictions = bind_rows(l.model.base$d.pred %>%
 
 
 end.date =  max(d.predictions$date)
-months = c("März 2022",
-           "April 2022",
-           "Mai 2022",
-           "Juni 2022",
-           "Juli 2022",
-           "August 2022",
-           "September 2022",
-           "Oktober 2022",
-           "November 2022",
-           "Dezember 2022",
-           "Jänner 2023",
-           "Februar 2023")
+
+months.single = c("Jänner",
+                  "Februar",
+                  "März",
+                  "April",
+                  "Mai",
+                  "Juni",
+                  "Juli",
+                  "August",
+                  "September",
+                  "Oktober",
+                  "November",
+                  "Dezember")
+
+months = c(glue("{months.single[3:12]} 2022"),
+           glue("{months.single} 2023"))
 
 start.dates = seq(as.Date("2022-03-01"), end.date, by = "month")
 end.dates = c(start.dates[2:length(start.dates)] - 1, end.date)
