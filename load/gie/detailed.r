@@ -23,7 +23,8 @@ for (country in countries) {
 
     d.base = rbind(
         d.recent,
-        d.historic
+        d.historic,
+        fill = TRUE
     )[, .(
         code = code,
         gasDayStart = as.Date(gasDayStart),
