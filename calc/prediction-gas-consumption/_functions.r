@@ -369,6 +369,7 @@ rmse = function(a, b) {
 extract.daily.values = function(d,
                                 start,
                                 end){
+
     start.day = yday(start)
     end.day = yday(end)
 
@@ -396,6 +397,7 @@ compare.values = function(start.date,
         ungroup() %>%
         group_by(variable) %>%
         summarize(gas.consumption = sum(gas.consumption))
+
 
     v2 = d.base %>%
         extract.daily.values(start.date,

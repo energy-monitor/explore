@@ -135,6 +135,7 @@ ggplot(d.plot, aes(x = date, y = rollmean, color = variable, group = variable)) 
         title = "Täglicher Gasverbrauch",
         subtitle = "in TWh, 14-tägiges Mittel"
     )
+
 ```
 
 Noch deutlicher kann dies gezeigt werden, imdem wir die relativen Abweichungen der beiden Kurven plotten. Hier zeigt sich allerdings deutlich, dass ab Mitte Oktober die Einsparungen stark zurückgehen - das passt zu den seit Anfang September stark gefallenen Gaspreisen[↗](/single/gas~price).
