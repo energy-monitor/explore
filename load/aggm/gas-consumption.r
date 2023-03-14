@@ -3,7 +3,6 @@ rm(list = ls())
 source("load/aggm/_shared.r")
 
 file.cache = "consumption-gas-aggm"
-use.historic = TRUE
 historic.file.name = file.path(g$d$tmp, "consumption-gas-aggm-historic.csv")
 
 agg = function(d, years) {
@@ -22,33 +21,29 @@ if (file.exists(glue("data/storage/{file.cache}.csv"))) {
     )]
 }
 
-if (use.historic == FALSE || !file.exists(historic.file.name)) {
+if (!file.exists(historic.file.name)) {
     # Split data range (else would be slow or not work)
     d.t = getGasConsumption("2021-12-30", "2023-01-02")
-    d.22 = agg(d.historic, 2022)
+    d.22 = agg(d.t, 2022)
 
     d.t = getGasConsumption("2018-12-30", "2022-01-02")
-    d.19_21 = agg(d.historic, 2019:2021)
+    d.19_21 = agg(d.t, 2019:2021)
 
     d.t = getGasConsumption("2015-12-30", "2019-01-02")
-    d.16_18 = agg(d.historic, 2016:2018)
+    d.16_18 = agg(d.t, 2016:2018)
 
     d.t = getGasConsumption("2012-12-30", "2016-01-02")
-    d.13_15 = agg(d.historic, 2013:2015)
+    d.13_15 = agg(d.t, 2013:2015)
 
     d.t = rbind(d.22, d.19_21, d.16_18, d.13_15)[order(date)][!is.na(value)]
-    if (use.historic) {
-        fwrite(d.t, historic.file.name)
-    } else {
-        d.historic = d.t
-    }
+
+    fwrite(d.t, historic.file.name)
+    d.historic = d.t
 
     rm(d.t, d.22, d.19_21, d.16_18, d.13_15)
 }
 
-if (use.historic == TRUE) {
-    d.historic = fread(historic.file.name)[, date := as.Date(date)]
-}
+d.historic = fread(historic.file.name)[, date := as.Date(date)]
 
 update.time = now()
 d.base = agg(getGasConsumption(startDate = "2022-12-30"), 2023)[order(date)]
