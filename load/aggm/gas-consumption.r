@@ -43,9 +43,7 @@ if (!file.exists(historic.file.name)) {
     rm(d.t, d.22, d.19_21, d.16_18, d.13_15)
 }
 
-if (use.historic == TRUE & file.exists(historic.file.name)) {
-    d.historic = fread(historic.file.name)[, date := as.Date(date)]
-}
+d.historic = fread(historic.file.name)[, date := as.Date(date)]
 
 update.time = now()
 d.base = agg(getGasConsumption(startDate = "2022-12-30"), 2023)[order(date)]
