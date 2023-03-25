@@ -10,7 +10,7 @@ l.options = list(
     lag.max = 1,
     period = list(
         start = as.Date("2022-10-01"),
-        end = as.Date("2023-04-01"),
+        end = as.Date("2023-06-01"),
         pred.start = as.Date("2022-11-15")
     ),
     learning.days = 365
