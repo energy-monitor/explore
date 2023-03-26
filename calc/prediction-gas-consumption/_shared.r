@@ -123,12 +123,11 @@ start.dates = seq(as.Date("2022-03-01"), end.date, by = "month")
 end.dates = c(start.dates[2:length(start.dates)] - 1, end.date)
 
 months.rel = mapply(compare.values.complete,
-       start.dates,
-       end.dates,
-       months[1:length(start.dates)],
-       SIMPLIFY = FALSE
-       ) %>%
-    bind_rows()
+    start.dates,
+    end.dates,
+    months[seq_len(length(start.dates))],
+    SIMPLIFY = FALSE
+) %>% bind_rows()
 
 
 totals.rel = bind_rows(
@@ -154,4 +153,3 @@ d.comp.f = bind_rows(months.rel, totals.rel)
 #d.comp.f = dcast(d.comp.c, month.name ~ full.variable, value.var = "g100")
 
 #setcolorder(d.comp.f, c("month.name", "2021.observation", "2017-2021.observation", "prediction.pred.base", "prediction.pred.power"))
-
