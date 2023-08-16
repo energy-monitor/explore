@@ -138,11 +138,14 @@ totals.rel = bind_rows(
     #                    end.date,
     #                    "Seit März 2022"),
     compare.values.complete(as.Date("2022-08-01"),
-                        end.date,
-                        "Seit August 2022"),
+                            as.Date("2023-03-31"),
+                        "August 2022 - März 2023"),
     compare.values.complete(as.Date("2023-01-01"),
                         end.date,
-                        "Seit Jänner 2023")
+                        "Seit Jänner 2023"),
+    compare.values.complete(as.Date("2023-08-01"),
+                            end.date,
+                            "Seit August 2023")
 )
 
 totals.rel$name = paste0("**", totals.rel$name, "**")
