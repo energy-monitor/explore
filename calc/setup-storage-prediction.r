@@ -9,9 +9,9 @@ l.options = list(
     temp.threshold = 14,
     lag.max = 1,
     period = list(
-        start = as.Date("2022-10-01"),
-        end = as.Date("2023-06-01"),
-        pred.start = as.Date("2022-11-15")
+        start = as.Date("2023-09-01"),
+        end = as.Date("2024-06-01"),
+        pred.start = as.Date("2023-09-01")
     ),
     learning.days = 365
 )
@@ -19,9 +19,9 @@ l.options = list(
 # these values are taken from https://energie.gv.at
 l.gas.info = list(
     c.sources = c(
-        russia   = 10,
-        domestic =  4,
-        others   = 33
+        russia   = 7*10/6,
+        domestic =  7*4/6,
+        others   = 7*33/6
     ),
     l.storage = list(
         # Eigentumsverhältnisse Gasspeicher
@@ -43,7 +43,11 @@ l.gas.info = list(
             "2023-02-21" = 17.97,
             "2023-02-28" = 17.29,
             "2023-03-07" = 16.48,
-            "2023-03-21" = 15.28
+            "2023-03-21" = 15.28,
+            "2023-09-01" = 23.47 + 4.94,
+            "2023-09-26" = 23.47 + 4.94,
+            "2023-10-03" = 23.74 + 4.94
+
         )
 
     )
