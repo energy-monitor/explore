@@ -18,9 +18,9 @@ loadPackages(knitr)
     Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-storage.rmd" target="_blank">↗</a>
 </p>
 
-Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern das für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. 2022 ist die österreichische Bundesregierung von einer österreichischen Gaseigenproduktion von 4 TWh im Winter ausgegangen - und mit Winterimporten von 33 TWh. Falls Russland die Exporte stoppt, würden Winterimporte von 23 TWh in dieser Periode erwartet werden. Wir setzen die gleichen Annahmen für den Winter 2023/2024 an.
+Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern das für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. Im Zeitraum Oktober 2022 - März 2023 kann man außerdem mit einer österreichischen Gaseigenproduktion von 4 TWh rechnen - und mit Importen von 33 TWh. Falls Russland die Exporte stoppt, würden Importe von 23 TWh in dieser Periode erwartet werden. 
 
-In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im Winter 23/24 berechnen. Wieviel Gas in österreichischen Gasspeichern tatsächlich für österreichische Kund/innen reserviert ist, wird nur wöchentlich publiziert. Täglich publiziert wird aber der Gesamtspeicherstand in österreichischen Speichern. Wir nehmen daher an, dass sich der Gesamtspeicherstand und der Speicherstand des für Österreich bestimmten Gases proportional ändern. 
+In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im Winter 22/23 berechnen. Wieviel Gas in österreichischen Gasspeichern tatsächlich für österreichische Kund/innen reserviert ist, wird nur wöchentlich publiziert. Täglich publiziert wird aber der Gesamtspeicherstand in österreichischen Speichern. Wir nehmen daher an, dass sich der Gesamtspeicherstand und der Speicherstand des für Österreich bestimmten Gases proportional ändern. 
 
 ```{r plot, fig.height=6}
 d.t.storage = d.base[date >= l.options$period$start & !is.na(storage.dom), .(
@@ -51,7 +51,7 @@ annotation <- tibble(
     label = c(
         "Strategische Gasreserve"
     ),
-    x = c(as.Date("2023-11-01")),
+    x = c(as.Date("2023-01-01")),
     y = c(19)
 )
 
@@ -72,11 +72,11 @@ ggplot(d.t.pred, aes(x = date, y = value)) +
     ) +
     labs(
         title = "Entwicklung Speicherstand",
-        subtitle = "Heizsaison 23/24, Speicherniveau in TWh"
+        subtitle = "Heizsaison 22/23, Speicherniveau in TWh"
     )
 ```
 
-Die Ergebnisse zeigen, dass ein Zugriff auf die strategische Gasreserve sehr unwahrscheinlich ist, falls Russland weiter Gas liefert. Sollte Russland kein Gas mehr liefern, könnte ein sehr kalter Winter allerdings bedeuten, dass auf die strategische Gasreserve zugegriffen werden muss. Solche kalten Winter sind aber, auf Grund des Klimawandels, in den letzten Jahren unwahrscheinlicher geworden.
+
 
 ```{r model-evaluation-1}
 # Unsere Analyse berücksichtigt nicht die Preise an den Märkten: in einem sehr kalten Winter würden die Preise massiv steigen, und der Verbrauch würde unter unserer Abschätzung liegen. Da wir rollierend die Temperaturabhängigkeit schätzen, fließt der Effekt sich verändernder Preise aber nur langsam ins Modell ein. Würde der Winter sehr warm, würden die Preise fallen, und der Verbrauch steigen, die Einsparungen wären also geringer, als von uns abgeschätzt. In Summe sollte der Preiseffekt also dazu führen, dass der Speicherstand am Ende des Winters innerhalb der von uns ausgewiesenen Spannbreite liegt: wird der Winter sehr kalt, würde mehr gespart werden als von uns vorhergesagt, wird er sehr warm, weniger.
