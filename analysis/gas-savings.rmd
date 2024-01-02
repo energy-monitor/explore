@@ -116,9 +116,9 @@ Mit diesem Modell wird nun der Gaskonsum für die einzelnen Tage im Jahr 2022 ge
 
 ```{r modelResultLevelsBase}
 d.plot = rbind(
-    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= "2022-03-01"],
-    l.model.base$d.plot[variable %in% c("value")][date >= "2021-03-01" & date <= "2021-12-31"][, .(
-        date = as.Date(paste("2022", month(date), day(date), sep = "-")),
+    l.model.base$d.plot[variable %in% c("value", "prediction")][date >= glue("{current_year}-01-01")],
+    l.model.base$d.plot[variable %in% c("value")][date >= "2021-01-01" & date <= "2021-12-31"][, .(
+        date = as.Date(paste(current_year, month(date), day(date), sep = "-")),
         variable = "value21", value, rollmean
     )]
 )
@@ -126,7 +126,7 @@ d.plot = rbind(
 ggplot(d.plot, aes(x = date, y = rollmean, color = variable, group = variable)) +
     geom_line(linewidth = 1) +
     scale_color_manual(values = COLORS, name = NULL, labels = c(
-        value = "Beobachtung", prediction = "Schätzung - Modellvariante 1", value21 = "Vorjahr")
+        value = glue("Beobachtung {current_year}"), prediction = glue("Schätzung {current_year} - Modellvariante 1"), value21 = "2021")
     ) +
     # scale_y_continuous(labels = scales::comma())
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +

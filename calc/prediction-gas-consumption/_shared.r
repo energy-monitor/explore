@@ -8,6 +8,7 @@ source("calc/prediction-gas-consumption/_functions.r")
 start.date = as.Date("2022-03-01")
 temp.threshold = 14
 c.years.avg = 2017:2021
+current_year = 2024
 
 
 # - BASE -----------------------------------------------------------------------
@@ -116,10 +117,11 @@ months.single = c("Jänner",
                   "November",
                   "Dezember")
 
-months = c(glue("{months.single[3:12]} 2022"),
-           glue("{months.single} 2023"))
+months = c(glue("{months.single} 2023"),
+           glue("{months.single} 2024"))
 
-start.dates = seq(as.Date("2022-03-01"), end.date, by = "month")
+#start.dates = seq(as.Date("2022-03-01"), end.date, by = "month")
+start.dates = seq(as.Date("2023-01-01"), end.date, by = "month")
 end.dates = c(start.dates[2:length(start.dates)] - 1, end.date)
 
 months.rel = mapply(compare.values.complete,
@@ -141,11 +143,14 @@ totals.rel = bind_rows(
                             as.Date("2023-03-31"),
                         "August 2022 - März 2023"),
     compare.values.complete(as.Date("2023-01-01"),
-                        end.date,
-                        "Seit Jänner 2023"),
+                            as.Date("2023-12-31"),
+                        "Gesamt 2023"),
     compare.values.complete(as.Date("2023-08-01"),
                             end.date,
-                            "Seit August 2023")
+                            "Seit August 2023"),
+    compare.values.complete(as.Date("2024-01-01"),
+                            end.date,
+                            "Seit Jänner 2024")
 )
 
 totals.rel$name = paste0("**", totals.rel$name, "**")
