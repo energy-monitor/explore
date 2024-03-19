@@ -24,8 +24,8 @@ d.plot = rbindlist(list(
 d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
 
 d.plot = d.plot[, .(
-    p.j = mean(t.j, na.rm = TRUE) / 1000,
-    gt.co2 = mean(t.co2, na.rm = TRUE) / 1000 / 1000
+    twh = mean(t.j, na.rm = TRUE) / 1000 / 3.6,
+    mt.co2 = mean(t.co2, na.rm = TRUE) / 1000 / 1000
 ), by = .(
     year, product, date20 = {t = copy(date); year(t) = 2020; t}
 )]
