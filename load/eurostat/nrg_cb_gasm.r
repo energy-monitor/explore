@@ -16,10 +16,12 @@ d.wide = dcast(d.base, TIME_PERIOD ~ siec)
 d.prep = melt(d.wide[, .(
     date = TIME_PERIOD,
     total = G3000
-)], id.vars = "date", variable.name = "product", value.name = "value")
+)], id.vars = "date", variable.name = "product", value.name = "mio.m3")
 
+d.prep[, t.j := mio.m3 * 1000 * 0.0372276]
+d.prep[, t.co2 := t.j * 55.59]
 
-saveToStorages(d.prep[!is.na(value)], list(
+saveToStorages(d.prep[!is.na(mio.m3)], list(
     id = "nrg_cb_gasm",
     source = "eurostat",
     format = "csv",

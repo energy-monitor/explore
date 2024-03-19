@@ -8,8 +8,12 @@ d.plot = loadFromStorage(id = "nrg_cb_gasm")[,
     date := as.Date(date)
 ][year(date) >= 2013]
 
+d.plot = d.plot[, .(
+    date, product,
+    value = mio.m3
+)]
 
-d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
+d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by = .(date, product)]
 
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)

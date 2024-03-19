@@ -8,6 +8,10 @@ d.plot = loadFromStorage(id = "nrg_cb_oilm")[,
     date := as.Date(date)
 ][year(date) >= 2013]
 
+d.plot = d.plot[, .(
+    date, product,
+    value = ths.t
+)]
 
 d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
 

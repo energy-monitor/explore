@@ -10,24 +10,54 @@ d.base = as.data.table(
 )[geo == "AT" & nrg_bal == "GID_CAL" & unit == "THS_T" & freq == "M"]
 
 
-d.wide = dcast(d.base, TIME_PERIOD ~ siec)
-
 # Kohleprodukte	[C0100][C0311][C0200]
-# Steinkohle	[C0100]
-# Braunkohle	[C0200]
-# Kokereikoks	[C0311]
+# Steinkohle	[C0100] 0.029894732
+# Braunkohle	[C0200] 0.021523706
+# Kokereikoks	[C0311] 0.0282156
 # Torf	[P1100]
 # Ölschiefer und bituminöse Sande	[S2000]
-d.prep = melt(d.wide[, .(
-    date = TIME_PERIOD,
-    total = C0100 + C0311 + C0200,
-    stein = C0100,
-    braun = C0311,
-    koks = C0200
-)], id.vars = "date", variable.name = "product", value.name = "value")
+c.types = list(
+    stein = list(
+        code = "C0100",
+        tj.per.t = 0.029894732,
+        tco2.per.tj = 93.53
+    ),
+    braun = list(
+        code = "C0200",
+        tj.per.t = 0.021523706,
+        tco2.per.tj = 97.21
+    ),
+    koks = list(
+        code = "C0311",
+        tj.per.t = 0.0282156,
+        tco2.per.tj = 112.28
+    )
+)
 
 
-saveToStorages(d.prep[!is.na(value)], list(
+d.prep = rbindlist(lapply(names(c.types), function(n) {
+    t = c.types[[n]]
+    d.base[siec == t$code, .(
+        date = TIME_PERIOD,
+        product = n,
+        ths.t = values,
+        t.j = values * t$tj.per.t * 1000,
+        t.co2 = values * t$tj.per.t * 1000 * t$tco2.per.tj
+    )]
+}))
+
+d.prep = rbind(
+    d.prep[, .(
+        product = "total",
+        ths.t = sum(ths.t),
+        t.j = sum(t.j),
+        t.co2 = sum(t.co2)
+    ), by = .(date)],
+    d.prep
+)
+
+
+saveToStorages(d.prep[!is.na(ths.t)], list(
     id = "nrg_cb_sffm",
     source = "eurostat",
     format = "csv",
