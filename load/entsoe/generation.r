@@ -3,6 +3,8 @@ rm(list = ls())
 source("load/entsoe/_shared.r")
 # loadPackages()
 
+library(lubridate)
+
 
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
@@ -43,10 +45,8 @@ d.agg.hours = d.base.f[, .(
 ), by = .(
     country = MapCode,
     source = ProductionType,
-    DateTime = hour
-
+    DateTime = ymd_hms(hour)
 )][order(DateTime)]
-
 
 # - STORE ----------------------------------------------------------------------
 saveToStorages(d.agg, list(
@@ -62,8 +62,6 @@ saveToStorages(d.agg.hours, list(
     format = "csv",
     update.time = update.time
 ))
-
-
 
 nameOthers = "others"
 
