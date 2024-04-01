@@ -36,7 +36,8 @@ d.agg.hours = d.base.f[, .(
     min = min(Price)
 ), by = .(
     AreaName,
-    DateTime = ymd_hms(hour)
+    DateTime = ymd_hms(hour),
+    ResolutionCode
 )]
 
 # sort(unique(d.base.f$ResolutionCode))
