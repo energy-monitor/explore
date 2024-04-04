@@ -5,3 +5,15 @@
 __pycache__
 
 creds.json
+data/ninja/ninja_pv_europe_v1.1_merra2.csv
+data/ninja/ninja_pv_europe_v1.1_sarah.csv
+data/ninja/Ninja-PV-Readme-v1.1.pdf
+data/ninja/Meta Data for Wind Farms.xlsx
+data/ninja/Ninja-Wind-Readme-v1.1.pdf
+data/ninja/ninja_wind_europe_v1.1_current_national.csv
+data/ninja/ninja_wind_europe_v1.1_current_on-offshore.csv
+data/ninja/ninja_wind_europe_v1.1_future_longterm_national.csv
+data/ninja/ninja_wind_europe_v1.1_future_nearterm_national.csv
+data/ninja/ninja_wind_europe_v1.1_future_nearterm_on-offshore.csv
+data/ninja/pv.zip
+data/ninja/wind.zip
