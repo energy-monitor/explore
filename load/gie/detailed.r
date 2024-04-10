@@ -17,9 +17,10 @@ for (country in countries) {
         )
         fwrite(d.historic, historic.data.file)
     }
-    d.historic = fread(historic.data.file)[, 
-        gasDayStart := as.character(gasDayStart)
-    ]
+    d.historic = fread(historic.data.file)[, `:=`(
+        gasDayStart = as.character(gasDayStart),
+        updatedAt = as.character(updatedAt)
+    )][]
 
     d.base = rbind(
         d.recent,

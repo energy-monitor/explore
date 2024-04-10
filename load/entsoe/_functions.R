@@ -66,9 +66,13 @@ loadEntsoeComb = function(
     }))
 
     d.full[, `:=`(
-        DateTime = with_tz(ymd_hms(DateTime), "Europe/Vienna")
+        # DateTime2 = with_tz(ymd_hms(DateTime), "Europe/Vienna")
+        DateTime = as.Date(DateTime)
         # UpdateTime = NULL
     )]
 
     d.full[]
 }
+
+
+# d.full[ProductionType == 'Biomass' & MapCode == 'AT' & is.na(DateTime2)]
