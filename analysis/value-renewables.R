@@ -4,8 +4,8 @@ rm(list = ls())
 source("_shared.r")
 source("calc/prediction-gas-consumption/_functions.r")
 
-download_ninja = FALSE
-download_pv_gis = FALSE
+download_ninja = TRUE
+download_pv_gis = TRUE
 
 
 if(download_ninja){
@@ -177,8 +177,22 @@ full_join(d.prices.filtered,
 
 
 
-
-
+d.prices.filtered %>%
+    mutate(day = yday(DateTime)) %>%
+    mutate(month = month(DateTime)) %>%
+    group_by(year, month, day, country) %>%
+    summarize(spread = max(mean) - min(mean),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(year, month, country) %>%
+    summarize(spread = mean(spread),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    ggplot(aes(x = DateTime, y = spread)) +
+    geom_line() +
+    geom_smooth() +
+    facet_wrap(.~country) +
+    ylim(c(NA, 500))
 
 
 ########## different system values for austria
@@ -191,7 +205,7 @@ list.csv.files <- c(PV_GIS_OPT,
                     PV_GIS_VERTICAL_SOUTH,
                     PV_GIS_TWO_AXIS)
 
-d.pv.gis <- read_csv(list_csv_files, skip=19, id="type") %>%
+d.pv.gis <- read_csv(list.csv.files, skip=19, id="type") %>%
     mutate(time=ymd_hm(time)) %>%
     mutate(type = str_remove(type, "pv-gis")) %>%
     mutate(type = str_remove(type, "\\.csv")) %>%
@@ -244,8 +258,6 @@ d.pv.gis.2018 %>%
     geom_line(aes(col=type)) +
     facet_wrap(.~month)
 
-
-
 d.join.prices.pv <- full_join(d.prices.filtered %>%
               filter(country == "AT"),
           d.pv.gis.2018,
@@ -294,6 +306,8 @@ d.join.prices.pv %>%
     theme_bw() +
     xlab("Month") +
     ylab("Cumulative income (€/kw_peak)")
+
+
 
 
 
