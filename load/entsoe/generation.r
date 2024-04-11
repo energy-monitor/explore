@@ -8,9 +8,17 @@ library(lubridate)
 
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
+
 d.base = loadEntsoeComb(
     # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
-    type = "generation", month.start = "2014-12", month.end = month.end
+    type = "generation", month.start = "2024-03", month.end = month.end
+
+)
+
+d.base = loadEntsoeComb(
+    # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
+    type = "generation", month.start = "2014-12", month.end = month.end, check.updates = FALSE
+
 )
 
 # unique(d.base$ProductionType)
