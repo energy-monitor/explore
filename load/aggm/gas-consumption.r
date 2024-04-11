@@ -35,7 +35,7 @@ if (!file.exists(historic.file.name)) {
     d.t = getGasConsumption("2012-12-30", "2016-01-02")
     d.13_15 = agg(d.t, 2013:2015)
 
-    d.t = rbind(d.22_23, d.19_21, d.16_18, d.13_15)[order(date)][!is.na(value)]
+    d.t = rbind(d.22_23, d.19_21, d.16_18, d.13_15)[order(date)][!is.na(value)][, .(date, value = -1 * value), ]
 
     fwrite(d.t, historic.file.name)
     d.historic = d.t
@@ -46,7 +46,7 @@ if (!file.exists(historic.file.name)) {
 d.historic = fread(historic.file.name)[, date := as.Date(date)]
 
 update.time = now()
-d.base = agg(getGasConsumption(startDate = "2023-12-30"), 2023:year(Sys.Date()))[order(date)]
+d.base = agg(getGasConsumption(startDate = "2023-12-30"), 2023:year(Sys.Date()))[order(date)][, .(date, value = -1 * value), ]
 
 d.full = rbind(d.historic, d.base) %>%
     na.omit()
