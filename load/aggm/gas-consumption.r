@@ -46,12 +46,13 @@ if (!file.exists(historic.file.name)) {
 d.historic = fread(historic.file.name)[, date := as.Date(date)]
 
 update.time = now()
-d.base = agg(getGasConsumption(startDate = "2023-12-30"), 2023:year(Sys.Date()))[order(date)]
+d.base = agg(getGasConsumption(startDate = "2024-01-02"), 2023:year(Sys.Date()))[order(date)]
 
 d.full = rbind(d.historic, d.base) %>%
     na.omit()
 
 d.full[, value := abs(value)]
+
 # if (!is.null(d.cache)) {
 #     d.full.cache = left_join(d.full, d.cache, by = c("date" = "date")) %>%
 #         dplyr::select(date, value.update = value.x, value.cache = value.y)
