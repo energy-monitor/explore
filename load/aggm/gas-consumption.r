@@ -46,7 +46,7 @@ if (!file.exists(historic.file.name)) {
 d.historic = fread(historic.file.name)[, date := as.Date(date)]
 
 update.time = now()
-d.base = agg(getGasConsumption(startDate = "2023-12-30"), 2023:year(Sys.Date()))[order(date)]
+d.base = agg(getGasConsumption(startDate = "2023-12-30"), 2024:year(Sys.Date()))[order(date)]
 
 d.full = rbind(d.historic, d.base) %>%
     na.omit()
