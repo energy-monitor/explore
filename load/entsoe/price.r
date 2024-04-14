@@ -31,9 +31,7 @@ d.agg = d.base.f[, .(
 )]
 
 d.agg.hours = d.base.f[, .(
-    mean = mean(Price),
-    max = max(Price),
-    min = min(Price)
+    Price = mean(Price)
 ), by = .(
     AreaName,
     DateTime = ymd_hms(hour),

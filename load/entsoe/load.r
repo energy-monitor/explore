@@ -26,6 +26,13 @@ d.agg = d.base.f[, .(
     value = sum(value) / 10^6
 ), by = .(country = MapCode, date = as.Date(DateTime))][order(date)]
 
+d.agg.hours = d.base.f[, .(
+    value = sum(value) / 10^6
+), by = .(
+    country = MapCode,
+    DateTime = ymd_hms(hour)
+)]
+
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 2)
 
@@ -33,6 +40,13 @@ d.agg = removeLastDays(d.agg, 2)
 # - STORE ----------------------------------------------------------------------
 saveToStorages(d.agg, list(
     id = "electricity-load",
+    source = "entsoe",
+    format = "csv",
+    update.time = update.time
+))
+
+saveToStorages(d.agg.hours, list(
+    id = "electricity-load-hourly-res",
     source = "entsoe",
     format = "csv",
     update.time = update.time

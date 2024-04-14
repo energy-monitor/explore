@@ -1,0 +1,164 @@
+---
+title: "Value renewables"
+output: html_document
+date: "2024-04-14"
+---
+
+```{r setup, include=FALSE}
+setwd("G:/Meine Ablage/drive-work/packages/energy-monitor-test/explore/")
+source("calc/setup-value-renewables.R")
+source("export/analysis/_theme.r")
+loadPackages(knitr)
+
+
+```
+
+## Entwicklung der Marktbedingungen für erneuerbare Energien
+
+
+
+Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 in Österreich und Europa enorm ausgebaut. Auf dieser Seite zeigen wir, wie sich die Marktbedingungen für Wind, Photovoltaik und Batteriespeicher in Österreich und anderen europäischen Ländern entwickelt haben. 
+
+# Residual Load
+
+# Marktpreise
+Dafür zeigen wir als erstes die Preisentwicklungen in vier europäischen Strommärkten. In allen Märkten sind die Preise auf oder unter Vorkrisenniveau gefallen. In Spanien und Frankreich nähern sich die Preise im April 0€/MWh. Der Grund: die Produktion der erneuerbaren Energien führt dazu, dass in den meisten Stunden keine Produktion aus Gaskraftwerken notwendig ist - das ist ab April besonders sichtbar, da in diesem Monat die Photovoltaikproduktion stark ansteigt. Da die Grenzkosten von erneuerbaren Energien bei 0 liegen, fällt der Marktpreis sehr stark.  
+
+```{r market-prices}
+### VALUE ###
+d.prices.filtered %>% 
+    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
+    summarize(Preis = mean(mean)) %>% 
+    ungroup() %>% 
+    mutate(Jahr = as.character(Jahr)) %>%
+    filter(Jahr > 2019) %>% 
+    ggplot(aes(x = Monat, y = Preis)) +
+    geom_line(aes(col = Jahr)) +
+    facet_wrap(. ~ Land) +
+    ylab("Durchschnittlicher Preis (€/MWh)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+```
+# Marktwert
+
+Durch den fallenden durchschnittlichen Marktpreis fällt auch der Wert, den Stromerzeugungstechnologien am Markt lukrieren können (2022 als Ausreisser wird nicht gezeigt). Für Spanien und Frankreich geht der Wert aller Technologien gegen 0 €/MWh , da ja auch der Marktpreis gegen 0 €/MWh tendiert. Für Österreich und Deutschland zeigt sich, dass Gas- und Windstrom den Marktwert stabil halten können. Für Photovoltaik sinkt er aber sehr stark. Das ergibt sich durch die hohe Gleichzeitigkeit der PV-Strom Produktion: diese ist vor allem untertags hochkonzentriert. Speisen alle Photovoltaikanlagen aber gleichzeitig ein, sinkt der Marktpreis sehr stark, oft gegen 0€/MWh.  
+
+```{r market-value}
+### VALUE ###
+full_join(d.gen.sel,
+          d.prices.filtered,
+          by = c("DateTime" = "DateTime",
+                 "country" = "country")) %>%
+    filter(source %in% c("Solar", "Wind Onshore", "Fossil Gas")) %>%
+    filter(!is.na(source)) %>%
+    mutate(value.power = value * mean) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    filter(year > 2019) %>%
+    filter(year != 2022) %>% 
+    group_by(year, month, country, source) %>%
+    summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    mutate(Technology = source) %>%
+    mutate(Jahr = as.character(year)) %>% 
+    ggplot(aes(x = month, y = value)) +
+    geom_line(aes(col = Jahr)) +
+    facet_grid(Technology~country) +
+    xlab("Monat") +
+    ylab("Durchschnittlicher Marktwert (€/MWh)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) 
+
+
+```
+
+## Generiertes Einkommen
+
+Werden Erzeugungsanlagen durch Marktpreise kompensiert, können sie die unten dargestellten kumulativen Einkommen generieren (2022 als Ausreisser wird nicht gezeigt). 
+```{r income}
+full_join(d.prices.filtered,
+          ninja_pv,
+          by = c("t" = "t", "country" = "country")) %>%
+    full_join(ninja_wind,
+              by = c("t" = "t", "country" = "country")) %>%
+    gather(source, cap_fact, -DateTime, -year, -mean, -country, -t) %>%
+    mutate(value = cap_fact * mean) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    filter(year > 2018) %>%
+    dplyr::select(year, month, DateTime, source, value, country) %>%
+    group_by(year, country, source) %>%
+    mutate(value = cumsum(value) / 1000) %>%
+    mutate(Stunde = 1:n()) %>% 
+    ungroup() %>%
+#    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
+    filter(year > 2018) %>% 
+    filter(year != 2022) %>% 
+    mutate(Monat = month(DateTime),
+           Jahr = as.character(year(DateTime))) %>% 
+    ggplot(aes(x = Stunde, y = value)) +
+    geom_line(aes(col = Jahr)) +
+    facet_grid(source~country, scale="free") +
+    ylab("Kumulatives Einkommen\n generiert durch 1KW Kapazität (€)")
+
+
+```
+
+## Einkommen durch Flexibilität
+```{r flexibility}
+d.prices.filtered %>%
+    mutate(day = yday(DateTime)) %>%
+    mutate(month = month(DateTime)) %>%
+    group_by(year, month, day, country) %>%
+    summarize(spread = max(mean) - min(mean),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(year, month, country) %>%
+    summarize(spread = mean(spread),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    mutate(Jahr = as.character(year)) %>% 
+    filter(year != 2022) %>% 
+    ggplot(aes(x = month, y = spread)) +
+    geom_line(aes(col = Jahr)) +
+    facet_wrap(.~country, scale = "free") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) 
+
+
+
+```
+
+d.prices.filtered %>%
+    mutate(day = yday(DateTime)) %>%
+    mutate(month = month(DateTime)) %>%
+    group_by(year, month, day, country) %>%
+    summarize(spread = max(mean) - min(mean),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(year, month, country) %>%
+    summarize(spread = mean(spread),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    ggplot(aes(x = DateTime, y = spread)) +
+    geom_line() +
+    geom_smooth() +
+    facet_wrap(.~country) +
+    ylim(c(NA, 500))
+
+d.join.prices.pv %>%
+    filter(year > 2022) %>%
+    ggplot(aes(x = DateTime, y = rollvalue)) +
+    geom_line(aes(col = type)) +
+    #geom_smooth(aes(col = type), method = "gam")
+    ylab("Income for 1kw_peak (€/Month)") +
+    theme_bw()
+
+d.join.prices.pv %>%
+    group_by(year, type) %>%
+    mutate(c_value=cumsum(rollvalue)) %>%
+    ungroup() %>%
+    ggplot(aes(x = month(DateTime), y = c_value)) +
+    geom_line(aes(col = type)) +
+    facet_wrap(.~year) +
+    theme_bw() +
+    xlab("Month") +
+    ylab("Cumulative income (€/kw_peak)")

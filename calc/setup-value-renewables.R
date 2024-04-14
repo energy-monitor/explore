@@ -7,13 +7,32 @@ source("calc/prediction-gas-consumption/_functions.r")
 download_ninja = TRUE
 download_pv_gis = TRUE
 
+PV_FILE_NINJA <- "data/ninja/pv.zip"
+PV_GIS_OPT = "data/ninja/pv-gis-opt-opt.csv"
+PV_GIS_EAST = "data/ninja/pv-gis-38-east.csv"
+PV_GIS_WEST = "data/ninja/pv-gis-38-west.csv"
+PV_GIS_VERTICAL_EAST = "data/ninja/pv-gis-vertical-east.csv"
+PV_GIS_VERTICAL_WEST = "data/ninja/pv-gis-vertical-west.csv"
+PV_GIS_VERTICAL_NORTH = "data/ninja/pv-gis-vertical-north.csv"
+PV_GIS_VERTICAL_SOUTH = "data/ninja/pv-gis-vertical-south.csv"
+PV_GIS_TWO_AXIS = "data/ninja/pv-gis-two-axis.csv"
+
+if(file.exists(PV_FILE_NINJA)) {
+    download_ninja = FALSE
+}
+
+if(file.exists(PV_GIS_OPT)) {
+    download_pv_gis = FALSE
+}
 
 if(download_ninja){
-    PV_FILE <- "data/ninja/pv.zip"
+    PV_FILE <- PV_FILE_NINJA
     WIND_FILE <- "data/ninja/wind.zip"
     EX_DIR <- "data/ninja/"
     download.file("https://renewables.ninja/downloads/ninja_europe_pv_v1.1.zip",
               PV_FILE)
+
+    options(timeout=120)
     download.file("https://renewables.ninja/downloads/ninja_europe_wind_v1.1.zip",
               WIND_FILE)
     unzip(PV_FILE, exdir = EX_DIR)
@@ -21,16 +40,6 @@ if(download_ninja){
 }
 
 if(download_pv_gis){
-
-    PV_GIS_OPT = "data/ninja/pv-gis-opt-opt.csv"
-    PV_GIS_EAST = "data/ninja/pv-gis-38-east.csv"
-    PV_GIS_WEST = "data/ninja/pv-gis-38-west.csv"
-    PV_GIS_VERTICAL_EAST = "data/ninja/pv-gis-vertical-east.csv"
-    PV_GIS_VERTICAL_WEST = "data/ninja/pv-gis-vertical-west.csv"
-    PV_GIS_VERTICAL_NORTH = "data/ninja/pv-gis-vertical-north.csv"
-    PV_GIS_VERTICAL_SOUTH = "data/ninja/pv-gis-vertical-south.csv"
-    PV_GIS_TWO_AXIS = "data/ninja/pv-gis-two-axis.csv"
-
 
     download.file("https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&optimalangles=1",
                   PV_GIS_OPT)
@@ -75,44 +84,7 @@ d.prices.filtered <- d.prices %>%
     arrange(DateTime) %>%
     dplyr::select(DateTime, year, mean, country)
 
-d.prices.filtered %>%
-    mutate(hour = hour(DateTime)) %>%
-    group_by(year, country) %>%
-    mutate(n = 1:n()) %>%
-    ungroup() %>%
-    group_by(year, hour, country) %>%
-    mutate(mean = mean(mean)) %>%
-    ungroup %>%
-    group_by(year, country) %>%
-    mutate(mean = mean / mean(mean)) %>%
-    ungroup() %>%
-    ggplot(aes(x = hour, y = mean)) +
-    geom_line(aes(col = as.character(year))) +
-    facet_wrap(.~country)
-
-### VALUE ###
-full_join(d.gen.sel,
-          d.prices.filtered,
-          by = c("DateTime" = "DateTime",
-                 "country" = "country")) %>%
-    filter(source %in% c("Solar", "Wind Onshore", "Fossil Gas", "Nuclear")) %>%
-    filter(!is.na(source)) %>%
-    mutate(value.power = value * mean) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
-    group_by(year, month, country, source) %>%
-    summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    mutate(Technology = source) %>%
-    ggplot(aes(x = DateTime, y = value)) +
-    geom_line(aes(col = Technology)) +
-    facet_wrap(.~country) +
-    xlab("Date") +
-    ylab("Value of Electricity (€/MWh)")
-
-### CAP FACT ###
+### CAP FACT AVERAGE ###
 ninja_pv <- read_csv("data/ninja/ninja_pv_europe_v1.1_sarah.csv") %>%
     gather(country, value, -time) %>%
     filter(country %in% COUNTRIES) %>%
@@ -121,11 +93,6 @@ ninja_pv <- read_csv("data/ninja/ninja_pv_europe_v1.1_sarah.csv") %>%
     ungroup() %>%
     group_by(country, t) %>%
     summarize(pv = mean(value))
-
-ninja_pv %>%
-    ggplot(aes(x = t, y = pv)) +
-    geom_line(aes(col = country)) +
-    facet_wrap(.~country)
 
 ninja_wind <- read_csv("data/ninja/ninja_wind_europe_v1.1_future_nearterm_national.csv") %>%
     gather(country, value, -time) %>%
@@ -136,66 +103,14 @@ ninja_wind <- read_csv("data/ninja/ninja_wind_europe_v1.1_future_nearterm_nation
     group_by(country, t) %>%
     summarize(wind = mean(value))
 
-ninja_wind %>%
-    ggplot(aes(x = t, y = wind)) +
-    geom_line(aes(col = country))
-
-
 d.prices.filtered <- d.prices.filtered %>%
     group_by(year, country) %>%
     mutate(t = 1:n()) %>%
     ungroup()
 
-
 max_date <- max(d.prices.filtered$DateTime)
 
-full_join(d.prices.filtered,
-          ninja_pv,
-          by = c("t" = "t", "country" = "country")) %>%
-    full_join(ninja_wind,
-              by = c("t" = "t", "country" = "country")) %>%
-    gather(source, cap_fact, -DateTime, -year, -mean, -country, -t) %>%
-    mutate(value = cap_fact * mean) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
-    dplyr::select(year, month, DateTime, source, value, country) %>%
-    group_by(year, month, country, source) %>%
-    summarize(value = sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(country, source) %>%
-    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
-    mutate(rollvalue = value / 1000) %>%
-    ungroup() %>%
-    #na.omit() %>%
-    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
-    ggplot(aes(x = DateTime, y = rollvalue)) +
-    geom_line(aes(col = source)) +
-    geom_smooth(aes(col = source), method = "gam") +
-    facet_wrap(.~country)
-
-
-
-d.prices.filtered %>%
-    mutate(day = yday(DateTime)) %>%
-    mutate(month = month(DateTime)) %>%
-    group_by(year, month, day, country) %>%
-    summarize(spread = max(mean) - min(mean),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(year, month, country) %>%
-    summarize(spread = mean(spread),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    ggplot(aes(x = DateTime, y = spread)) +
-    geom_line() +
-    geom_smooth() +
-    facet_wrap(.~country) +
-    ylim(c(NA, 500))
-
-
-########## different system values for austria
+########## different pv system values for austria
 list.csv.files <- c(PV_GIS_OPT,
                     PV_GIS_EAST,
                     PV_GIS_WEST,
@@ -213,24 +128,6 @@ d.pv.gis <- read_csv(list.csv.files, skip=19, id="type") %>%
     mutate(type = str_remove(type, "ninja")) %>%
     mutate(type = str_remove_all(type, "\\\\")) %>%
     na.omit()
-
-
-
-### test on pv_gis
-d.pv.gis %>%
-    group_by(year = year(time), month=month(time)) %>%
-    summarize(P=mean(P)) %>%
-    ggplot(aes(x=year, y=P)) +
-    geom_bar(stat="identity") +
-    facet_wrap(.~month)
-
-d.pv.gis %>%
-    filter(year(time) == 2018) %>%
-    group_by(month=month(time),time=hour(time), type) %>%
-    summarize(P=mean(P)) %>%
-    ggplot(aes(x=time, y=P)) +
-    geom_line(aes(col=type)) +
-    facet_wrap(.~month)
 
 d.pv.gis.2018 = d.pv.gis %>%
     filter(year(time) == 2018) %>%
@@ -251,14 +148,7 @@ d.pv.gis.2018 = d.pv.gis %>%
     ungroup()
 
 
-d.pv.gis.2018 %>%
-    group_by(month=month(time),time=hour(time), type) %>%
-    summarize(P=mean(P)) %>%
-    ggplot(aes(x=time, y=P)) +
-    geom_line(aes(col=type)) +
-    facet_wrap(.~month)
-
-d.join.prices.pv <- full_join(d.prices.filtered %>%
+d.join.prices.pv = full_join(d.prices.filtered %>%
               filter(country == "AT"),
           d.pv.gis.2018,
           by = c("t" = "t"),
@@ -278,38 +168,6 @@ d.join.prices.pv <- full_join(d.prices.filtered %>%
     ungroup() %>%
     #na.omit() %>%
     filter(year < max(year) | (year == max(year) & month < month(max_date)))
-
-d.join.prices.pv %>%
-    filter(year > 2022) %>%
-    ggplot(aes(x = DateTime, y = rollvalue)) +
-    geom_line(aes(col = type)) +
-    #geom_smooth(aes(col = type), method = "gam")
-    ylab("Income for 1kw_peak (€/Month)")
-
-d.join.prices.pv %>%
-    group_by(year, type) %>%
-    mutate(c_value=cumsum(rollvalue)) %>%
-    ungroup() %>%
-    ggplot(aes(x = month(DateTime), y = c_value)) +
-    geom_line(aes(col = type)) +
-    facet_wrap(.~year) +
-    theme_bw() +
-    xlab("Month") +
-    ylab("Cumulative income (€/kw_peak)")
-
-d.join.prices.pv %>%
-    group_by(type) %>%
-    mutate(c_value=cumsum(rollvalue)) %>%
-    ungroup() %>%
-    ggplot(aes(x = DateTime, y = c_value)) +
-    geom_line(aes(col = type)) +
-    theme_bw() +
-    xlab("Month") +
-    ylab("Cumulative income (€/kw_peak)")
-
-
-
-
 
 
 
