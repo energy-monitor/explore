@@ -73,10 +73,6 @@ d.prices = loadFromStorage(id = "electricity-price-entsoe-hourly") %>%
 d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
     filter(country %in% COUNTRIES)
 
-d.load %>%
-    ggplot(aes(x = DateTime, y = value)) +
-    geom_line(aes(col = country))
-
 d.gen.sel <- d.generation %>%
     filter(country %in% COUNTRIES) %>%
     group_by(year = year(DateTime), source, country) %>%
@@ -92,10 +88,6 @@ d.gen.sel.ren <- d.gen.sel %>%
     group_by(DateTime, country) %>%
     summarize(generation = sum(value, na.rm = TRUE))
 
-d.gen.sel.ren %>%
-    ggplot(aes(x = DateTime, y = generation)) +
-    geom_line(aes(col = country))
-
 d.gen.sel.ren.wo.nuclear <- d.gen.sel %>%
     filter(source %in% c("Wind Onshore",
                          "Solar",
@@ -104,7 +96,6 @@ d.gen.sel.ren.wo.nuclear <- d.gen.sel %>%
     group_by(DateTime, country) %>%
     summarize(generation = sum(value, na.rm = TRUE))
 
-#### TODO FIX ERROR JOIN!!!!
 d.residual <- d.gen.sel.ren %>%
     dplyr::select(DateTime, country, generation)  %>%
     full_join(d.load %>% dplyr::select(DateTime, country, value), by = c("DateTime" = "DateTime", "country" = "country")) %>%
@@ -113,8 +104,8 @@ d.residual <- d.gen.sel.ren %>%
 d.residual.wo.nuclear <- d.gen.sel.ren.wo.nuclear %>%
     mutate(value = ifelse(is.na(generation), 0, generation)) %>%
     dplyr::select(DateTime, country, generation)  %>%
-    full_join(d.load %>% dplyr::select(DateTime, country, load), by = c("DateTime" = "DateTime", "country" = "country")) %>%
-    mutate(residual = load - generation)
+    full_join(d.load %>% dplyr::select(DateTime, country, value), by = c("DateTime" = "DateTime", "country" = "country")) %>%
+    mutate(residual = value - generation)
 
 d.prices.filtered <- d.prices %>%
     mutate(year = year(DateTime)) %>%
@@ -176,10 +167,12 @@ d.pv.gis.2018 = d.pv.gis %>%
     mutate(vertical.north.south = 0.5 * `//-vertical-north` + 0.5 * `//-vertical-south`) %>%
     mutate(vertical.east.west = 0.5 * `//-vertical-east` + 0.5 * `//-vertical-west`) %>%
     mutate(angle.east.west = 0.5 * `//-38-east` + 0.5 * `//-38-west`) %>%
+    mutate(vertical.south = `//-vertical-south`) %>%
     dplyr::select(time,
                   vertical.north.south,
                   vertical.east.west,
                   angle.east.west,
+                  vertical.south,
                   opt.opt=`//-opt-opt`,
                   two.axis=`//-two-axis`) %>%
     gather(type, P, -time) %>%
