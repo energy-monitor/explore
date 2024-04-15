@@ -3,8 +3,6 @@ rm(list = ls())
 source("load/entsoe/_shared.r")
 # loadPackages()
 
-library(lubridate)
-
 
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
@@ -15,18 +13,11 @@ d.base = loadEntsoeComb(
 
 )
 
-# unique(d.base$ProductionType)
-
 d.base.f = d.base[AreaTypeCode == "CTY"]
 d.base.f[,
          hour := floor_date(DateTime, unit = "hours")]
 d.base.f[,
          factor := resToFactor[ResolutionCode]]
-
-
-# d.base.f[, .(sum = sum(ActualGenerationOutput)), by=.(ProductionType)][order(sum)]
-# unique(d.base.f[,. (ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
-
 
 d.agg.hours = d.base.f[, .(
     value = mean(ActualGenerationOutput, na.rm = TRUE),
