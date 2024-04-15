@@ -11,15 +11,9 @@ d.base = loadEntsoeComb(
     # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
 )
 
-# d.t = unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
-# d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
-
 d.base.f = d.base[AreaTypeCode == "CTY"]
 
-# sort(unique(d.base.f$ResolutionCode))
-
 d.base.f[, factor := resToFactor[ResolutionCode]]
-#d.base.f[, value := factor * TotalLoadValue]
 
 d.base.f[,  hour := (floor_date(DateTime, unit = "hours"))]
 
