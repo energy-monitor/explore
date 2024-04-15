@@ -25,7 +25,7 @@ d.base = loadEntsoeComb(
 
 d.base.f = d.base[AreaTypeCode == "CTY"]
 d.base.f[,
-         hour := cut(DateTime, breaks = "hour")]
+         hour := floor_date(DateTime, unit = "hours")]
 d.base.f[,
          factor := resToFactor[ResolutionCode]]
 
@@ -34,29 +34,36 @@ d.base.f[,
 # unique(d.base.f[,. (ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 
 
-# - AGG -----------------------------------------------------------------------
-d.agg = d.base.f[, .(
-    value = sum(ActualGenerationOutput*factor, na.rm = TRUE)/10^6,
-    cons = sum(ActualConsumption*factor, na.rm = TRUE)/10^6
+d.agg.hours = d.base.f[, .(
+    value = mean(ActualGenerationOutput, na.rm = TRUE),
+    cons = mean(ActualConsumption, na.rm = TRUE)
 ), by = .(
     country = MapCode,
+    source = ProductionType,
+    DateTime = hour
+)][order(DateTime)]
+
+# - AGG -----------------------------------------------------------------------
+d.agg = d.agg.hours[, .(
+    value = sum(value) / 10^6,
+    cons = sum(cons) / 10^6
+), by = .(
+    country = country,
     date = as.Date(DateTime),
-    source = ProductionType
+    source = source
 )][order(date)]
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 2)
 
-d.agg.hours = d.base.f[, .(
-    value = sum(ActualGenerationOutput*factor, na.rm = TRUE)/10^6,
-    cons = sum(ActualConsumption*factor, na.rm = TRUE)/10^6
-), by = .(
-    country = MapCode,
-    source = ProductionType,
-    DateTime = ymd_hms(hour)
-)][order(DateTime)]
-
 # - STORE ----------------------------------------------------------------------
+saveToStorages(d.agg.hours, list(
+    id = "electricity-generation-hourly",
+    source = "entsoe",
+    format = "csv",
+    update.time = update.time
+))
+
 saveToStorages(d.agg, list(
     id = "electricity-generation",
     source = "entsoe",
@@ -64,12 +71,6 @@ saveToStorages(d.agg, list(
     update.time = update.time
 ))
 
-saveToStorages(d.agg.hours, list(
-    id = "electricity-generation-hourly",
-    source = "entsoe",
-    format = "csv",
-    update.time = update.time
-))
 
 nameOthers = "others"
 

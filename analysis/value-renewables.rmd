@@ -20,6 +20,66 @@ loadPackages(knitr)
 Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 in Österreich und Europa enorm ausgebaut. Auf dieser Seite zeigen wir, wie sich die Marktbedingungen für Wind, Photovoltaik und Batteriespeicher in Österreich und anderen europäischen Ländern entwickelt haben. 
 
 # Residual Load
+```{r market-prices}
+### VALUE ###
+setwd("G:/Meine Ablage/drive-work/packages/energy-monitor-test/explore/")
+d.generation = loadFromStorage(id = "electricity-generation-hourly")
+
+d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
+    filter(country %in% COUNTRIES)
+
+d.gen.sel <- d.generation %>%
+    filter(country %in% COUNTRIES) %>%
+    group_by(year = year(DateTime), source, country) %>%
+    mutate(hour_of_year = 1:n()) %>%
+    ungroup()
+
+d.gen.sel.ren <- d.gen.sel %>%
+    filter(source %in% c("Wind Onshore",
+                         "Solar",
+                         "Hydro Run-of-river and poundage",
+                         "Nuclear",
+                         "Wind Offshore")) %>%
+    group_by(DateTime, country) %>%
+    summarize(generation = sum(value, na.rm = TRUE))
+
+d.gen.sel.ren.wo.nuclear <- d.gen.sel %>%
+    filter(source %in% c("Wind Onshore",
+                         "Solar",
+                         "Hydro Run-of-river and poundage",
+                         "Wind Offshore")) %>%
+    group_by(DateTime, country) %>%
+    summarize(generation = sum(value, na.rm = TRUE))
+
+#### TODO FIX ERROR JOIN!!!!
+d.residual <- d.gen.sel.ren %>%
+    dplyr::select(DateTime, country, generation)  %>%
+    full_join(d.load %>% dplyr::select(DateTime, country, value), by = c("DateTime" = "DateTime", "country" = "country")) %>%
+    mutate(residual = value - generation)
+
+d.residual.wo.nuclear <- d.gen.sel.ren.wo.nuclear %>%
+    mutate(value = ifelse(is.na(generation), 0, generation)) %>%
+    dplyr::select(DateTime, country, generation)  %>%
+    full_join(d.load %>% dplyr::select(DateTime, country, value), by = c("DateTime" = "DateTime", "country" = "country")) %>%
+    mutate(residual = value - generation)
+
+
+d.residual %>%
+    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
+    summarize(residual = mean(residual, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(Jahr = as.character(Jahr)) %>%
+    filter(Jahr > 2017) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = Monat, y = residual / 1000)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(. ~ Land, scale = "free") +
+    ylab("Durchschnittliche Residuallast (GW)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  
+```
 
 # Marktpreise
 Dafür zeigen wir als erstes die Preisentwicklungen in vier europäischen Strommärkten. In allen Märkten sind die Preise auf oder unter Vorkrisenniveau gefallen. In Spanien und Frankreich nähern sich die Preise im April 0€/MWh. Der Grund: die Produktion der erneuerbaren Energien führt dazu, dass in den meisten Stunden keine Produktion aus Gaskraftwerken notwendig ist - das ist ab April besonders sichtbar, da in diesem Monat die Photovoltaikproduktion stark ansteigt. Da die Grenzkosten von erneuerbaren Energien bei 0 liegen, fällt der Marktpreis sehr stark.  
@@ -32,11 +92,15 @@ d.prices.filtered %>%
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
     filter(Jahr > 2019) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
     ggplot(aes(x = Monat, y = Preis)) +
-    geom_line(aes(col = Jahr)) +
-    facet_wrap(. ~ Land) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(. ~ Land, scale = "free") +
     ylab("Durchschnittlicher Preis (€/MWh)") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  
 ```
 # Marktwert
 
@@ -54,19 +118,22 @@ full_join(d.gen.sel,
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
     filter(year > 2019) %>%
-    filter(year != 2022) %>% 
+    #filter(year != 2022) %>% 
     group_by(year, month, country, source) %>%
     summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     mutate(Technology = source) %>%
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
     mutate(Jahr = as.character(year)) %>% 
     ggplot(aes(x = month, y = value)) +
-    geom_line(aes(col = Jahr)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_grid(Technology~country) +
     xlab("Monat") +
     ylab("Durchschnittlicher Marktwert (€/MWh)") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) 
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))  +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  
 
 
 ```
@@ -84,7 +151,6 @@ full_join(d.prices.filtered,
     mutate(value = cap_fact * mean) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
     dplyr::select(year, month, DateTime, source, value, country) %>%
     group_by(year, country, source) %>%
     mutate(value = cumsum(value) / 1000) %>%
@@ -92,13 +158,15 @@ full_join(d.prices.filtered,
     ungroup() %>%
 #    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
     filter(year > 2018) %>% 
-    filter(year != 2022) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
     mutate(Monat = month(DateTime),
            Jahr = as.character(year(DateTime))) %>% 
     ggplot(aes(x = Stunde, y = value)) +
-    geom_line(aes(col = Jahr)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_grid(source~country, scale="free") +
-    ylab("Kumulatives Einkommen\n generiert durch 1KW Kapazität (€)")
+    ylab("Kumulatives Einkommen\n generiert durch 1KW Kapazität (€)") +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  
 
 
 ```
@@ -117,16 +185,20 @@ d.prices.filtered %>%
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     mutate(Jahr = as.character(year)) %>% 
-    filter(year != 2022) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
     ggplot(aes(x = month, y = spread)) +
-    geom_line(aes(col = Jahr)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_wrap(.~country, scale = "free") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) 
-
-
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ylab("Monthly average of maximum daily spread (€/MWh)") +
+    xlab("Monat") +
+    ylab("Monatliches Mittel des maximaler täglichen Spreads (€/MWh)")
 
 ```
-
+# kumulatives einkommen flexibilität
+```{r flexibility-cumulative}
 d.prices.filtered %>%
     mutate(day = yday(DateTime)) %>%
     mutate(month = month(DateTime)) %>%
@@ -134,24 +206,24 @@ d.prices.filtered %>%
     summarize(spread = max(mean) - min(mean),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
-    group_by(year, month, country) %>%
-    summarize(spread = mean(spread),
-              DateTime = min(DateTime)) %>%
+    group_by(year, country) %>%
+    mutate(spread = cumsum(spread)) %>%
     ungroup() %>%
-    ggplot(aes(x = DateTime, y = spread)) +
-    geom_line() +
-    geom_smooth() +
-    facet_wrap(.~country) +
-    ylim(c(NA, 500))
+    mutate(Jahr = as.character(year)) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = day, y = spread)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(.~country, scale = "free") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  +
+    xlab("Tag des Jahres") +
+    ylab("Kumulativer maximaler täglicher Spread (€/MWh)")
 
-d.join.prices.pv %>%
-    filter(year > 2022) %>%
-    ggplot(aes(x = DateTime, y = rollvalue)) +
-    geom_line(aes(col = type)) +
-    #geom_smooth(aes(col = type), method = "gam")
-    ylab("Income for 1kw_peak (€/Month)") +
-    theme_bw()
+```
 
+# ausrichtung von pv als flexibilitätsmaßnahme
+```{r flexibility-cumulative}
 d.join.prices.pv %>%
     group_by(year, type) %>%
     mutate(c_value=cumsum(rollvalue)) %>%
@@ -160,5 +232,9 @@ d.join.prices.pv %>%
     geom_line(aes(col = type)) +
     facet_wrap(.~year) +
     theme_bw() +
-    xlab("Month") +
-    ylab("Cumulative income (€/kw_peak)")
+    xlab("Monat") +
+    ylab("Kumulatives Einkommen (€/kw_peak)")
+
+```
+
+

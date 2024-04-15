@@ -19,19 +19,22 @@ d.base.f = d.base[AreaTypeCode == "CTY"]
 # sort(unique(d.base.f$ResolutionCode))
 
 d.base.f[, factor := resToFactor[ResolutionCode]]
-d.base.f[, value := factor * TotalLoadValue]
+#d.base.f[, value := factor * TotalLoadValue]
 
-# Filter, Aggregate
-d.agg = d.base.f[, .(
-    value = sum(value) / 10^6
-), by = .(country = MapCode, date = as.Date(DateTime))][order(date)]
+d.base.f[,  hour := (floor_date(DateTime, unit = "hours"))]
 
 d.agg.hours = d.base.f[, .(
-    value = sum(value) / 10^6
+    value = mean(value / factor, na.rm = TRUE)
 ), by = .(
     country = MapCode,
-    DateTime = ymd_hms(hour)
+    DateTime = hour
 )]
+
+# Filter, Aggregate
+d.agg = d.agg.hours[, .(
+    value = sum(value) / 10^6
+), by = .(country = country, date = as.Date(DateTime))][order(date)]
+
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 2)

@@ -70,11 +70,51 @@ d.generation = loadFromStorage(id = "electricity-generation-hourly")
 d.prices = loadFromStorage(id = "electricity-price-entsoe-hourly") %>%
     mutate(country = substr(AreaName, 1,2))
 
+d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
+    filter(country %in% COUNTRIES)
+
+d.load %>%
+    ggplot(aes(x = DateTime, y = value)) +
+    geom_line(aes(col = country))
+
 d.gen.sel <- d.generation %>%
     filter(country %in% COUNTRIES) %>%
     group_by(year = year(DateTime), source, country) %>%
     mutate(hour_of_year = 1:n()) %>%
     ungroup()
+
+d.gen.sel.ren <- d.gen.sel %>%
+    filter(source %in% c("Wind Onshore",
+                         "Solar",
+                         "Hydro Run-of-river and poundage",
+                         "Nuclear",
+                         "Wind Offshore")) %>%
+    group_by(DateTime, country) %>%
+    summarize(generation = sum(value, na.rm = TRUE))
+
+d.gen.sel.ren %>%
+    ggplot(aes(x = DateTime, y = generation)) +
+    geom_line(aes(col = country))
+
+d.gen.sel.ren.wo.nuclear <- d.gen.sel %>%
+    filter(source %in% c("Wind Onshore",
+                         "Solar",
+                         "Hydro Run-of-river and poundage",
+                         "Wind Offshore")) %>%
+    group_by(DateTime, country) %>%
+    summarize(generation = sum(value, na.rm = TRUE))
+
+#### TODO FIX ERROR JOIN!!!!
+d.residual <- d.gen.sel.ren %>%
+    dplyr::select(DateTime, country, generation)  %>%
+    full_join(d.load %>% dplyr::select(DateTime, country, value), by = c("DateTime" = "DateTime", "country" = "country")) %>%
+    mutate(residual = value - generation)
+
+d.residual.wo.nuclear <- d.gen.sel.ren.wo.nuclear %>%
+    mutate(value = ifelse(is.na(generation), 0, generation)) %>%
+    dplyr::select(DateTime, country, generation)  %>%
+    full_join(d.load %>% dplyr::select(DateTime, country, load), by = c("DateTime" = "DateTime", "country" = "country")) %>%
+    mutate(residual = load - generation)
 
 d.prices.filtered <- d.prices %>%
     mutate(year = year(DateTime)) %>%
