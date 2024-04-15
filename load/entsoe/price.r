@@ -13,16 +13,10 @@ d.base = loadEntsoeComb(
     # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
 )
 
-# unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
-# d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
-
-#d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M"]
 d.base.f = d.base[,
-                  hour := cut(DateTime, breaks = "hour")]
+                  hour := floor_date(DateTime, unit = "hours")]
 
-# unique(d.base.f[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
-
-d.agg = d.base.f[, .(
+d.agg = d.base.f[MapCode == "AT", .(
     mean = mean(Price),
     max = max(Price),
     min = min(Price)
@@ -31,22 +25,12 @@ d.agg = d.base.f[, .(
 )]
 
 d.agg.hours = d.base.f[, .(
-    Price = mean(Price)
+    price = mean(Price)
 ), by = .(
-    AreaName,
-    DateTime = ymd_hms(hour),
+    country = MapCode,
+    DateTime = hour,
     ResolutionCode
 )]
-
-# sort(unique(d.base.f$ResolutionCode))
-
-# d.base.f[, factor := resToFactor[ResolutionCode]]
-# d.base.f[, value := factor*TotalLoadValue]
-
-# # Filter, Aggregate
-# d.agg = d.base.f[, .(
-#     value = sum(value)/10^3
-# ), by = .(country = MapCode, date = as.Date(DateTime))][order(date)]
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 1)

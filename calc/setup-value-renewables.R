@@ -1,8 +1,6 @@
-library(tidyverse)
 rm(list = ls())
-#source("load/entsoe/_shared.r")
 source("_shared.r")
-source("calc/prediction-gas-consumption/_functions.r")
+loadPackages('tidyverse')
 
 download_ninja = TRUE
 download_pv_gis = TRUE
@@ -68,7 +66,7 @@ COUNTRIES <- c("AT", "ES", "DE", "FR")
 d.generation = loadFromStorage(id = "electricity-generation-hourly")
 
 d.prices = loadFromStorage(id = "electricity-price-entsoe-hourly") %>%
-    mutate(country = substr(AreaName, 1,2))
+    mutate(country = ifelse(country == "DE_LU", "DE", country))
 
 d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
     filter(country %in% COUNTRIES)
@@ -113,7 +111,7 @@ d.prices.filtered <- d.prices %>%
     filter(year > 2018) %>%
     filter(country %in% COUNTRIES) %>%
     arrange(DateTime) %>%
-    dplyr::select(DateTime, year, mean, country)
+    dplyr::select(DateTime, year, price, country)
 
 ### CAP FACT AVERAGE ###
 ninja_pv <- read_csv("data/ninja/ninja_pv_europe_v1.1_sarah.csv") %>%
@@ -186,7 +184,7 @@ d.join.prices.pv = full_join(d.prices.filtered %>%
           d.pv.gis.2018,
           by = c("t" = "t"),
           relationship = "many-to-many") %>%
-    mutate(value = P / 1000 * mean) %>%
+    mutate(value = P / 1000 * price) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
     filter(year > 2018) %>%
@@ -201,12 +199,3 @@ d.join.prices.pv = full_join(d.prices.filtered %>%
     ungroup() %>%
     #na.omit() %>%
     filter(year < max(year) | (year == max(year) & month < month(max_date)))
-
-
-
-
-
-
-
-
-

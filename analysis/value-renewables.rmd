@@ -13,7 +13,6 @@ knitr::opts_chunk$set(
     fig.height = 8
 )
 
-
 ```
 
 # Entwicklung der Marktbedingungen für erneuerbare Energien
@@ -49,7 +48,7 @@ Die relativ geringe Residuallast und der fallende Gaspreis spiegeln sich bei den
 ### VALUE ###
 d.prices.filtered %>% 
     group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
-    summarize(Preis = mean(mean)) %>% 
+    summarize(Preis = mean(price)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
     filter(Jahr > 2018) %>% 
@@ -75,7 +74,7 @@ full_join(d.gen.sel,
                  "country" = "country")) %>%
     filter(source %in% c("Solar", "Wind Onshore", "Fossil Gas")) %>%
     filter(!is.na(source)) %>%
-    mutate(value.power = value * mean) %>%
+    mutate(value.power = value * price) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
     filter(year > 2019) %>%
@@ -108,8 +107,8 @@ full_join(d.prices.filtered,
           by = c("t" = "t", "country" = "country")) %>%
     full_join(ninja_wind,
               by = c("t" = "t", "country" = "country")) %>%
-    gather(source, cap_fact, -DateTime, -year, -mean, -country, -t) %>%
-    mutate(value = cap_fact * mean) %>%
+    gather(source, cap_fact, -DateTime, -year, -price, -country, -t) %>%
+    mutate(value = cap_fact * price) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
     dplyr::select(year, month, DateTime, source, value, country) %>%
@@ -143,7 +142,7 @@ d.prices.filtered %>%
     mutate(day = yday(DateTime)) %>%
     mutate(month = month(DateTime)) %>%
     group_by(year, month, day, country) %>%
-    summarize(spread = max(mean) - min(mean),
+    summarize(spread = max(price) - min(price),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     group_by(year, month, country) %>%
@@ -172,7 +171,7 @@ d.prices.filtered %>%
     mutate(day = yday(DateTime)) %>%
     mutate(month = month(DateTime)) %>%
     group_by(year, month, day, country) %>%
-    summarize(spread = max(mean) - min(mean),
+    summarize(spread = max(price) - min(price),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     group_by(year, country) %>%
