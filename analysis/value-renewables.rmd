@@ -5,7 +5,6 @@ date: "2024-04-14"
 ---
 
 ```{r setup, include=FALSE}
-setwd("G:/Meine Ablage/drive-work/packages/energy-monitor-test/explore/")
 source("calc/setup-value-renewables.R")
 source("export/analysis/_theme.r")
 loadPackages(knitr)
