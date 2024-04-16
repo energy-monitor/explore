@@ -138,7 +138,6 @@ d.residual.wo.nuclear <- d.gen.sel.ren.wo.nuclear %>%
 
 d.prices.filtered <- d.prices %>%
     mutate(year = year(DateTime)) %>%
-    filter(ResolutionCode == "PT60M") %>%
     filter(year > 2018) %>%
     filter(country %in% COUNTRIES) %>%
     arrange(DateTime) %>%

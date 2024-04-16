@@ -39,7 +39,7 @@ rm(creds)
 
 # - HELPERS --------------------------------------------------------------------
 removeLastDays = function(d, days = 1) {
-    d[date <= max(date) - days, ]
+    d[date <= max(date, na.rm = TRUE) - days, ]
 }
 
 # logging

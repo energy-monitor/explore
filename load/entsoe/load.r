@@ -13,16 +13,13 @@ d.base = loadEntsoeComb(type = "load",
 
 d.base.f = d.base[AreaTypeCode == "CTY"]
 
-d.base.f[, factor := resToFactor[ResolutionCode]]
-
 d.base.f[,  hour := (floor_date(DateTime, unit = "hours"))]
 
-d.agg.hours = d.base.f[, .(value = mean(TotalLoadValue / factor, na.rm = TRUE)), by = .(country = MapCode,
+d.agg.hours = d.base.f[, .(value = mean(TotalLoadValue, na.rm = TRUE)), by = .(country = MapCode,
                                                                                DateTime = hour)]
 
 # Filter, Aggregate
 d.agg = d.agg.hours[, .(value = sum(value) / 10 ^ 6), by = .(country = country, date = as.Date(DateTime))][order(date)]
-
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 2)

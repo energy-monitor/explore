@@ -15,8 +15,7 @@ d.base = loadEntsoeComb(# type = "generation", month.start = "2022-07", month.en
 d.base.f = d.base[AreaTypeCode == "CTY"]
 d.base.f[,
          hour := floor_date(DateTime, unit = "hours")]
-d.base.f[,
-         factor := resToFactor[ResolutionCode]]
+
 
 d.agg.hours = d.base.f[, .(
     value = mean(ActualGenerationOutput, na.rm = TRUE),

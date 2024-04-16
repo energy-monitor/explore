@@ -21,7 +21,7 @@ Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 i
 
 Als erstes zeigen wir die Residuallast: das ist jene Stromlast, die gedeckt werden muss, nachdem Wind-, Solar- und Laufwasserkraft abgezogen wurden. Diese Last muss aus anderen Quellen gedeckt werden, welche höhere Betriebskosten haben (z.b. Gaskraftwerke oder Wasserspeicher). Je niedriger diese Residuallast, umso niedrigere Strompreise sind zu erwarten, weil kaum teure Kraftwerke zugeschalten werden müssen.
 
-```{r market-prices}
+```{r residual-load}
 ### VALUE ###
 d.residual.wo.nuclear %>%
     group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
@@ -41,10 +41,11 @@ d.residual.wo.nuclear %>%
     ggtitle("Residuallast")
 ```
 
+
 ## Marktpreise, Marktwert und Einkommen
 Die relativ geringe Residuallast und der fallende Gaspreis spiegeln sich bei den Preisentwicklungen wider. In allen Märkten sind die Preise auf oder unter Vorkrisenniveau gefallen. In Spanien und Frankreich nähern sich die Preise im April bereits 0€/MWh - dort kann die im Betrieb sehr kostengünstige Nuklearkraft die Residuallast zu großen Teilen decken. Da das teuerste notwendige Kraftwerk den Preis setzt, fällt in Stunden, in denen Gaskraftwerke nicht notwendig sind, der Preis gegen 0€/MWh.
 
-```{r market-value}
+```{r market-prices}
 ### VALUE ###
 d.prices.filtered %>% 
     group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
@@ -66,7 +67,7 @@ d.prices.filtered %>%
 
 Durch den fallenden durchschnittlichen Marktpreis fällt auch der Wert, den Stromerzeugungstechnologien am Markt lukrieren können. Für Spanien und Frankreich geht der Wert aller Technologien gegen 0 €/MWh. Für Österreich und Deutschland zeigt sich, dass Gas- und in geringerem Umfang auch Windstrom den Marktwert stabil halten können. Für Photovoltaik sinkt er aber sehr stark. Das ergibt sich durch die hohe Gleichzeitigkeit der PV-Strom Produktion: diese ist vor allem untertags hochkonzentriert. Speisen alle Photovoltaikanlagen aber gleichzeitig ein, sinkt der Marktpreis sehr stark, oft gegen 0€/MWh oder sogar auf negative Werte.
 
-```{r market-value-cumulative}
+```{r market-value}
 ### VALUE ###
 full_join(d.gen.sel,
           d.prices.filtered,

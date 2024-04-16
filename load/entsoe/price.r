@@ -13,16 +13,18 @@ d.base = loadEntsoeComb(#type = "dayAheadPrices", month.start = month.start, mon
 
 # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE)
 
-d.base.f = d.base[,
+d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M",]
+
+d.agg = d.base.f[, .(mean = mean(Price),
+                                    max = max(Price),
+                                    min = min(Price)), by = .(date = as.Date(DateTime))][order(date)]
+
+d.base.f.hourly = d.base[ResolutionCode == "PT60M",
                   hour := floor_date(DateTime, unit = "hours")]
 
-d.agg = d.base.f[MapCode == "AT", .(mean = mean(Price),
-                                    max = max(Price),
-                                    min = min(Price)), by = .(date = as.Date(DateTime))]
-
-d.agg.hours = d.base.f[, .(price = mean(Price)), by = .(country = MapCode,
+d.agg.hours = d.base.f.hourly[, .(price = mean(Price)), by = .(country = MapCode,
                                                         DateTime = hour,
-                                                        ResolutionCode)]
+                                                        ResolutionCode)][order(country, DateTime)]
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 1)
@@ -48,3 +50,4 @@ saveToStorages(
         update.time = update.time
     )
 )
+
