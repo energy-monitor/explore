@@ -14,6 +14,17 @@ PV_GIS_VERTICAL_NORTH = "data/ninja/pv-gis-vertical-north.csv"
 PV_GIS_VERTICAL_SOUTH = "data/ninja/pv-gis-vertical-south.csv"
 PV_GIS_TWO_AXIS = "data/ninja/pv-gis-two-axis.csv"
 
+list.csv.files <- c(
+    PV_GIS_OPT,
+    PV_GIS_EAST,
+    PV_GIS_WEST,
+    PV_GIS_VERTICAL_EAST,
+    PV_GIS_VERTICAL_WEST,
+    PV_GIS_VERTICAL_NORTH,
+    PV_GIS_VERTICAL_SOUTH,
+    PV_GIS_TWO_AXIS
+)
+
 download_ninja = TRUE
 download_pv_gis = TRUE
 
@@ -75,6 +86,17 @@ if (download_pv_gis) {
         "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&trackingtype=2",
         PV_GIS_TWO_AXIS
     )
+
+    # replace \r in PV_GIS files
+    if(Sys.info()["sysname"] == "windows") {
+        for( f in list.csv.files){
+
+            x <- readLines(f)
+            y <- gsub( "\r", "", x)
+            cat(y, file=f, sep="\n")
+
+        }
+    }
 
 }
 
@@ -174,22 +196,12 @@ d.prices.filtered <- d.prices.filtered %>%
 max_date <- max(d.prices.filtered$DateTime)
 
 ########## different pv system values for austria
-list.csv.files <- c(
-    PV_GIS_OPT,
-    PV_GIS_EAST,
-    PV_GIS_WEST,
-    PV_GIS_VERTICAL_EAST,
-    PV_GIS_VERTICAL_WEST,
-    PV_GIS_VERTICAL_NORTH,
-    PV_GIS_VERTICAL_SOUTH,
-    PV_GIS_TWO_AXIS
-)
-
-d.pv.gis <- read_csv(list.csv.files, skip = 19, id = "type") %>%
+d.pv.gis = read_csv(list.csv.files, skip = 10, id = "type") %>%
     mutate(time = ymd_hm(time)) %>%
     mutate(type = str_remove_all(type, "pv-gis|\\.csv|data|ninja|/")) %>%
     mutate(type = str_replace_all(type, "-", ".")) %>%
-    na.omit()
+    na.omit() %>%
+    mutate(P = as.numeric(P))
 
 d.pv.gis.2018 = d.pv.gis %>%
     filter(year(time) == 2018) %>%
