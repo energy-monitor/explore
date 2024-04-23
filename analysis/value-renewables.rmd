@@ -1,6 +1,6 @@
 ---
 title: "Value renewables"
-output: html_document
+output: md_document
 date: "2024-04-14"
 ---
 

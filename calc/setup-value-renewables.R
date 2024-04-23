@@ -1,4 +1,4 @@
-rm(list = ls())
+# - INIT -----------------------------------------------------------------------
 source("_shared.r")
 loadPackages('tidyverse')
 
