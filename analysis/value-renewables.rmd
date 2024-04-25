@@ -100,12 +100,12 @@ full_join(d.gen.sel,
     mutate(value = rollapply(value,40,function(x){mean(x, na.rm=TRUE)},align='right',fill=NA)) %>% 
     ungroup() %>% 
     ggplot(aes(x = Tag, y = value)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
-    facet_grid(Technology~country) +
+    geom_line(aes(col = Technology)) +
+    facet_grid(Jahr~country, scale="free") +
     xlab("Tag des Jahres") +
     ylab("Durchschnittlicher Marktwert (€/MWh)\nRollierender Durchschnitt 40 Tage") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))  +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    #scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
     ggtitle("Marktwert von Stromproduktionstechnologien")
 
@@ -136,11 +136,11 @@ full_join(d.prices.filtered,
     mutate(Monat = month(DateTime),
            Jahr = as.character(year(DateTime))) %>% 
     ggplot(aes(x = Tag, y = value)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
-    facet_grid(source~country, scale="free") +
+    geom_line(aes(col = source)) +
+    facet_grid(Jahr~country, scale="free") +
     xlab("Tag des Jahres") +
     ylab("Kumulative Erlöse\n generiert durch 1KW Kapazität (€)") +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    #scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
     ggtitle("Hypothetische Erlöse aus PV und Wind")
 
