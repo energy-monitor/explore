@@ -1,0 +1,211 @@
+---
+title: "Value renewables"
+output: md_document
+date: "2024-04-14"
+---
+
+```{r setup, include=FALSE}
+source("calc/setup-value-renewables.R")
+source("export/analysis/_theme.r")
+loadPackages(knitr)
+knitr::opts_chunk$set(
+    fig.height = 8
+)
+
+```
+
+# Entwicklung der Marktbedingungen für erneuerbare Energien
+
+Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 in Österreich und Europa enorm ausgebaut. Auf dieser Seite zeigen wir, wie sich die Großhandelsbedingungen für Wind, Photovoltaik und Batteriespeicher in Österreich und anderen europäischen Ländern entwickelt haben. An dieser Stelle betonen wir, dass vor allem dezentrale Stromerzeugungstechnologien wie Photovoltaik und Batteriespeicher auch zusätzlich Einkommen erzielen können (durch Wegfallen von Netzkosten oder durch Systemdienstleistungen). Dies wird hier im Weiteren nicht berücksichtigt, wir beschränken uns auf eine Analyse der Einkommenseffekte im Großhandel.
+
+Als erstes zeigen wir die Residuallast: das ist jene Stromlast, die gedeckt werden muss, nachdem Wind-, Solar- und Laufwasserkraft abgezogen wurden. Diese Last muss aus anderen Quellen gedeckt werden, welche höhere Betriebskosten haben (z.b. Gaskraftwerke oder Wasserspeicher). Je niedriger diese Residuallast, umso niedrigere Strompreise sind zu erwarten, weil kaum teure Kraftwerke zugeschalten werden müssen.
+
+```{r residual-load}
+### VALUE ###
+d.residual.wo.nuclear %>%
+    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
+    summarize(residual = mean(residual, na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(Jahr = as.character(Jahr)) %>%
+    filter(Jahr > 2017) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = Monat, y = residual / 1000)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(. ~ Land, scale = "free") +
+    ylab("Durchschnittliche Residuallast (GW)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ggtitle("Residuallast")
+```
+
+
+## Marktpreise, Marktwert und Einkommen
+Die relativ geringe Residuallast und der fallende Gaspreis spiegeln sich bei den Preisentwicklungen wider. In allen Märkten sind die Preise auf oder unter Vorkrisenniveau gefallen. In Spanien und Frankreich nähern sich die Preise im April bereits 0€/MWh - dort kann die im Betrieb sehr kostengünstige Nuklearkraft die Residuallast zu großen Teilen decken. Da das teuerste notwendige Kraftwerk den Preis setzt, fällt in Stunden, in denen Gaskraftwerke nicht notwendig sind, der Preis gegen 0€/MWh.
+
+```{r market-prices}
+### VALUE ###
+d.prices.filtered %>% 
+    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
+    summarize(Preis = mean(price)) %>% 
+    ungroup() %>% 
+    mutate(Jahr = as.character(Jahr)) %>%
+    filter(Jahr > 2018) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = Monat, y = Preis)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(. ~ Land) +
+    ylab("Durchschnittlicher Preis (€/MWh)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ggtitle("Durchschnittlicher Marktpreis")
+```
+
+Durch den fallenden durchschnittlichen Marktpreis fällt auch der Wert, den Stromerzeugungstechnologien am Markt lukrieren können. Für Spanien und Frankreich geht der Wert aller Technologien gegen 0 €/MWh. Für Österreich und Deutschland zeigt sich, dass Gas- und in geringerem Umfang auch Windstrom den Marktwert stabil halten können. Für Photovoltaik sinkt er aber sehr stark. Das ergibt sich durch die hohe Gleichzeitigkeit der PV-Strom Produktion: diese ist vor allem untertags hochkonzentriert. Speisen alle Photovoltaikanlagen aber gleichzeitig ein, sinkt der Marktpreis sehr stark, oft gegen 0€/MWh oder sogar auf negative Werte.
+
+```{r market-value}
+### VALUE ###
+full_join(d.gen.sel,
+          d.prices.filtered,
+          by = c("DateTime" = "DateTime",
+                 "country" = "country")) %>%
+    filter(source %in% c("Solar", "Wind Onshore", "Fossil Gas")) %>%
+    filter(!is.na(source)) %>%
+    mutate(value.power = value * price) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    filter(year > 2019) %>%
+    #filter(year != 2022) %>% 
+    group_by(year, month, country, source) %>%
+    summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    mutate(Technology = source) %>%
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    mutate(Jahr = as.character(year)) %>% 
+    ggplot(aes(x = month, y = value)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_grid(Technology~country) +
+    xlab("Monat") +
+    ylab("Durchschnittlicher Marktwert (€/MWh)") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))  +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ggtitle("Marktwert von Stromproduktionstechnologien")
+
+
+```
+
+Wieviel Einkommen kann erzielt werden, wenn der Strom an der Börse verkauft wird? Die Grafik zeigt die kumulativen Einnahmen aus dem Verkauf von PV und Windstrom für verschiedene Jahre, normiert auf 1kw installierte Kapazität der entsprechenden Technologie (Hinweis: hier wird die Wind- und PV-Produktion eines typischen Jahres verwendet, anstatt der tatsächlichen Produktion). Hier zeigt sich, dass die Einnahmen in der Periode 2021-2023 außergewöhnlich hoch waren. So hätte man alleine mit den Einnahmen aus dem Jahr 2022 die Installationskosten für 1KW PV zur Hälfte finanzieren können. Diese Situation hat sich geändert: trotz gesunkener PV Preise braucht es zumindest 10 Jahre, um die Kosten zurückzuverdienen.
+
+```{r income}
+full_join(d.prices.filtered,
+          ninja_pv,
+          by = c("t" = "t", "country" = "country")) %>%
+    full_join(ninja_wind,
+              by = c("t" = "t", "country" = "country")) %>%
+    gather(source, cap_fact, -DateTime, -year, -price, -country, -t) %>%
+    mutate(value = cap_fact * price) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    dplyr::select(year, month, DateTime, source, value, country) %>%
+    group_by(year, country, source) %>%
+    mutate(value = cumsum(value) / 1000) %>%
+    mutate(Stunde = 1:n()) %>% 
+    ungroup() %>%
+#    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
+    filter(year > 2018) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    mutate(Monat = month(DateTime),
+           Jahr = as.character(year(DateTime))) %>% 
+    ggplot(aes(x = Stunde, y = value)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_grid(source~country) +
+    ylab("Kumulatives Einkommen\n generiert durch 1KW Kapazität (€)") +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ggtitle("Hypothetisches Einkommen aus PV und Wind")
+
+
+```
+
+## Einkommen durch Flexibilität
+
+## Anreize für Flexibilität
+Aber sollte in Folge des Ausbaus der erneuerbaren Energien am Markt nicht der Anreiz erhöht werdne, in Flexibilität zu investieren, da in manchen Stunden der Preis hoch, in anderen aber niedrig ist? Durch den vermehrten Ausbau von Photovoltaik sollte genau dieser Effekt eintreten. Die Grafik unten zeigt, wie hoch der Preisunterschied zwischen der billigsten und teuersten Stunde an einem Tag in €/MWh ist. In der Näherung ist das der Betrag, den ein - verlustfreier - Batteriespeicher mit einer Größe von 1 MWh verdienen kann. Hier zeigt sich, dass für Deutschland und Österreich im Jahr 2024 der Wert steigt. Er nähert sich dabei noch nicht dem Maximalwert von 2022 an, ist aber über 2023, einem Jahr, in dem die Gaspreise noch deutlich höher waren. Für Spanien und Frankreich ist der Anreiz aber sehr gering, hierfür könnte der hohe Anteil von Atomkraft in Frankreich verantwortlich sein. Diese kann auch in Zeiten, in denen wenige erneuerbare Energien zur Verfügung stehen, kostengünstigen Storm zur Verfügung stellen, was die Preise senkt.
+
+```{r flexibility}
+d.prices.filtered %>%
+    mutate(day = yday(DateTime)) %>%
+    mutate(month = month(DateTime)) %>%
+    group_by(year, month, day, country) %>%
+    summarize(spread = max(price) - min(price),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(year, month, country) %>%
+    summarize(spread = mean(spread),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    mutate(Jahr = as.character(year)) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = month, y = spread)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(.~country) +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE) +
+    ylab("Monthly average of maximum daily spread (€/MWh)") +
+    xlab("Monat") +
+    ylab("Monatliches Mittel des \nmaximalen täglichen Spreads (€/MWh)") +
+    ggtitle("Hypothetisches Einkommen aus 1MWh Speicher")
+
+```
+
+Diese hypothetischen täglichen Einkommen aufsummiert über ein ganzes Jahr können dabei helfen, die Profitabilität eines Speichers einzuschätzen. Bei derzeitigen Großspeicherkosten ist ein break-even bei Jahreseinkommen von knapp 20.000€ zu erwarten. Die Grafik zeigt, dass dieses Einkommen in den Krisenjahre 2021-2023 in Österreich und Deutschland zu erzielen war, für 2024 zeichnet sich für diese Region ein ähnlicher Trend ab. Für Spanien und Frankreich sind die Preisunterschiede aber zu gering, um Speicher zu finanzieren.
+
+```{r flexibility-cumulative}
+d.prices.filtered %>%
+    mutate(day = yday(DateTime)) %>%
+    mutate(month = month(DateTime)) %>%
+    group_by(year, month, day, country) %>%
+    summarize(spread = max(price) - min(price),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(year, country) %>%
+    mutate(spread = cumsum(spread)) %>%
+    ungroup() %>%
+    mutate(Jahr = as.character(year)) %>% 
+    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    ggplot(aes(x = day, y = spread)) +
+    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    facet_wrap(.~country) +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
+    scale_linewidth_manual(values = c(1.4, 0.4)) +
+    guides(linewidth = FALSE)  +
+    xlab("Tag des Jahres") +
+    ylab("Kumulativer maximaler \ntäglicher Spread (€/MWh)") +
+    ggtitle("Kumulativer Ertrag von 1 MWh Speicher")
+
+```
+Eine andere Form, den Wert von Strom aus Photovoltaik zu erhöhen, könnte eine unterschiedliche Ausrichtung der Systeme sein. So produziert eine Ost-West Ausrichtung zwar weniger Strom, aber tendenziell zu Tageszeiten wenn der Strom teurer ist. Zur Zeit ist dieser Effekt allerdings noch nicht groß genug: die Grafik zeigt den durchschnittlichen monetären Ertrag unterschiedlicher Ausrichtungen von PV-Anlagen in Österreich. Ein Tracking-System (two.axis) hat immer den optimalen Erlös, da es zu jeder Tageszeit den optimalen Ertrag haben kann. Eine Ertragsoptimierende Ausrichtung (opt.opt) folgt aber ein zweiter Stelle: obwohl das Profil hochkorreliert ist mit anderen PV-Anlagen mit der gleichen Ausrichtung, kann in Summe über dieses System (noch) am meisten Einkommen lukriert werden. Optimal geneigte Ost-West Anlagen (angle.east.west) erzeugen aber ähnlich hohe Einkommen. Vertikale PV-Anlagen, wie sie oft als Balkon PV-Anlagen zum Einsatz kommen, haben bei reiner Südausrichtung (vertical.south) vertretbare Erträge, werden diese aber Ost-West (vertical.east.west) oder gar Nord-Süd (vertical.north.south) ausgerichtet, sinkt der Ertrag beträchtlich. Noch zahlt sich eine bewusste Neuausrichtung von Anlagen zur Maximierung des Werts - und nicht des Stromertrags - also noch nicht aus.
+ 
+```{r flexibility-pv}
+d.join.prices.pv %>%
+    group_by(year, type) %>%
+    mutate(c_value=cumsum(rollvalue)) %>%
+    ungroup() %>%
+    mutate(Ausrichtung = type) %>% 
+    na.omit() %>% 
+    ggplot(aes(x = month(DateTime), y = c_value)) +
+    geom_line(aes(col = Ausrichtung)) +
+    facet_wrap(.~year) +
+    theme_bw() +
+    xlab("Monat") +
+    ylab("Kumulatives Einkommen (€/kw_peak)") +
+    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+
+```

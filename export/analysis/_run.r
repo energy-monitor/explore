@@ -7,6 +7,7 @@ loadPackages(rmarkdown, knitr)
 
 # - CONF -----------------------------------------------------------------------
 args = commandArgs(trailingOnly=TRUE)
+# args = "value-renewables" # "gas-storage"
 if (length(args) == 0) {
     stop("Specify the markdown to render as arg", call. = FALSE)
 } else if (length(args) == 1) {
@@ -26,6 +27,13 @@ e = rlang::env()
 
 e$output.file = output.file
 e$output.folder = normalizePath(file.path(getwd(), output.folder))
+
+
+# print(list(
+#     output.folder = normalizePath(file.path(getwd(), output.folder)),
+#     output.file = output.file,
+#     wd = getwd()
+# ))
 
 render(
     input = input.file,

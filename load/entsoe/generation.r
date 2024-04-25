@@ -41,6 +41,18 @@ saveToStorages(d.agg, list(
     update.time = update.time
 ))
 
+d.agg.hours %>%
+    filter(country == "AT") %>%
+    filter(source == "Solar") %>%
+    filter(year(DateTime) == 2024 & month(DateTime) == 4 & day(DateTime) == 13) %>%
+    filter(value>0) %>%
+    summarize(s=sum(value) /10^3)
+
+d.agg.hours %>%
+    filter(country == "AT") %>%
+    filter(source == "Solar") %>%
+    filter(year(DateTime) == 2024 & month(DateTime) == 4 & day(DateTime) == 13) %>%
+    filter(value>0)
 
 nameOthers = "others"
 
