@@ -23,21 +23,26 @@ Als erstes zeigen wir die Residuallast: das ist jene Stromlast, die gedeckt werd
 ```{r residual-load}
 ### VALUE ###
 d.residual.wo.nuclear %>%
-    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
-    summarize(residual = mean(residual, na.rm = TRUE)) %>% 
+    group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>% 
+    summarize(residual = mean(residual, na.rm = TRUE),
+              DateTime = min(DateTime)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
     filter(Jahr > 2017) %>% 
     #filter(Jahr != 2022) %>% 
-    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
-    ggplot(aes(x = Monat, y = residual / 1000)) +
+    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>%
+    group_by(Jahr, Land) %>% 
+    mutate(residual = rollapply(residual / 1000,28,mean,align='right',fill=NA)) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = Tag, y = residual)) +
     geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_wrap(. ~ Land, scale = "free") +
-    ylab("Durchschnittliche Residuallast (GW)") +
+    ylab("Durchschnittliche Residuallast (GW)\nRollierender Durchschnitt 28 Tage") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
-    ggtitle("Residuallast")
+    ggtitle("Residuallast") +
+    xlab("Tag des Jahres")
 ```
 
 
@@ -47,17 +52,22 @@ Die relativ geringe Residuallast und der fallende Gaspreis spiegeln sich bei den
 ```{r market-prices}
 ### VALUE ###
 d.prices.filtered %>% 
-    group_by(Jahr = year(DateTime), Monat = month(DateTime), Land = country) %>% 
-    summarize(Preis = mean(price)) %>% 
+    group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>% 
+    summarize(Preis = mean(price),
+              DateTime = min(DateTime)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
     filter(Jahr > 2018) %>% 
     #filter(Jahr != 2022) %>% 
     mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
-    ggplot(aes(x = Monat, y = Preis)) +
+    group_by(Jahr, Land) %>% 
+    mutate(Preis = rollapply(Preis,28,mean,align='right',fill=NA)) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = Tag, y = Preis)) +
     geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_wrap(. ~ Land) +
-    ylab("Durchschnittlicher Preis (€/MWh)") +
+    xlab("Tag des Jahres") +
+    ylab("Durchschnittlicher Preis (€/MWh)\nRollierender Durchschnitt 28 Tage") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
@@ -79,18 +89,21 @@ full_join(d.gen.sel,
     mutate(year = year(DateTime)) %>%
     filter(year > 2019) %>%
     #filter(year != 2022) %>% 
-    group_by(year, month, country, source) %>%
+    group_by(year, Tag = yday(DateTime), country, source) %>%
     summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     mutate(Technology = source) %>%
     mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
-    mutate(Jahr = as.character(year)) %>% 
-    ggplot(aes(x = month, y = value)) +
+    mutate(Jahr = as.character(year)) %>%
+    group_by(Jahr, source, country) %>% 
+    mutate(value = rollapply(value,40,function(x){mean(x, na.rm=TRUE)},align='right',fill=NA)) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = Tag, y = value)) +
     geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_grid(Technology~country) +
-    xlab("Monat") +
-    ylab("Durchschnittlicher Marktwert (€/MWh)") +
+    xlab("Tag des Jahres") +
+    ylab("Durchschnittlicher Marktwert (€/MWh)\nRollierender Durchschnitt 40 Tage") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))  +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
@@ -115,15 +128,17 @@ full_join(d.prices.filtered,
     group_by(year, country, source) %>%
     mutate(value = cumsum(value) / 1000) %>%
     mutate(Stunde = 1:n()) %>% 
+    mutate(Tag = yday(DateTime)) %>% 
     ungroup() %>%
 #    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
     filter(year > 2018) %>% 
     mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
     mutate(Monat = month(DateTime),
            Jahr = as.character(year(DateTime))) %>% 
-    ggplot(aes(x = Stunde, y = value)) +
+    ggplot(aes(x = Tag, y = value)) +
     geom_line(aes(col = Jahr, linewidth = is_2024)) +
-    facet_grid(source~country) +
+    facet_grid(source~country, scale="free") +
+    xlab("Tag des Jahres") +
     ylab("Kumulative Erlöse\n generiert durch 1KW Kapazität (€)") +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
@@ -145,21 +160,23 @@ d.prices.filtered %>%
     summarize(spread = max(price) - min(price),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
-    group_by(year, month, country) %>%
+    group_by(year, month, day, country) %>%
     summarize(spread = mean(spread),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
+    group_by(year, country) %>% 
+    mutate(spread = rollapply(spread,28,mean,align='right',fill=NA)) %>% 
+    ungroup() %>% 
     mutate(Jahr = as.character(year)) %>% 
     mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
-    ggplot(aes(x = month, y = spread)) +
+    ggplot(aes(x = day, y = spread)) +
     geom_line(aes(col = Jahr, linewidth = is_2024)) +
     facet_wrap(.~country) +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
-    ylab("Monthly average of maximum daily spread (€/MWh)") +
-    xlab("Monat") +
-    ylab("Monatliches Mittel des \nmaximalen täglichen Spreads (€/MWh)") +
+    xlab("Tag des Jahres") +
+    ylab("Monatliches Mittel des \nmaximalen täglichen Spreads (€/MWh)\n Rollierender 28 Tage Durchschnitt") +
     ggtitle("Hypothetische Erlöse aus 1MWh Speicher")
 
 ```
@@ -193,17 +210,41 @@ d.prices.filtered %>%
 Eine andere Form, den Wert von Strom aus Photovoltaik zu erhöhen, könnte eine unterschiedliche Ausrichtung der Systeme sein. So produziert eine Ost-West Ausrichtung zwar weniger Strom, aber tendenziell zu Tageszeiten wenn der Strom teurer ist. Zur Zeit ist dieser Effekt allerdings noch nicht groß genug: die Grafik zeigt den durchschnittlichen monetären Ertrag unterschiedlicher Ausrichtungen von PV-Anlagen in Österreich. Ein Tracking-System (two.axis) hat immer den optimalen Erlös, da es zu jeder Tageszeit den maximalen Ertrag garantiert Eine Ertragsoptimierende Ausrichtung (opt.opt) folgt aber ein zweiter Stelle: obwohl das Profil hochkorreliert ist mit anderen PV-Anlagen mit der gleichen Ausrichtung, kann in Summe über dieses System (noch) am meisten Erlöse lukriert werden. Optimal geneigte Ost-West Anlagen (angle.east.west) erzeugen aber ähnlich hohe Erlöse Vertikale PV-Anlagen, wie sie oft als Balkon PV-Anlagen zum Einsatz kommen, haben bei reiner Südausrichtung (vertical.south) vertretbare Erlöse, werden diese aber Ost-West (vertical.east.west) oder gar Nord-Süd (vertical.north.south) ausgerichtet, sinkt der Erlös aber beträchtlich. Noch zahlt sich eine bewusste Neuausrichtung von Anlagen zur Maximierung des Werts - und nicht des Stromertrags - also noch nicht aus.
  
 ```{r flexibility-pv}
+d.join.prices.pv = full_join(
+    d.prices.filtered %>%
+        filter(country == "AT"),
+    d.pv.gis.2018,
+    by = c("t" = "t"),
+    relationship = "many-to-many"
+) %>%
+    mutate(value = P / 1000 * price) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    filter(year > 2018) %>%
+    dplyr::select(year, month, DateTime, type, value, country) %>%
+    group_by(year, month, Tag = yday(DateTime), country, type) %>%
+    summarize(value = sum(value, na.rm = TRUE),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(country, type) %>%
+    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
+    mutate(rollvalue = value / 1000) %>%
+    ungroup() %>%
+    #na.omit() %>%
+    filter(year < max(year) |
+               (year == max(year) & month < month(max_date)))
+
 d.join.prices.pv %>%
     group_by(year, type) %>%
     mutate(c_value=cumsum(rollvalue)) %>%
     ungroup() %>%
     mutate(Ausrichtung = type) %>% 
     na.omit() %>% 
-    ggplot(aes(x = month(DateTime), y = c_value)) +
+    ggplot(aes(x = Tag, y = c_value)) +
     geom_line(aes(col = Ausrichtung)) +
     facet_wrap(.~year) +
     theme_bw() +
-    xlab("Monat") +
+    xlab("Tag des Jahres") +
     ylab("Kumulative Erlöse (€/kw_peak)") +
     ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))

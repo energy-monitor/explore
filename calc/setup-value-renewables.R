@@ -237,7 +237,7 @@ d.join.prices.pv = full_join(
     mutate(year = year(DateTime)) %>%
     filter(year > 2018) %>%
     dplyr::select(year, month, DateTime, type, value, country) %>%
-    group_by(year, month, country, type) %>%
+    group_by(year, month, Tag = yday(DateTime), country, type) %>%
     summarize(value = sum(value, na.rm = TRUE),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
