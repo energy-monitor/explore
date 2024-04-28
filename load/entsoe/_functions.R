@@ -67,7 +67,7 @@ loadEntsoeComb = function(
 
 
     d.full[, `:=`(
-        DateTime2 = DateTime,
+        DateTimeHourly = DateTime,
         DateTime = as.Date(DateTime)
         # UpdateTime = NULL
     )]
