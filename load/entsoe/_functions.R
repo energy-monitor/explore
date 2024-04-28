@@ -65,8 +65,9 @@ loadEntsoeComb = function(
         fread(file.path(data.folder, entsoe.filename))
     }))
 
+
     d.full[, `:=`(
-        # DateTime2 = with_tz(ymd_hms(DateTime), "Europe/Vienna")
+        DateTime2 = DateTime,
         DateTime = as.Date(DateTime)
         # UpdateTime = NULL
     )]

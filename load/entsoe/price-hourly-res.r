@@ -13,7 +13,7 @@ d.base = loadEntsoeComb(
 )
 
 d.base.f = d.base[ResolutionCode == "PT60M"]
-d.base.f = d.base.f[, hour := floor_date(DateTime, unit = "hours")]
+d.base.f = d.base.f[, hour := floor_date(DateTime2, unit = "hours")]
 
 d.agg = d.base.f[, .(
     price = mean(Price)
