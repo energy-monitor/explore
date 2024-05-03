@@ -242,7 +242,7 @@ d.join.prices.pv %>%
     na.omit() %>% 
     ggplot(aes(x = Tag, y = c_value)) +
     geom_line(aes(col = Ausrichtung)) +
-    facet_wrap(.~year) +
+    facet_wrap(.~year, scale="free") +
     theme_bw() +
     xlab("Tag des Jahres") +
     ylab("Kumulative Erlöse (€/kw_peak)") +
