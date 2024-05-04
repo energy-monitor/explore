@@ -13,7 +13,7 @@ d.base = loadEntsoeComb(
 )
 
 d.base.f = d.base[AreaTypeCode == "CTY"]
-d.base.f[, hour := (floor_date(DateTime, unit = "hours"))]
+d.base.f[, hour := (floor_date(DateTimeHourly, unit = "hours"))]
 
 d.agg = d.base.f[, .(
     value = mean(TotalLoadValue, na.rm = TRUE)

@@ -224,6 +224,27 @@ d.pv.gis.2018 = d.pv.gis %>%
     mutate(t = 1:n()) %>%
     ungroup()
 
+d.pv.gis.full = d.pv.gis %>%
+    dplyr::select(time, type, P) %>%
+    spread(type, P) %>%
+    mutate(vertical.north.south = 0.5 * `.vertical.north` + 0.5 * `.vertical.south`) %>%
+    mutate(vertical.east.west = 0.5 * `.vertical.east` + 0.5 * `.vertical.west`) %>%
+    mutate(angle.east.west = 0.5 * `.38.east` + 0.5 * `.38.west`) %>%
+    dplyr::select(
+        time,
+        vertical.north.south,
+        vertical.east.west,
+        angle.east.west,
+        vertical.south = .vertical.south,
+        opt.opt = `.opt.opt`,
+        two.axis = `.two.axis`
+    ) %>%
+    gather(type, P,-time) %>%
+    mutate(year.pv.generation = year(time)) %>%
+    group_by(type, year.pv.generation) %>%
+    mutate(t = 1:n()) %>%
+    ungroup()
+
 
 d.join.prices.pv = full_join(
     d.prices.filtered %>%
@@ -248,3 +269,62 @@ d.join.prices.pv = full_join(
     #na.omit() %>%
     filter(year < max(year) |
                (year == max(year) & month < month(max_date)))
+
+
+
+
+########################################################
+
+d.join.prices.pv = full_join(
+    d.prices.filtered %>%
+        filter(country == "AT"),
+    d.pv.gis.full,
+    by = c("t" = "t"),
+    relationship = "many-to-many") %>%
+    mutate(value = P / 1000 * price) %>%
+    mutate(month = month(DateTime)) %>%
+    mutate(year = year(DateTime)) %>%
+    filter(year > 2018) %>%
+    dplyr::select(year, year.pv.generation, month, DateTime, type, value, country) %>%
+    group_by(year, year.pv.generation, month, Tag = yday(DateTime), country, type) %>%
+    summarize(value = sum(value, na.rm = TRUE),
+              DateTime = min(DateTime)) %>%
+    ungroup() %>%
+    group_by(country, type, year.pv.generation) %>%
+    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
+    mutate(rollvalue = value / 1000) %>%
+    ungroup() %>%
+    #na.omit() %>%
+    filter(year < max(year) |
+               (year == max(year) & month < month(max_date)))
+
+d.join.prices.pv %>%
+    group_by(year, type, year.pv.generation) %>%
+    mutate(c_value=cumsum(rollvalue)) %>%
+    ungroup() %>%
+    mutate(Ausrichtung = type) %>%
+    na.omit() %>%
+    ggplot(aes(x = Tag, y = c_value)) +
+    geom_line(aes(col = Ausrichtung, linetype=as.character(year.pv.generation))) +
+    facet_wrap(.~year, scale="free") +
+    theme_bw() +
+    xlab("Tag des Jahres") +
+    ylab("Kumulative Erlöse (€/kw_peak)") +
+    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+
+d.join.prices.pv %>%
+    filter(year == 2024) %>%
+    group_by(year, type, year.pv.generation) %>%
+    mutate(c_value=cumsum(rollvalue)) %>%
+    ungroup() %>%
+    mutate(Ausrichtung = type) %>%
+    na.omit() %>%
+    ggplot(aes(x = Tag, y = c_value)) +
+    geom_line(aes(col = Ausrichtung)) +
+    facet_wrap(.~year.pv.generation) +
+    theme_bw() +
+    xlab("Tag des Jahres") +
+    ylab("Kumulative Erlöse (€/kw_peak)") +
+    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
+    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
