@@ -35,16 +35,34 @@ d.comb = copy(d.base)
 addTempThreshold(d.comb, temp.threshold)
 addTrend(d.comb)
 
+t_max = d.comb %>%
+    filter(year == 2021) %>%
+    filter(t == max(t)) %>%
+    dplyr::select(t) %>%
+    unlist()
+
+d.comb <- d.comb %>%
+    mutate(t = ifelse(year(date) > 2021, t_max, t))
+
+d.comb <- d.comb %>%
+    mutate(t.squared = ifelse(year(date) > 2021, t_max^2, t))
+
+
 # MODEL DEFINITION
 model.base = gas.consumption ~
-    t + t.squared + # week +
+    t +
+    t.squared + # week +
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
+
+
 
 l.model.base = estimate(model.base, d.comb)
 
 model.power = gas.consumption ~
-    t + t.squared + gas.power + # week +
+    t +
+    t.squared +
+    gas.power + # week +
     temp.below.threshold + temp.below.threshold.lag + temp.below.threshold.squared +
     wday + is.holiday + as.factor(vacation.name) + is.lockdown + is.hard.lockdown
 

@@ -4,6 +4,7 @@ output: md_document
 date: '2022-11-20'
 ---
 
+
 ```{r setupBase, include=FALSE}
 # - INIT -----------------------------------------------------------------------
 source("calc/setup-storage-prediction.r")
@@ -18,9 +19,9 @@ loadPackages(knitr)
     Code: <a href="https://github.com/energy-monitor/explore/blob/main/analysis/gas-storage.rmd" target="_blank">↗</a>
 </p>
 
-Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern das für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. 2022 ist die österreichische Bundesregierung von einer österreichischen Gaseigenproduktion von 4 TWh im Winter ausgegangen - und mit Winterimporten von 33 TWh. Falls Russland die Exporte stoppt, würden Winterimporte von 23 TWh in dieser Periode erwartet werden. Wir setzen die gleichen Annahmen für den Winter 2023/2024 an.
+Laut [energie.gv.at](https://energie.gv.at) lagen am `r l.gas.info$l.storage$d.domestic.official.last$date` rund `r round(l.gas.info$l.storage$d.domestic.official.last$level, 1)` TWh Gas in österreichischen Speichern das für österreichische Energiekonsument*innen bestimmt war. Dazu kommt die von der Bundesregierung betriebene strategische Gasreserve von 20 TWh. 2022 ist die österreichische Bundesregierung von einer österreichischen Gaseigenproduktion von 4 TWh im Winter ausgegangen - und mit Winterimporten von 33 TWh. Falls Russland die Exporte stoppt, würden Winterimporte von 23 TWh in dieser Periode erwartet werden. Wir setzen die gleichen Annahmen für die Folgewinter an.
 
-In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im Winter 23/24 berechnen. Wieviel Gas in österreichischen Gasspeichern tatsächlich für österreichische Kund/innen reserviert ist, wird nur wöchentlich publiziert. Täglich publiziert wird aber der Gesamtspeicherstand in österreichischen Speichern. Wir nehmen daher an, dass sich der Gesamtspeicherstand und der Speicherstand des für Österreich bestimmten Gases proportional ändern. 
+In der untenstehenden Grafik trainieren wir zuerst ein Modell, um den Gasverbrauch abhängig von der Außentemperatur abschätzen zu können. Und zwar trainieren wir es auf Daten für die 365 zurückliegenden Tage, um die aktuellen Verhaltensänderungen miteinzubeziehen. Dieses Modell verwenden wir in Folge, um bis Ende März den Verbrauch zu schätzen - und zwar für alle Außentemperaturen, die in diesem Zeitraum in den Jahren 1950 - 2021 geherrscht haben. Wir bekommen damit also 72 Verbrauchsszenarien. Aus diesen - und aus den Annahmen über zukünftige Gaslieferungen und die zukünftige Gasproduktion im Inland - können wir dann Szenarien über den Gasspeicherstand im aktuellen Winter berechnen. Wieviel Gas in österreichischen Gasspeichern tatsächlich für österreichische Kund/innen reserviert ist, wird nur wöchentlich publiziert. Täglich publiziert wird aber der Gesamtspeicherstand in österreichischen Speichern. Wir nehmen daher an, dass sich der Gesamtspeicherstand und der Speicherstand des für Österreich bestimmten Gases proportional ändern. 
 
 ```{r plot, fig.height=6}
 d.t.storage = d.base[date >= l.options$period$start & !is.na(storage.dom), .(
@@ -51,7 +52,7 @@ annotation <- tibble(
     label = c(
         "Strategische Gasreserve"
     ),
-    x = c(as.Date("2023-11-01")),
+    x = c(as.Date("2024-02-01")),
     y = c(19)
 )
 
@@ -72,7 +73,7 @@ ggplot(d.t.pred, aes(x = date, y = value)) +
     ) +
     labs(
         title = "Entwicklung Speicherstand",
-        subtitle = "Heizsaison 23/24, Speicherniveau in TWh"
+        subtitle = "Speicherniveau in TWh"
     )
 ```
 

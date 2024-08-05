@@ -10,7 +10,7 @@ l.options = list(
     lag.max = 1,
     period = list(
         start = as.Date("2023-09-01"),
-        end = as.Date("2024-06-01"),
+        end = as.Date("2024-09-01"),
         pred.start = as.Date("2023-09-01")
     ),
     learning.days = 365
@@ -47,6 +47,7 @@ l.gas.info = list(
             "2023-09-01" = 23.47 + 4.94,
             "2023-09-26" = 23.47 + 4.94,
             "2023-10-03" = 23.74 + 4.94
+#            "2024-07-29" = 20.40 + 5.47
 
         )
 
