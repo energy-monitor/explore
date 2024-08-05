@@ -205,5 +205,3 @@ kable(d.comp.f, align = "r", escape = FALSE)
 ```
 
 In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2017 - 2021 aufgeführt. Daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal mit der Stromproduktion (Modellvariante 2). 
-
-#Die EU Komission fordert eine Reduktion des Gasverbrauchs um 15% im Zeitraum August 2022 - März 2023 im Vergleich zum Durchschnitt der Periode 2017 - 2021. Die entsprechenden kumulativen Einsparungen ab August 2022 sind in der Tabelle ebenfalls ersichtlich. Seit August waren die Einsparungen bisher also höher als die EU Vorgabe, jedoch liegen die Einsparungen laut den temperaturkorrigierten Modellergebnissen unter diesen 15%, somit wären in einem durchschnittlich kalten Winter höhere Einsparungsanstrengungen notwendig um diese Zielvorgabe zu erfüllen.
