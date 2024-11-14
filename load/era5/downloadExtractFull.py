@@ -17,7 +17,7 @@ config = getConfig()
 DATA_FOLDER = ROOT_PATH/config['d']['era5']
 CLIMATE_FOLDER = DATA_FOLDER/"climate"
 
-START_YEAR = 1950
+START_YEAR = 1940
 DELAY_DAYS = 6
 
 RENEW_CURRENT_YEAR = False
@@ -99,5 +99,5 @@ t.to_csv(DATA_FOLDER/'pop.csv')
 
 temperature = xr.open_mfdataset(str(CLIMATE_FOLDER/'*.nc'))
 temperature = temperature.t2m  - 273.15
-temperature = temperature.resample(time="d").mean()
+temperature = temperature.resample(valid_time="d").mean()
 temperature.to_dataframe().to_csv(DATA_FOLDER/'temp.csv')

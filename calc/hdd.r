@@ -15,6 +15,7 @@ d.pop = d.pop.raw[!is.na(value), .(
 )]
 
 d.temp.raw = fread(file.path(g$d$era5, "temp.csv"))
+setnames(d.temp.raw, "valid_time", "time")
 d.temp = d.temp.raw[!is.na(t2m)]
 
 # CHECK expver, REMOVE expver

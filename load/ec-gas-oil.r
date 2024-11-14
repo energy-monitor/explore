@@ -7,22 +7,28 @@ loadPackages(
 
 
 # - DOWN -----------------------------------------------------------------------
-url = "https://ec.europa.eu/energy/observatory/reports/Oil_Bulletin_Prices_History.xlsx"
+# url = "https://ec.europa.eu/energy/observatory/reports/Oil_Bulletin_Prices_History.xlsx"
+url = "https://energy.ec.europa.eu/document/download/906e60ca-8b6a-44e7-8589-652854d2fd3f_en?filename=Weekly_Oil_Bulletin_Prices_History_maticni_4web.xlsx"
 t = tempfile(fileext = ".xlsx")
 update.time = now()
 download.file(url, t, mode = "wb")
 
 
 # - PREP -----------------------------------------------------------------------
-d.raw = as.data.table(openxlsx::read.xlsx(t, sheet = "Prices with taxes, per CTR", startRow = 7))
-d.raw = d.raw[-1]
-d.raw = d.raw[1:(which(d.raw$Date == "BE") - 1)]
+c.cols = as.character(openxlsx::read.xlsx(t, sheet = "Prices with taxes", rows = 1, colNames = FALSE, skipEmptyCols = FALSE))
+c.cols.at = startsWith(c.cols, "AT_")
+c.cols.at[1] = TRUE
+d.raw = as.data.table(openxlsx::read.xlsx(t, sheet = "Prices with taxes", startRow = 4, colNames = FALSE, skipEmptyCols = FALSE))
+d.at = d.raw[, ..c.cols.at]
+c.labels = c.cols[c.cols.at]
+c.labels[1] = "Date"
+setnames(d.at, c.labels)
 
-d.base = d.raw[, .(
+d.base = d.at[, .(
     date = convertToDate(Date),
-    euroSuper95 = as.numeric(sub(',', '', `Euro-super.95.(I)`))/1000,
-    gasOil = as.numeric(sub(',', '', `Gas.oil.automobile.Automotive.gas.oil.Dieselkraftstoff.(I)`))/1000
-)]
+    euroSuper95 = as.numeric(sub(',', '', AT_price_with_tax_euro95))/1000,
+    gasOil = as.numeric(sub(',', '', AT_price_with_tax_diesel))/1000
+)][!is.na(date)]
 
 d.full = melt(d.base, id.vars = "date")[order(date), ]
 
