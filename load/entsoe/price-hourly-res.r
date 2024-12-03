@@ -16,7 +16,7 @@ d.base.f = d.base[ResolutionCode == "PT60M"]
 d.base.f = d.base.f[, hour := floor_date(DateTimeHourly, unit = "hours")]
 
 d.agg = d.base.f[, .(
-    price = mean(Price)
+    price = mean(`Price[Currency/MWh]`)
 ), by = .(
     country = MapCode,
     DateTime = hour,

@@ -66,6 +66,8 @@ loadEntsoeComb = function(
     }))
 
 
+    names(d.full)[grepl("DateTime", names(d.full))] <- "DateTime"
+
     d.full[, `:=`(
         DateTimeHourly = DateTime,
         DateTime = as.Date(DateTime)
