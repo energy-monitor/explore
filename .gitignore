@@ -1,6 +1,7 @@
 .Rhistory
 .Rproj.user
 .vscode
+.Rdata
 
 __pycache__
 
@@ -28,3 +29,7 @@ data/ninja/pv-gis-vertical-east.csv
 data/ninja/pv-gis-vertical-north.csv
 data/ninja/pv-gis-vertical-south.csv
 data/ninja/pv-gis-vertical-west.csv
+
+# pixi environments
+.pixi
+*.egg-info

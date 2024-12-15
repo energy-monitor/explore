@@ -29,8 +29,16 @@ Following data sources are used:
 ## Contribute
 
 Any contribution is welcome, start by cloning this repo:
-
+```
     git clone https://github.com/energy-monitor/explore
+```
+
+Install dependencies with :
+```bash
+    cd explore
+    pixi shell
+```
+
 
 ## Loading Data
 
