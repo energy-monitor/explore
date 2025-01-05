@@ -12,6 +12,8 @@ knitr::opts_chunk$set(
     fig.height = 8
 )
 
+CURRENT_YEAR = year(Sys.Date())
+
 ```
 
 # Entwicklung der Marktbedingungen für erneuerbare Energien
@@ -28,14 +30,14 @@ d.residual.wo.nuclear %>%
               DateTime = min(DateTime)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
-    filter(Jahr > 2017) %>% 
+    filter(Jahr > (CURRENT_YEAR - 6)) %>% 
     #filter(Jahr != 2022) %>% 
-    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>%
-    group_by(Jahr, Land) %>% 
+    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
+    group_by(Land) %>% 
     mutate(residual = rollapply(residual / 1000,28,mean,align='right',fill=NA)) %>% 
     ungroup() %>% 
     ggplot(aes(x = Tag, y = residual)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    geom_line(aes(col = Jahr, linewidth = is_current)) +
     facet_wrap(. ~ Land, scale = "free") +
     ylab("Durchschnittliche Residuallast (GW)\nRollierender Durchschnitt 28 Tage") +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
@@ -57,14 +59,14 @@ d.prices.filtered %>%
               DateTime = min(DateTime)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(Jahr)) %>%
-    filter(Jahr > 2018) %>% 
+    filter(Jahr > (CURRENT_YEAR - 6)) %>% 
     #filter(Jahr != 2022) %>% 
-    mutate(is_2024 = ifelse(Jahr == 2024, "2024", "Nicht 2024")) %>% 
-    group_by(Jahr, Land) %>% 
+    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
+    group_by(Land) %>% 
     mutate(Preis = rollapply(Preis,28,mean,align='right',fill=NA)) %>% 
     ungroup() %>% 
     ggplot(aes(x = Tag, y = Preis)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    geom_line(aes(col = Jahr, linewidth = is_current)) +
     facet_wrap(. ~ Land) +
     xlab("Tag des Jahres") +
     ylab("Durchschnittlicher Preis (€/MWh)\nRollierender Durchschnitt 28 Tage") +
@@ -87,16 +89,15 @@ full_join(d.gen.sel,
     mutate(value.power = value * price) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
-    filter(year > 2019) %>%
     #filter(year != 2022) %>% 
     group_by(year, Tag = yday(DateTime), country, source) %>%
     summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
     mutate(Technology = source) %>%
-    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+    filter(year > (CURRENT_YEAR - 5)) %>% 
     mutate(Jahr = as.character(year)) %>%
-    group_by(Jahr, source, country) %>% 
+    group_by(source, country) %>% 
     mutate(value = rollapply(value,40,function(x){mean(x, na.rm=TRUE)},align='right',fill=NA)) %>% 
     ungroup() %>% 
     ggplot(aes(x = Tag, y = value)) +
@@ -108,7 +109,6 @@ full_join(d.gen.sel,
     #scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
     ggtitle("Marktwert von Stromproduktionstechnologien")
-
 
 ```
 
@@ -131,8 +131,8 @@ full_join(d.prices.filtered,
     mutate(Tag = yday(DateTime)) %>% 
     ungroup() %>%
 #    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
-    filter(year > 2018) %>% 
-    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+ filter(year > (CURRENT_YEAR - 6)) %>% 
+    #filter(Jahr != 2022) %>% 
     mutate(Monat = month(DateTime),
            Jahr = as.character(year(DateTime))) %>% 
     ggplot(aes(x = Tag, y = value)) +
@@ -140,7 +140,6 @@ full_join(d.prices.filtered,
     facet_grid(Jahr~country, scale="free") +
     xlab("Tag des Jahres") +
     ylab("Kumulative Erlöse\n generiert durch 1KW Kapazität (€)") +
-    #scale_linewidth_manual(values = c(1.4, 0.4)) +
     guides(linewidth = FALSE) +
     ggtitle("Hypothetische Erlöse aus PV und Wind")
 
@@ -164,13 +163,15 @@ d.prices.filtered %>%
     summarize(spread = mean(spread),
               DateTime = min(DateTime)) %>%
     ungroup() %>%
-    group_by(year, country) %>% 
+    group_by(country) %>% 
     mutate(spread = rollapply(spread,28,mean,align='right',fill=NA)) %>% 
     ungroup() %>% 
     mutate(Jahr = as.character(year)) %>% 
-    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
+     filter(year > (CURRENT_YEAR - 6)) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
     ggplot(aes(x = day, y = spread)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    geom_line(aes(col = Jahr, linewidth = is_current)) +
     facet_wrap(.~country) +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
@@ -195,9 +196,10 @@ d.prices.filtered %>%
     mutate(spread = cumsum(spread)) %>%
     ungroup() %>%
     mutate(Jahr = as.character(year)) %>% 
-    mutate(is_2024 = ifelse(year == 2024, "2024", "Nicht 2024")) %>% 
-    ggplot(aes(x = day, y = spread)) +
-    geom_line(aes(col = Jahr, linewidth = is_2024)) +
+    filter(year > (CURRENT_YEAR - 6)) %>% 
+    #filter(Jahr != 2022) %>% 
+    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%    ggplot(aes(x = day, y = spread)) +
+    geom_line(aes(col = Jahr, linewidth = is_current)) +
     facet_wrap(.~country) +
     scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
     scale_linewidth_manual(values = c(1.4, 0.4)) +
@@ -220,7 +222,9 @@ d.join.prices.pv = full_join(
     mutate(value = P / 1000 * price) %>%
     mutate(month = month(DateTime)) %>%
     mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
+    filter(year > (CURRENT_YEAR - 5)) %>% 
+    #filter(Jahr != 2022) %>% 
+    
     dplyr::select(year, month, DateTime, type, value, country) %>%
     group_by(year, month, Tag = yday(DateTime), country, type) %>%
     summarize(value = sum(value, na.rm = TRUE),
