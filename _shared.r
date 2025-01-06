@@ -19,7 +19,8 @@ g = modifyList(read_json("config.json"), list(
             generation = "AggregatedGenerationPerType_16.1.B_C",
             load = "ActualTotalLoad_6.1.A",
             dayAheadPrices = "EnergyPrices_12.1.D_r3",
-            netPositions = "ImplicitAllocationsNetPositionsDaily_12.1.E"
+            netPositions = "ImplicitAllocationsNetPositionsDaily_12.1.E",
+            physicalFlows = "PhysicalFlows_12.1.G"
         )
     ), gie = list(
         params = list()

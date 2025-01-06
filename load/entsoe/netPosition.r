@@ -6,8 +6,9 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 d.base = loadEntsoeComb(
-    type = "netPositions", month.start = month.start, month.end = month.end
-    # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
+    type = "netPositions", 
+    month.start = month.start, month.end = month.end
+    # month.start = "2024-10", month.end = "2024-10", check.updates = TRUE
 )
 
 # d.t = unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])

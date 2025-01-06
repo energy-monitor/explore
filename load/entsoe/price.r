@@ -14,7 +14,8 @@ d.base = loadEntsoeComb(
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 # d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
 
-d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M"]
+d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M" & Currency == "EUR"]
+setnames(d.base.f, "Price[Currency/MWh]", "Price")
 # unique(d.base.f[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 
 d.agg = d.base.f[, .(
