@@ -19,6 +19,8 @@ loadPackages(knitr)
 </p>
 
 
+<p style="color: red;">Diese Seite wurde nur bis Ende 2024 aktualisiert, weil der langfristige Trend im Gasverbrauch in der Schätzung mit zunehmendem Abstand von der Trainingsperiode stärker wirkt als kurzfristige Einsparungen. In unserer Analyse nutzen wir eine Gleichung, bei der die Zeit linear und quadratisch eingeht. Für die Jahre 2015 bis 2021 zeigt die Analyse, dass der Verbrauch langfristig sinken wird, unabhängig von kurzfristigen Einsparungen. Je weiter wir uns vom Jahr 2021 entfernen, desto mehr dominiert dieser langfristige Trend. Deshalb hören wir Ende 2024 auf, die Einsparungseffekte zu berechnen.</p>
+
 ## Motivation
 
 In Medien, aber auch in offiziellen Quellen, bspw. dem Energiemonitor des BMK [energie.gv.at](https://energie.gv.at) werden oft Zahlen zur Gasverbraucheinsparung genannt, die meist auf einfachen Vergleichen zu Vorjahreswerten beruhen. So liegt im Jahr 2022 bspw. der Verbrauch[↗](/single/gas~consumption-aggm) in Summe um `r round(savings.2022*100, 1)` % unter dem Durchschnitt der Jahre `r min(d.base$year)` - 2021, der Gasverbrauch war damit sogar niedriger als im Lockdown-Jahr 2020.
@@ -204,4 +206,4 @@ setnames(d.comp.f, names(c.trans), c.trans)
 kable(d.comp.f, align = "r", escape = FALSE)
 ```
 
-In der obigen Tabelle sind die absoluten Einsparungen im Vergleich zum Vorjahresmonat und im Vergleich zum Durchschnitt des jeweiligen Monats in den Jahren 2017 - 2021 aufgeführt. Daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal mit der Stromproduktion (Modellvariante 2). 
+In der obigen Tabelle sind die absoluten jährlichen Einsparungen im Vergleich zum Vorjahr und im Vergleich zum Durchschnitt des Verbrauchs in den Jahren 2017 - 2021 aufgeführt. Daneben sind die modellbasierten witterungsbereinigten Einsparungen dargestellt - einmal ohne die Stromproduktion zu berücksichtigen (Modellvariante 1) und einmal mit der Stromproduktion (Modellvariante 2). 

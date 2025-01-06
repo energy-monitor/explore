@@ -32,6 +32,9 @@ savings.2022 = 1 - d.gas.years[year == 2022, rel]
 
 # AUGMENT DATA
 d.comb = copy(d.base)
+
+d.comb = d.comb[year < 2025, ]
+
 addTempThreshold(d.comb, temp.threshold)
 addTrend(d.comb)
 
@@ -41,11 +44,11 @@ t_max = d.comb %>%
     dplyr::select(t) %>%
     unlist()
 
-d.comb <- d.comb %>%
-    mutate(t = ifelse(year(date) > 2021, t_max, t))
+#d.comb <- d.comb %>%
+#    mutate(t = ifelse(year(date) > 2021, t_max, t))
 
-d.comb <- d.comb %>%
-    mutate(t.squared = ifelse(year(date) > 2021, t_max^2, t))
+#d.comb <- d.comb %>%
+#    mutate(t.squared = ifelse(year(date) > 2021, t_max^2, t))
 
 
 # MODEL DEFINITION
@@ -153,27 +156,28 @@ months.rel = mapply(compare.values.complete,
 totals.rel = bind_rows(
     compare.values.complete(as.Date("2022-01-01"),
                             as.Date("2022-12-31"),
-                            "Gesamt 2022"),
+                            "2022"),
     #compare.values.complete(as.Date("2022-03-01"),
     #                    end.date,
     #                    "Seit März 2022"),
-    compare.values.complete(as.Date("2022-08-01"),
-                            as.Date("2023-03-31"),
-                        "August 2022 - März 2023"),
+    #compare.values.complete(as.Date("2022-08-01"),
+    #                        as.Date("2023-03-31"),
+    #                    "August 2022 - März 2023"),
     compare.values.complete(as.Date("2023-01-01"),
                             as.Date("2023-12-31"),
-                        "Gesamt 2023"),
-    compare.values.complete(as.Date("2023-08-01"),
-                            end.date,
-                            "Seit August 2023"),
+                        "2023"),
+    #compare.values.complete(as.Date("2023-08-01"),
+     #                       end.date,
+     #                       "Seit August 2023"),
     compare.values.complete(as.Date("2024-01-01"),
                             end.date,
-                            "Seit Jänner 2024")
+                            "2024")
 )
 
 totals.rel$name = paste0("**", totals.rel$name, "**")
 
-d.comp.f = bind_rows(months.rel, totals.rel)
+#d.comp.f = bind_rows(months.rel, totals.rel)
+d.comp.f = bind_rows(totals.rel)
 
 
 #d.comp.f = dcast(d.comp.c, month.name ~ full.variable, value.var = "g100")
