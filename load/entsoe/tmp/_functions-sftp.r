@@ -1,3 +1,7 @@
+loadPackages(
+    stenevang/sftp
+)
+
 loadEntsoeComb = function(
     type, check.updates = TRUE,
     month.start = "2022-01", month.end = "2022-08",
@@ -79,3 +83,4 @@ loadEntsoeComb = function(
 
 
 # d.full[ProductionType == 'Biomass' & MapCode == 'AT' & is.na(DateTime2)]
+

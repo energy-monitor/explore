@@ -1,8 +1,8 @@
 # - INIT -----------------------------------------------------------------------
 source('_shared.r')
-loadPackages(
-    stenevang/sftp
-)
+# loadPackages(
+#     stenevang/sftp
+# )
 
 month.start = "2018-12"
 month.end = substring(Sys.Date(), 1, 7)
@@ -55,5 +55,5 @@ addGroupCol = function(d, mapping, sourceCol = "source", groupCol = "source.grou
 
 
 # - OTHE -----------------------------------------------------------------------
-source("load/entsoe/_functions.R")
+source("load/entsoe/_functions.r")
 
