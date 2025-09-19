@@ -1,6 +1,6 @@
 # OAuth2 authentication for File Library API
 get_entsoe_token = function() {
-    token.cache =g$entsoe$token.cache
+    token.cache = g$entsoe$token.cache
     # Check if we have a cached token that's still valid
     if (!is.null(token.cache)) {
         if (Sys.time() < token.cache$expires_at) {
@@ -44,8 +44,7 @@ get_entsoe_token = function() {
 }
 
 # Download files from File Library API (batch download with timestamp checking)
-download_entsoe_files_batch = function(folder_path, target_filenames, data_folder, d_toc) {
-    print(d_toc)
+download_entsoe_files_batch = function(query.path, c.target.files, f.data, d.toc, iL) {
     # Get OAuth2 token
     token = get_entsoe_token()
     if (is.null(token)) {
@@ -55,11 +54,11 @@ download_entsoe_files_batch = function(folder_path, target_filenames, data_folde
 
     tryCatch({
         # Step 1: List folder contents
-        listfolder_response = POST(
+        resp.list = POST(
             url = glue("{g$entsoe$params$fms_base_url}/listFolder"),
             add_headers(Authorization = glue("Bearer {token}")),
             body = toJSON(list(
-                path = glue("/{folder_path}/"),
+                path = glue("/{query.path}/"),
                 pageInfo = list(
                     pageIndex = 0,
                     pageSize = 5000
@@ -69,112 +68,115 @@ download_entsoe_files_batch = function(folder_path, target_filenames, data_folde
             timeout(60)
         )
 
-        if (status_code(listfolder_response) != 200) {
-            warning(glue("List folder failed: {status_code(listfolder_response)} - {content(listfolder_response, 'text')}"))
-            return(list(success = FALSE, updated_toc = d_toc))
+        if (status_code(resp.list) != 200) {
+            warning(glue("List folder failed: {status_code(resp.list)} - {content(resp.list, 'text')}"))
+            return(list(success = FALSE, d.toc = d.toc))
         }
 
-        folder_content = content(listfolder_response)
+        folder_content = content(resp.list)
 
         # Step 2: Check which files need downloading
-        files_to_download = list()
-        updated_toc = d_toc
-
+        l.files.to.download = list()
         for (item in folder_content$contentItemList) {
             filename = item$name
 
             # Check if this is one of our target files
-            if (filename %in% target_filenames) {
-                local_filepath = file.path(data_folder, filename)
+            if (filename %in% c.target.files) {
+                f.file = file.path(f.data, filename)
                 last_modified = as.POSIXct(item$lastUpdatedTimestamp, format="%Y-%m-%dT%H:%M:%OSZ", tz = "UTC")
 
                 # Check TOC for existing entry
-                toc_entry = d_toc[name == filename]
                 should_download = TRUE
 
-                if (nrow(toc_entry) == 1 && file.exists(local_filepath)) {
-                    # Compare timestamps
-                    if (!is.na(toc_entry$last_modified)) {
-                        if (toc_entry$last_modified == last_modified) {
-                            should_download = FALSE
-                        } else if (toc_entry$last_modified > last_modified){
-                            warning(glue("Strange: toc timestamp ({toc_entry$last_modified}) newer than source ({last_modified})"))
+                if (!is.null(d.toc)) {
+                    d.toc.row = d.toc[name == filename]
+                    if (nrow(d.toc.row) == 1 && file.exists(f.file)) {
+                        # l(glue("toc timestamp ({d.toc.row$last_modified}) vs source ({last_modified})"))
+                        # Compare timestamps
+                        if (!is.na(d.toc.row$last_modified)) {
+                            if (d.toc.row$last_modified == last_modified) {
+                                should_download = FALSE
+                            } else if (d.toc.row$last_modified > last_modified){
+                                warning(glue("Strange: toc timestamp ({d.toc.row$last_modified}) newer than source ({last_modified})"))
+                            }
                         }
                     }
                 }
-
                 if (should_download) {
-                    files_to_download[[length(files_to_download) + 1]] = list(
+                    l.files.to.download[[length(l.files.to.download) + 1]] = list(
                         fileId = item$fileId,
                         filename = filename,
                         lastModified = last_modified,
-                        localPath = local_filepath
+                        localPath = f.file
                     )
                 }
             }
         }
 
-        l(glue("Updating {length(files_to_download)} files ..."))
+        l(glue("- updating {length(l.files.to.download)} files ..."), iL = iL)
 
-        if (length(files_to_download) == 0) {
-            return(list(success = TRUE, updated_toc = updated_toc))
+        if (length(l.files.to.download) == 0) {
+            return(list(success = TRUE, d.toc.updated = d.toc))
         }
 
-        # Step 3: Batch download files
-        file_ids = sapply(files_to_download, function(x) x$fileId)
 
-        download_response = POST(
-            url = glue("{g$entsoe$params$fms_base_url}/downloadFileContent"),
-            add_headers(Authorization = glue("Bearer {token}")),
-            body = toJSON(list(
-                fileIdList = I(file_ids),
-                topLevelFolder = "TP_export",
-                downloadAsZip = TRUE
-            ), auto_unbox = TRUE),
-            content_type("application/json"),
-            timeout(300)  # Longer timeout for batch download
-        )
+        chunk.size = 100
+        c.file.ids = sapply(l.files.to.download, function(x) x$fileId)
+        
+        for (ids in split(c.file.ids, ceiling(seq_along(c.file.ids)/chunk.size))) {
+            resp.download = POST(
+                url = glue("{g$entsoe$params$fms_base_url}/downloadFileContent"),
+                add_headers(Authorization = glue("Bearer {token}")),
+                body = toJSON(list(
+                    fileIdList = I(ids),
+                    topLevelFolder = "TP_export",
+                    downloadAsZip = TRUE
+                ), auto_unbox = TRUE),
+                content_type("application/json"),
+                timeout(300)  # Longer timeout for batch download
+            )
 
-        if (status_code(download_response) != 200) {
-            warning(glue("Batch download failed: {status_code(download_response)} - {content(download_response, 'text')}"))
-            return(list(success = FALSE, updated_toc = updated_toc))
+            if (status_code(resp.download) != 200) {
+                warning(glue("Batch download failed: {status_code(resp.download)} - {content(resp.download, 'text')}"))
+                return(list(success = FALSE, d.toc.updated = d.toc))
+            }
+
+            t.zip = tempfile(fileext = ".zip")
+            writeBin(content(resp.download, "raw"), t.zip)
+            t.dir = tempdir()
+            unzip(t.zip, exdir = t.dir, overwrite = TRUE)
+            file.remove(t.zip)
         }
 
-        # Step 4: Save and extract ZIP file
-        temp_zip = tempfile(fileext = ".zip")
-        writeBin(content(download_response, "raw"), temp_zip)
-
-        # Extract ZIP to temporary directory
-        temp_dir = tempdir()
-        unzip(temp_zip, exdir = temp_dir, overwrite = TRUE)
-
-        # Step 5: Move extracted files to final locations and update TOC
-        for (file_info in files_to_download) {
-            extracted_file = file.path(temp_dir, file_info$filename)
+        for (f in l.files.to.download) {
+            extracted_file = file.path(t.dir, f$filename)
 
             if (file.exists(extracted_file)) {
-                file.copy(extracted_file, file_info$localPath, overwrite = TRUE)
+                file.copy(extracted_file, f$localPath, overwrite = TRUE)
                 file.remove(extracted_file)
 
                 # Update TOC
-                updated_toc = rbind(
-                    updated_toc[name != file_info$filename],
-                    data.table(
-                        name = file_info$filename,
-                        check = as.character(file.info(file_info$localPath)$size),
-                        last_modified = file_info$lastModified
-                    )
+                d.new.row = data.table(
+                    name = f$filename,
+                    check = as.character(file.info(f$localPath)$size),
+                    last_modified = f$lastModified
                 )
+
+                if (is.null(d.toc)) {
+                    d.toc = d.new.row
+                }
+
+                d.toc = rbind(d.toc[name != f$filename], d.new.row)
             }
         }
 
         # Cleanup
-        file.remove(temp_zip)
-        return(list(success = TRUE, updated_toc = updated_toc))
+        
+        return(list(success = TRUE, d.toc.updated = d.toc))
 
     }, error = function(e) {
         warning(glue("Error in batch download: {e$message}"))
-        return(list(success = FALSE, updated_toc = d_toc))
+        return(list(success = FALSE, d.toc.updated = d.toc))
     })
 }
 
@@ -182,9 +184,9 @@ download_entsoe_files_batch = function(folder_path, target_filenames, data_folde
 loadEntsoeComb = function(
     type, check.updates = TRUE,
     month.start = "2022-01", month.end = "2022-08",
-    data.folder = g$d$entsoe, iL = 1
+    f.data = g$d$entsoe, iL = 1
 ) {
-    months = ymd(seq(ym(month.start), ym(month.end), by = "month"))
+    c.months = ymd(seq(ym(month.start), ym(month.end), by = "month"))
 
     folder_map = list(
         generation = "AggregatedGenerationPerType_16.1.B_C",
@@ -200,49 +202,53 @@ loadEntsoeComb = function(
     }
 
     if (check.updates) {
-        l(glue('CHECK AND DOWNLOAD IF NECESSARY (via File Library API)'), iL=iL)
+        l(glue('- looking for ENTSOE updates'), iL = iL)
 
-        toc.file = file.path(data.folder, glue("{type}-fl-toc.csv"))  # Different TOC file to avoid conflicts
-        d.toc = if (file.exists(toc.file)) fread(toc.file) else data.table(name = character(0), check = character(0), last_modified = character(0))
+        f.toc = file.path(f.data, glue("{type}-toc.csv"))  
+        d.toc = NULL
+        if (file.exists(f.toc)) {
+            d.toc = fread(f.toc)
+        }
 
         # Build list of target filenames for all months
-        target_filenames = sapply(months, function(m) {
+        c.target.files = sapply(c.months, function(m) {
             month2.str = format.Date(ymd(m), "%m")
             year.str = year(m)
             glue("{year.str}_{month2.str}_{folder_name}.csv")
         })
 
-        l(glue('- checking {length(target_filenames)} files for updates'), iL=iL+1)
+        l(glue('- checking {length(c.target.files)} files for updates'), iL = iL + 1)
 
         # Batch download all files that need updating
+
         download_result = download_entsoe_files_batch(
-            folder_path = glue("TP_export/{folder_name}"),
-            target_filenames = target_filenames,
-            data_folder = data.folder,
-            d_toc = d.toc
+            query.path = glue("TP_export/{folder_name}"),
+            c.target.files = c.target.files,
+            f.data = f.data,
+            d.toc = d.toc, iL = iL + 1
         )
 
         if (download_result$success) {
-            d.toc = download_result$updated_toc
-            l(glue('- batch download completed'), iL=iL+1)
+            d.toc = download_result$d.toc.updated
+            l(glue('  completed'), iL=iL+1)
         } else {
-            l(glue('- batch download failed'), iL=iL+1)
+            l(glue('  FAILED'), iL=iL+1)
         }
 
-        fwrite(d.toc, toc.file)
+        fwrite(d.toc, f.toc)
     }
 
-    l(glue('LOADING'), iL=iL)
-    d.full = rbindlist(lapply(months, function(m) {
+    l(glue('- loading and concatenate files'), iL = iL)
+    d.full = rbindlist(lapply(c.months, function(m) {
         month2.str = format.Date(m, "%m")
         year.str = year(m)
 
-        l(glue('month {year.str}-{month2.str}'), iL=iL+1)
+        # l(glue('month {year.str}-{month2.str}'), iL=iL+1)
 
         # Use the same naming convention as SFTP
         folder_name = folder_map[[type]]
         entsoe.filename = glue("{year.str}_{month2.str}_{folder_name}.csv")
-        local.filepath = file.path(data.folder, entsoe.filename)
+        local.filepath = file.path(f.data, entsoe.filename)
 
         if (file.exists(local.filepath)) {
             fread(local.filepath)
