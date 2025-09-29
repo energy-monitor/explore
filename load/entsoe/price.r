@@ -9,6 +9,7 @@ update.time = now()
 d.base = load_entsoe_data(
     c.nice2entsoe["dayAheadPrices"], from = date.start
 )
+setnames(d.base, "DateTime(UTC)", "DateTime")
 
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 # d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])

@@ -9,6 +9,7 @@ update.time = now()
 d.base = load_entsoe_data(
     c.nice2entsoe["dayAheadPrices"], from = date.start
 )
+setnames(d.base, "DateTime(UTC)", "DateTime")
 
 d.base.f = d.base[ResolutionCode == "PT60M"]
 d.base.f = d.base.f[, hour := floor_date(DateTime, unit = "hours")]
