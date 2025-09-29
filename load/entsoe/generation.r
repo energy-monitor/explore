@@ -6,15 +6,14 @@ source("load/entsoe/_shared.r")
 
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
-d.base = loadEntsoeComb(
-    # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
-    type = "generation", month.start = "2014-12", month.end = month.end
+d.base = load_entsoe_data(
+    c.nice2entsoe["generation"], from = date.start
 )
 
 # unique(d.base$ProductionType)
 
 d.base.f = d.base[AreaTypeCode == "CTY"]
-d.base.f[, factor := resToFactor[ResolutionCode]]
+d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # d.base.f[, .(sum = sum(ActualGenerationOutput)), by=.(ProductionType)][order(sum)]
 # unique(d.base.f[,. (ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 

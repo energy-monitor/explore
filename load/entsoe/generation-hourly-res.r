@@ -7,14 +7,12 @@ source("load/entsoe/_shared.r")
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
 
-d.base = loadEntsoeComb(
-    type = "generation",
-    month.start = "2014-12",
-    month.end = month.end
+d.base = load_entsoe_data(
+    c.nice2entsoe["generation"], from = date.start
 )
 
 d.base.f = d.base[AreaTypeCode == "CTY"]
-d.base.f[, hour := floor_date(DateTimeHourly, unit = "hours")]
+d.base.f[, hour := floor_date(DateTime, unit = "hours")]
 
 
 d.agg = d.base.f[, .(

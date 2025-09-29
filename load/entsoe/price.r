@@ -6,9 +6,8 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = loadEntsoeComb(
-    type = "dayAheadPrices", month.start = month.start, month.end = month.end #, check.updates = FALSE
-    # type = "load", month.start = "2019-12", month.end = month.end, check.updates = TRUE
+d.base = load_entsoe_data(
+    c.nice2entsoe["dayAheadPrices"], from = date.start
 )
 
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
@@ -28,7 +27,7 @@ d.agg = d.base.f[, .(
 
 # sort(unique(d.base.f$ResolutionCode))
 
-# d.base.f[, factor := resToFactor[ResolutionCode]]
+# d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # d.base.f[, value := factor*TotalLoadValue]
 
 # # Filter, Aggregate

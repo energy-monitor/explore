@@ -5,10 +5,8 @@ source("load/entsoe/_shared.r")
 
 
 # - DOIT -----------------------------------------------------------------------
-d.base = loadEntsoeComb(
-    type = "netPositions", 
-    month.start = month.start, month.end = month.end
-    # month.start = "2024-10", month.end = "2024-10", check.updates = TRUE
+d.base = load_entsoe_data(
+    c.nice2entsoe["netPositions"], from = date.start
 )
 
 # d.t = unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
@@ -18,7 +16,7 @@ d.base = loadEntsoeComb(
 
 # sort(unique(d.base.f$ResolutionCode))
 
-# d.base.f[, factor := resToFactor[ResolutionCode]]
+# d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # d.base.f[, value := factor*TotalLoadValue]
 
 # # Filter, Aggregate

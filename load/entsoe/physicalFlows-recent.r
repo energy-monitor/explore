@@ -9,10 +9,8 @@ update.time = now()
 fromDate = today() %m-% months(1)
 
 
-d.base = loadEntsoeComb(
-    type = "physicalFlows",
-    month.start = month.start, month.end = month.end #
-    # month.start = "2024-10", month.end = "2024-10", check.updates = FALSE
+d.base = load_entsoe_data(
+    c.nice2entsoe["physicalFlows"], from = date.start
 )
 
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
@@ -20,7 +18,7 @@ d.base = loadEntsoeComb(
 
 # d.base.f = copy(d.base)
 d.base.f = d.base[InAreaTypeCode == "CTY" & OutAreaTypeCode == "CTY" & DateTime >= fromDate]
-d.base.f[, factor := resToFactor[ResolutionCode]]
+d.base.f[, factor := c.resToFactor[ResolutionCode]]
 
 # d.base.f 
 
@@ -32,13 +30,13 @@ d.base.f[, factor := resToFactor[ResolutionCode]]
 # )
 
 d.comb = rbind(
-    d.base.f[InMapCode == "AT", .(value = -sum(FlowValue*factor)), by=.(iso2 = OutMapCode, dateTimeHourly = DateTimeHourly)],
-    d.base.f[OutMapCode == "AT", .(value = sum(FlowValue*factor)), by=.(iso2 = InMapCode, dateTimeHourly = DateTimeHourly)]
+    d.base.f[InMapCode == "AT", .(value = -sum(FlowValue*factor)), by=.(iso2 = OutMapCode, dateTime = DateTime)],
+    d.base.f[OutMapCode == "AT", .(value = sum(FlowValue*factor)), by=.(iso2 = InMapCode, dateTime = DateTime)]
 )
 
 d.agg = d.comb[, .(exports=sum(value)/10^3), by=.(
-    date = as.Date(dateTimeHourly),
-    hour = hour(dateTimeHourly)
+    date = as.Date(dateTime),
+    hour = hour(dateTime)
 )]
 
 

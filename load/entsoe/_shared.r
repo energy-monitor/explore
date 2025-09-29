@@ -1,13 +1,24 @@
 # - INIT -----------------------------------------------------------------------
 source('_shared.r')
-# loadPackages(
-#     stenevang/sftp
-# )
+loadPackages("energy-monitor/entsoe.file.api")
 
-month.start = "2018-12"
-month.end = substring(Sys.Date(), 1, 7)
+# Set the entsoe 
+set_entsoe_cache(g$d$entsoe)
+set_entsoe_credentials(g$entsoe$params$user, g$entsoe$params$pass)
 
-resToFactor = c(
+c.nice2entsoe = c(
+    generation = "AggregatedGenerationPerType_16.1.B_C",
+    load = "ActualTotalLoad_6.1.A",
+    dayAheadPrices = "EnergyPrices_12.1.D_r3",
+    netPositions = "ImplicitAllocationsNetPositions_12.1.E",
+    physicalFlows = "PhysicalFlows_12.1.G"
+)
+
+
+date.start = as.POSIXct("2018-12-01", tz = "UTC")
+date.end = Sys.time()
+
+c.resToFactor = c(
     "PT15M" = 1/4,
     "PT30M" = 1/2,
     "PT60M" = 1
@@ -52,8 +63,4 @@ addGroupCol = function(d, mapping, sourceCol = "source", groupCol = "source.grou
 #
 # c.sources[!c.sources %in% unlist(c.sourceGroups1)]
 # c.sources[!c.sources %in% unlist(c.sourceGroups2)]
-
-
-# - OTHE -----------------------------------------------------------------------
-source("load/entsoe/_functions.r")
 

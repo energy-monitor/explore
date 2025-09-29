@@ -6,10 +6,8 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = loadEntsoeComb(
-    type = "physicalFlows",
-    month.start = month.start, month.end = month.end #
-    # month.start = "2024-10", month.end = "2024-10", check.updates = FALSE
+d.base = load_entsoe_data(
+    c.nice2entsoe["physicalFlows"], from = date.start
 )
 
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
@@ -17,7 +15,7 @@ d.base = loadEntsoeComb(
 
 # d.base.f = copy(d.base)
 d.base.f = d.base[InAreaTypeCode == "CTY" & OutAreaTypeCode == "CTY"]
-d.base.f[, factor := resToFactor[ResolutionCode]]
+d.base.f[, factor := c.resToFactor[ResolutionCode]]
 
 # d.base.f 
 

@@ -5,16 +5,15 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = loadEntsoeComb(
-    type = "load", month.start = month.start, month.end = month.end
-    # type = "load", month.start = "2022-08", month.end = month.end, check.updates = FALSE
+d.base = load_entsoe_data(
+    c.nice2entsoe["load"], from = date.start
 )
 
 d.base.f = d.base[AreaName == "AT CTY"]
 
 # sort(unique(d.base.f$ResolutionCode))
 
-d.base.f[, factor := resToFactor[ResolutionCode]]
+d.base.f[, factor := c.resToFactor[ResolutionCode]]
 d.base.f[, value := factor * TotalLoadValue]
 
 d = d.base[AreaName == "AT CTY", .(

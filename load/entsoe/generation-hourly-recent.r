@@ -6,9 +6,8 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = loadEntsoeComb(
-    # type = "generation", month.start = "2022-07", month.end = "2022-07", check.updates = FALSE
-    type = "generation", month.start = month.start, month.end = month.end
+d.base = load_entsoe_data(
+    c.nice2entsoe["generation"], from = date.start
 )
 
 
@@ -21,8 +20,8 @@ fromDate = today() %m-% months(1)
 d.agg = d.base[AreaName == "AT CTY" & ResolutionCode == "PT15M" & DateTime >= fromDate, .(
     value = mean(ActualGenerationOutput) / 4 / 10^3
 ), by = .(
-    hour = hour(DateTimeHourly),
-    date = as.Date(DateTimeHourly),
+    hour = hour(DateTime),
+    date = as.Date(DateTime),
     source = ProductionType
 )][order(date, hour)]
 
