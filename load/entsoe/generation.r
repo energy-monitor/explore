@@ -10,9 +10,12 @@ d.base = load_entsoe_data(
     c.nice2entsoe["generation"], from = date.start
 )
 
+# t = d.base[AreaMapCode == "AT"]
+# table(t$AreaTypeCode)
 # unique(d.base$ProductionType)
 
-d.base.f = d.base[AreaTypeCode == "CTY"]
+# d.base.f = d.base[AreaTypeCode == "CTY"]
+d.base.f = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # d.base.f[, .(sum = sum(ActualGenerationOutput)), by=.(ProductionType)][order(sum)]
 # unique(d.base.f[,. (ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
@@ -20,11 +23,11 @@ d.base.f[, factor := c.resToFactor[ResolutionCode]]
 
 # - AGG -----------------------------------------------------------------------
 d.agg = d.base.f[, .(
-    value = sum(ActualGenerationOutput*factor, na.rm = TRUE)/10^6,
-    cons = sum(ActualConsumption*factor, na.rm = TRUE)/10^6
+    value = sum(`ActualGenerationOutput[MW]`*factor, na.rm = TRUE)/10^6,
+    cons = sum(`ActualConsumption[MW]`*factor, na.rm = TRUE)/10^6
 ), by = .(
-    country = MapCode,
-    date = as.Date(DateTime),
+    country = AreaMapCode,
+    date = as.Date(`DateTime(UTC)`),
     source = ProductionType
 )][order(date)]
 

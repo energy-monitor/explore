@@ -11,15 +11,16 @@ d.base = load_entsoe_data(
     c.nice2entsoe["generation"], from = date.start
 )
 
-d.base.f = d.base[AreaTypeCode == "CTY"]
-d.base.f[, hour := floor_date(DateTime, unit = "hours")]
+# d.base.f = d.base[AreaTypeCode == "CTY"]
+d.base.f = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
+d.base.f[, hour := floor_date(`DateTime(UTC)`, unit = "hours")]
 
 
 d.agg = d.base.f[, .(
-    value = mean(ActualGenerationOutput, na.rm = TRUE),
-    cons = mean(ActualConsumption, na.rm = TRUE)
+    value = mean(`ActualGenerationOutput[MW]`, na.rm = TRUE),
+    cons = mean(`ActualConsumption[MW]`, na.rm = TRUE)
 ), by = .(
-    country = MapCode,
+    country = AreaMapCode,
     source = ProductionType,
     DateTime = hour
 )][order(DateTime)]

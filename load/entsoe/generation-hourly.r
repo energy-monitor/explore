@@ -14,11 +14,11 @@ d.base = load_entsoe_data(
 
 # Filter, Aggregate
 # unique(d.base$ProductionType)
-d.agg = d.base[AreaName == "AT CTY" & ResolutionCode == "PT15M", .(
-    value = mean(ActualGenerationOutput) / 4 / 10^3
+d.agg = d.base[AreaMapCode == "AT" & ResolutionCode == "PT15M", .(
+    value = mean(`ActualGenerationOutput[MW]`) / 4 / 10^3
 ), by = .(
-    year = year(DateTime), 
-    hour = hour(DateTime), 
+    year = year(`DateTime(UTC)`), 
+    hour = hour(`DateTime(UTC)`), 
     source = ProductionType
 )][order(year, hour)]
 
@@ -48,3 +48,4 @@ saveToStorages(d.agg.group, list(
     format = "csv",
     update.time = update.time
 ))
+
