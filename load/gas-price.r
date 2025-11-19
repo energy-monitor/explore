@@ -9,9 +9,10 @@ source("_shared.r")
 update.time = now()
 l.base = read_json(file.path(g$d$tmp, "gas-price.json"))
 sapply(l.base, `[[`, "name")
+idx = which(sapply(l.base, `[[`, "name") == "CEGH")
 
-date = sapply(l.base[[4]]$data, `[[`, 1)
-price = sapply(l.base[[4]]$data, `[[`, 2)
+date = sapply(l.base[[idx]]$data, `[[`, 1)
+price = sapply(l.base[[idx]]$data, `[[`, 2)
 price[sapply(price, is.null)] = list(0)
 
 d.raw = data.table(date = as.Date(as_datetime(date / 1000)), price = unlist(price))

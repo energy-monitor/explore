@@ -11,10 +11,17 @@ d.base = load_entsoe_data(
 )
 setnames(d.base, "DateTime(UTC)", "DateTime")
 
+
+d.base.f = d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR"]
+table(d.base.f$ContractType)
+table(d.base.f$ResolutionCode)
+
+# max(d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR" & ResolutionCode == "PT60M"]$DateTime)
+
 # unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 # d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
 
-d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M" & Currency == "EUR"]
+# d.base.f = d.base[AreaCode == "10YAT-APG------L" & ResolutionCode == "PT60M" & Currency == "EUR"]
 setnames(d.base.f, "Price[Currency/MWh]", "Price")
 # unique(d.base.f[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 
