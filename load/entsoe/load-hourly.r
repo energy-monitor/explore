@@ -9,14 +9,17 @@ d.base = load_entsoe_data(
     c.nice2entsoe["load"], from = date.start
 )
 
-d.base.f = d.base[AreaName == "AT CTY"]
+names(d.base)[1] = "DateTime"
+d.base$TotalLoadValue = d.base$`TotalLoad[MW]`
+
+d.base.f = d.base[AreaMapCode == "AT"]
 
 # sort(unique(d.base.f$ResolutionCode))
 
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
 d.base.f[, value := factor * TotalLoadValue]
 
-d = d.base[AreaName == "AT CTY", .(
+d = d.base[AreaMapCode == "AT", .(
     dateTime = DateTime, load = TotalLoadValue
 )]
 

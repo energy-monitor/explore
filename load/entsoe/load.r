@@ -10,6 +10,9 @@ d.base = load_entsoe_data(
     c.nice2entsoe["load"], from = date.start
 )
 
+names(d.base)[1] = "DateTime"
+d.base$TotalLoadValue = d.base$`TotalLoad[MW]`
+
 # d.t = unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 # d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
 
@@ -23,7 +26,7 @@ d.base.f[, value := factor * TotalLoadValue]
 # Filter, Aggregate
 d.agg = d.base.f[, .(
     value = sum(value) / 10^6
-), by = .(country = MapCode, date = as.Date(DateTime))][order(date)]
+), by = .(country = AreaMapCode, date = as.Date(DateTime))][order(date)]
 
 # Delete last (most probably incomplete) obs
 d.agg = removeLastDays(d.agg, 2)
