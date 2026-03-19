@@ -1,6 +1,9 @@
 # - INIT -----------------------------------------------------------------------
 source('_shared.r')
+# loadPackages("energy-monitor/entsoe.file.api", update_all = TRUE)
 loadPackages("energy-monitor/entsoe.file.api")
+
+load_entsoe = load_entsoe_data_wa
 
 # Set the entsoe 
 set_entsoe_cache(g$d$entsoe)
@@ -8,10 +11,10 @@ set_entsoe_credentials(g$entsoe$params$user, g$entsoe$params$pass)
 
 c.nice2entsoe = c(
     generation = "AggregatedGenerationPerType_16.1.B_C_r3",
-    load = "ActualTotalLoad_6.1.A",
+    load = "ActualTotalLoad_6.1.A_r3",
     dayAheadPrices = "EnergyPrices_12.1.D_r3",
     netPositions = "ImplicitAllocationsNetPositions_12.1.E",
-    physicalFlows = "PhysicalFlows_12.1.G"
+    physicalFlows = "PhysicalFlows_12.1.G_r3"
 )
 
 

@@ -5,19 +5,20 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["load"], from = date.start
 )
 
-d.base.f = d.base[AreaName == "AT CTY"]
+# d.base.f = d.base[AreaName == "AT CTY"]
+d.base.f = d.base[grepl("CTY", AreaTypeCode, fixed = TRUE) & AreaMapCode == "AT"]
 
 # sort(unique(d.base.f$ResolutionCode))
 
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
-d.base.f[, value := factor * TotalLoadValue]
+d.base.f[, value := factor * `TotalLoad[MW]`]
 
-d = d.base[AreaName == "AT CTY", .(
-    dateTime = DateTime, load = TotalLoadValue
+d = d.base.f[, .(
+    dateTime = `DateTime(UTC)`, load = value
 )]
 
 rm(d.base)

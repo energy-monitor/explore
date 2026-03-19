@@ -9,7 +9,7 @@ update.time = now()
 fromDate = today() %m-% months(1)
 
 
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["physicalFlows"], from = date.start
 )
 

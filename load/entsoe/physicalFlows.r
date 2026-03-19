@@ -6,7 +6,7 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["physicalFlows"], from = date.start
 )
 
@@ -14,7 +14,7 @@ d.base = load_entsoe_data(
 # d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
 
 # d.base.f = copy(d.base)
-d.base.f = d.base[InAreaTypeCode == "CTY" & OutAreaTypeCode == "CTY"]
+d.base.f = d.base[grepl("CTY", InAreaTypeCode, fixed = TRUE) & grepl("CTY", OutAreaTypeCode, fixed = TRUE)]
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
 
 # d.base.f 
@@ -27,8 +27,8 @@ d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # )
 
 d.comb = rbind(
-    d.base.f[InMapCode == "AT", .(value = -sum(FlowValue*factor)), by=.(iso2 = OutMapCode, date = as.Date(DateTime))],
-    d.base.f[OutMapCode == "AT", .(value = sum(FlowValue*factor)), by=.(iso2 = InMapCode, date = as.Date(DateTime))]
+    d.base.f[InAreaMapCode == "AT", .(value = -sum(`Flow[MW]`*factor)), by=.(iso2 = OutAreaMapCode, date = as.Date(`DateTime(UTC)`))],
+    d.base.f[OutAreaMapCode == "AT", .(value = sum(`Flow[MW]`*factor)), by=.(iso2 = InAreaMapCode, date = as.Date(`DateTime(UTC)`))]
 )
 
 d.agg = d.comb[, .(exports=sum(value)/10^3), by=.(iso2, date)]

@@ -5,7 +5,7 @@ source("load/entsoe/_shared.r")
 
 
 # - DOIT -----------------------------------------------------------------------
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["netPositions"], from = date.start
 )
 

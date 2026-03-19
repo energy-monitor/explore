@@ -6,7 +6,7 @@ source("load/entsoe/_shared.r")
 
 # - LOAD/PREP ------------------------------------------------------------------
 update.time = now()
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["generation"], from = date.start
 )
 

@@ -5,7 +5,7 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["load"], from = date.start
 )
 

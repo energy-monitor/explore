@@ -6,7 +6,7 @@ source("load/entsoe/_shared.r")
 
 # - DOIT -----------------------------------------------------------------------
 update.time = now()
-d.base = load_entsoe_data(
+d.base = load_entsoe(
     c.nice2entsoe["dayAheadPrices"], from = date.start
 )
 setnames(d.base, "DateTime(UTC)", "DateTime")
