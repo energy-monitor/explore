@@ -7,7 +7,8 @@ source("_shared.r")
 # - DOIT -----------------------------------------------------------------------
 # Load
 update.time = now()
-l.base = read_json(file.path(g$d$tmp, "gas-price.json"))
+j.raw = read_json(file.path(g$d$tmp, "gas-price.json"))
+l.base = j.raw$values$ChartPlot$x$hc_opts$series
 sapply(l.base, `[[`, "name")
 idx = which(sapply(l.base, `[[`, "name") == "CEGH")
 
