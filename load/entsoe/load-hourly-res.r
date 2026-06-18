@@ -10,7 +10,7 @@ d.base = load_entsoe(
     c.nice2entsoe["load"], from = date.start
 )
 
-d.base.f = d.base[AreaTypeCode == "CTY",]
+d.base.f = d.base[AreaTypeCode == "CTY"|AreaTypeCode == "BZN/CTA/CTY",]
 setnames(d.base.f, "DateTime(UTC)", "DateTime")
 d.base.f[, hour := (floor_date(DateTime, unit = "hours"))]
 
