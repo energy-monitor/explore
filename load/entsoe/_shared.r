@@ -28,7 +28,7 @@ c.resToFactor = c(
 )
 
 c.sourceGroups1 = list(
-    "Hydro"   = c("Hydro Run-of-river and poundage", "Hydro Water Reservoir", "Hydro Pumped Storage"),
+    "Hydro"   = c("Hydro Run-of-river and pondage", "Hydro Water Reservoir", "Hydro Pumped Storage"),
     "Wind"    = c("Wind Onshore", "Wind Offshore"),
     "Gas"     = c("Fossil Gas"),
     "Solar"   = c("Solar"),
