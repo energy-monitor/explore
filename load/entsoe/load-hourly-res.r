@@ -10,12 +10,13 @@ d.base = load_entsoe(
     c.nice2entsoe["load"], from = date.start
 )
 
-d.base.f = d.base[AreaTypeCode == "CTY"]
+d.base.f = d.base[AreaTypeCode == "CTY",]
+setnames(d.base.f, "DateTime(UTC)", "DateTime")
 d.base.f[, hour := (floor_date(DateTime, unit = "hours"))]
 
 d.agg = d.base.f[, .(
-    value = mean(TotalLoadValue, na.rm = TRUE)
-), by = .(country = MapCode, DateTime = hour)]
+    value = mean(`TotalLoad[MW]`, na.rm = TRUE)
+), by = .(country = AreaMapCode, DateTime = hour)]
 
 
 # - STORE ----------------------------------------------------------------------
