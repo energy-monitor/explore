@@ -1,256 +1,100 @@
 ---
-title: "Value renewables"
+title: "Marktbedingungen für erneuerbare Energien in Österreich"
 output: md_document
-date: "2024-04-14"
+date: "`r Sys.Date()`"
 ---
 
 ```{r setup, include=FALSE}
 source("calc/setup-value-renewables.R")
 source("export/analysis/_theme.r")
 loadPackages(knitr)
+
 knitr::opts_chunk$set(
+    echo = FALSE,
+    warning = FALSE,
+    message = FALSE,
+    fig.width = 14,
     fig.height = 8
 )
 
 CURRENT_YEAR = year(Sys.Date())
-
-```
-
-# Entwicklung der Marktbedingungen für erneuerbare Energien
-
-Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 in Österreich und Europa enorm ausgebaut. Auf dieser Seite zeigen wir, wie sich die Großhandelsbedingungen für Wind, Photovoltaik und Batteriespeicher in Österreich und anderen europäischen Ländern entwickelt haben. An dieser Stelle betonen wir, dass vor allem dezentrale Stromerzeugungstechnologien wie Photovoltaik und Batteriespeicher auch zusätzliche Erlöse erzielen können (durch Wegfallen von Netzkosten oder durch Systemdienstleistungen). Dies wird hier im Weiteren nicht berücksichtigt, wir beschränken uns auf eine Analyse der Einkommenseffekte im Großhandel.
-
-Als erstes zeigen wir die Residuallast: das ist jene Stromlast, die gedeckt werden muss, nachdem Wind-, Solar- und Laufwasserkraft abgezogen wurden. Diese Last muss aus anderen Quellen gedeckt werden, welche höhere Betriebskosten haben (z.b. Gaskraftwerke oder Wasserspeicher). Die Residuallast kann für ein Land negativ werden, wenn dieses Strom exportiert. Zu berücksichtigen ist, dass in Zeiten sehr niedriger Residuallast erneuerbare Energien auch abgeregelt werden können, die tatsächlich vorhandene erneuerbare Produktion könnte also sogar noch höher sein, als die Residuallast impliziert.
-
-```{r residual-load}
-### VALUE ###
-d.residual.wo.nuclear %>%
-    group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>% 
-    summarize(residual = mean(residual, na.rm = TRUE),
-              DateTime = min(DateTime)) %>% 
-    ungroup() %>% 
-    mutate(Jahr = as.character(Jahr)) %>%
-    filter(Jahr > (CURRENT_YEAR - 6)) %>% 
-    #filter(Jahr != 2022) %>% 
-    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
-    group_by(Land) %>% 
-    mutate(residual = rollapply(residual / 1000,28,mean,align='right',fill=NA)) %>% 
-    ungroup() %>% 
-    ggplot(aes(x = Tag, y = residual)) +
-    geom_line(aes(col = Jahr, linewidth = is_current)) +
-    facet_wrap(. ~ Land, scale = "free") +
-    ylab("Durchschnittliche Residuallast (GW)\nRollierender Durchschnitt 28 Tage") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
-    guides(linewidth = FALSE) +
-    ggtitle("Residuallast") +
-    xlab("Tag des Jahres")
+YEARS_BACK = 4
 ```
 
 
-## Marktpreise, Marktwert und Erlöse
-Die Höhe der Residuallast - und die Gaspreise - wirken direkt auf die  Preisentwicklungen. In Zeitpunkten und Marktzonen, in denen die Residuallast gegen 0 geht, geht auch der Preis gegen 0 - und steigt oder sinkt der Gaspreis, so wirkt sich dies ebenfalls direkt auf die Marktpreise aus, das zeigt z.b. der Vergleich der Jahre 2020 und 2022: in 2020 waren die Gaspreise sehr niedrig, in 2022 sehr hoch. Die niedrige Residuallast wird über die Saisonalität der Preise sichtbar. So ist die Residuallast in Österreich v.a. im Mai und Juni (auf Grund der hohen Wasserkraftproduktion) sehr niedrig, dem folgt auch die Preisentwicklung.
+Erneuerbare Energien, insbesondere Photovoltaik, wurden seit der Gaskrise 2022 in Österreich und Europa enorm ausgebaut. Diese Analyse untersucht, wie sich die Großhandelsbedingungen für Wind und Photovoltaik in Österreich und anderen europäischen Ländern seitdem entwickelt haben.
 
-```{r market-prices}
-### VALUE ###
-d.prices.filtered %>% 
-    group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>% 
-    summarize(Preis = mean(price),
-              DateTime = min(DateTime)) %>% 
-    ungroup() %>% 
-    mutate(Jahr = as.character(Jahr)) %>%
-    filter(Jahr > (CURRENT_YEAR - 6)) %>% 
-    #filter(Jahr != 2022) %>% 
-    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
-    group_by(Land) %>% 
-    mutate(Preis = rollapply(Preis,28,mean,align='right',fill=NA)) %>% 
-    ungroup() %>% 
-    ggplot(aes(x = Tag, y = Preis)) +
-    geom_line(aes(col = Jahr, linewidth = is_current)) +
-    facet_wrap(. ~ Land) +
-    xlab("Tag des Jahres") +
-    ylab("Durchschnittlicher Preis (€/MWh)\nRollierender Durchschnitt 28 Tage") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
-    guides(linewidth = FALSE) +
-    ggtitle("Durchschnittlicher Marktpreis")
+**Wichtiger Hinweis:** Diese Analyse konzentriert sich auf Großhandelserlöse. Dezentrale Stromerzeugungstechnologien wie Photovoltaik und Batteriespeicher erzielen zusätzliche Erlöse durch Netzentgeltbefreiung, die hier nicht berücksichtigt sind.
+
+## Residuallast: Nachfrage nach thermischer Stromerzeugung und Speichern
+
+Die Residuallast ist jene Stromlast, die gedeckt werden muss, nachdem Wind-, Solar- und Laufwasserkraft abgezogen werden. Diese Last muss aus anderen Quellen mit höheren Betriebskosten gedeckt werden (z.B. Gaskraftwerke oder Wasserspeicher). 
+
+Die Grafik zeigt den Unterschied zwischen Last und eingespeister elektrischer Energie aus erneuerbaren Energien. Bei sehr niedriger Residuallast können erneuerbare Energien abgeregelt werden – die tatsächliche Produktion könnte also höher ausfallen als diese Grafik zeigt.
+
+```{r residual-load, fig.height=10}
+plot_residual_load(d.residual.wo.nuclear, window = 28, years_back = YEARS_BACK)
 ```
 
-Bei niedrigeren Marktpreisen fällt auch der Wert, den Stromerzeugungstechnologien am Markt lukrieren können. Gleichzeitig gibt es aber auch einen Technologieeffekt: Technologien wie Photovoltaik die an wenigen Stunden am Tag mit hoher Saisonalität einspeisen, verlieren bei verstärktem Zubau an Wert. Bei Windkraft, welche zeitlich deutlich verteilter einspeist, ist dieser Effekt weniger relevant. 
+## Marktpreise und Preisentwicklung
 
-```{r market-value}
-### VALUE ###
-full_join(d.gen.sel,
-          d.prices.filtered,
-          by = c("DateTime" = "DateTime",
-                 "country" = "country")) %>%
-    filter(source %in% c("Solar", "Wind Onshore", "Fossil Gas")) %>%
-    filter(!is.na(source)) %>%
-    mutate(value.power = value * price) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    #filter(year != 2022) %>% 
-    group_by(year, Tag = yday(DateTime), country, source) %>%
-    summarize(value = sum(value.power, na.rm = TRUE) / sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    mutate(Technology = source) %>%
-    filter(year > (CURRENT_YEAR - 5)) %>% 
-    mutate(Jahr = as.character(year)) %>%
-    group_by(source, country) %>% 
-    mutate(value = rollapply(value,40,function(x){mean(x, na.rm=TRUE)},align='right',fill=NA)) %>% 
-    ungroup() %>% 
-    ggplot(aes(x = Tag, y = value)) +
-    geom_line(aes(col = Technology)) +
-    facet_grid(Jahr~country, scale="free") +
-    xlab("Tag des Jahres") +
-    ylab("Durchschnittlicher Marktwert (€/MWh)\nRollierender Durchschnitt 40 Tage") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))  +
-    #scale_linewidth_manual(values = c(1.4, 0.4)) +
-    guides(linewidth = FALSE) +
-    ggtitle("Marktwert von Stromproduktionstechnologien")
+Die Höhe der Residuallast und Gaspreise wirken direkt auf die Strompreise. Wo die Residuallast gegen Null geht, geht auch der Strompreis gegen Null oder wird negativ. Diese Abhängigkeit zeigt die saisonale Preisentwicklung: In Österreich ist die Residuallast besonders im Sommer niedrig (hohe Wasser- Und PV-Produktion), wodurch auch die Preise sinken.
 
+```{r market-prices, fig.height=10}
+plot_market_prices(d.prices.filtered, window = 28, years_back = YEARS_BACK)
 ```
 
-Wieviel Erlöse kann erzielt werden, wenn der Strom an der Börse verkauft wird? Die Grafik zeigt die kumulativen Einnahmen aus dem Verkauf von PV und Windstrom für verschiedene Jahre, normiert auf 1kw installierte Kapazität der entsprechenden Technologie (Hinweis: hier wird die Wind- und PV-Produktion eines typischen Jahres verwendet, anstatt der tatsächlichen Produktion). Hier zeigt sich, dass die Einnahmen in der Periode 2021-2023 außergewöhnlich hoch waren. So hätte man alleine mit den Einnahmen aus dem Jahr 2022 die Installationskosten für 1KW PV zur Hälfte finanzieren können. 
+## Marktwert nach Technologie
 
-```{r income}
-full_join(d.prices.filtered,
-          ninja_pv,
-          by = c("t" = "t", "country" = "country")) %>%
-    full_join(ninja_wind,
-              by = c("t" = "t", "country" = "country")) %>%
-    gather(source, cap_fact, -DateTime, -year, -price, -country, -t) %>%
-    mutate(value = cap_fact * price) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    dplyr::select(year, month, DateTime, source, value, country) %>%
-    group_by(year, country, source) %>%
-    mutate(value = cumsum(value) / 1000) %>%
-    mutate(Stunde = 1:n()) %>% 
-    mutate(Tag = yday(DateTime)) %>% 
-    ungroup() %>%
-#    filter(year < max(year) | (year == max(year) & month < month(max_date))) %>%
- filter(year > (CURRENT_YEAR - 6)) %>% 
-    #filter(Jahr != 2022) %>% 
-    mutate(Monat = month(DateTime),
-           Jahr = as.character(year(DateTime))) %>% 
-    ggplot(aes(x = Tag, y = value)) +
-    geom_line(aes(col = source)) +
-    facet_grid(Jahr~country, scale="free") +
-    xlab("Tag des Jahres") +
-    ylab("Kumulative Erlöse\n generiert durch 1KW Kapazität (€)") +
-    guides(linewidth = FALSE) +
-    ggtitle("Hypothetische Erlöse aus PV und Wind")
+Bei niedrigeren Strompreisen sinkt auch der Wert, den Stromerzeugungstechnologien am Markt erzielen. Es gibt aber auch einen Technologieeffekt: Photovoltaik speist zu wenigen Stunden am Tag mit hoher Saisonalität ein und verliert bei Zubau an Wert. Windkraft, die zeitlich verteilter einspeist, zeigt diesen Effekt weniger deutlich. Wir nehmen hier an, dass in Stunden mit negativen Strompreisen nicht eingespeist wird.
 
-
+```{r market-value, fig.height=12}
+plot_market_value(
+    d.gen.sel,
+    d.prices.filtered %>% dplyr::select(DateTime, country, price),
+    sources = c("Solar", "Wind Onshore", "Fossil Gas"),
+    window = 40,
+    years_back = YEARS_BACK
+)
 ```
 
-## Erlöse durch Flexibilität
+## Einnahmen aus erneuerbaren Energien
 
-## Anreize für Flexibilität
-Aber sollte in Folge des Ausbaus der erneuerbaren Energien am Markt nicht der Anreiz erhöht werden, in Flexibilität zu investieren, da in manchen Stunden der Preis hoch, in anderen aber niedrig ist? Durch den vermehrten Ausbau von Photovoltaik sollte genau dieser Effekt eintreten. Die Grafik unten zeigt, wie hoch der Preisunterschied zwischen der billigsten und teuersten Stunde an einem Tag in €/MWh ist. In der (sehr groben) Näherung ist das der Betrag, den ein - verlustfreier - Batteriespeicher mit einer Größe von 1 MWh verdienen kann. 
+Wieviel Erlöse können aus dem Großhandelsverkauf erzielt werden? Die folgende Grafik zeigt mögliche kumulativen Einnahmen aus PV- und Windstrom in Österreich, normiert auf 1 MW installierte Kapazität. Wieder nehmen wir an, dass in Stunden mit negativen Preisen nicht eingespeist wird.
 
-```{r flexibility}
-d.prices.filtered %>%
-    mutate(day = yday(DateTime)) %>%
-    mutate(month = month(DateTime)) %>%
-    group_by(year, month, day, country) %>%
-    summarize(spread = max(price) - min(price),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(year, month, day, country) %>%
-    summarize(spread = mean(spread),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(country) %>% 
-    mutate(spread = rollapply(spread,28,mean,align='right',fill=NA)) %>% 
-    ungroup() %>% 
-    mutate(Jahr = as.character(year)) %>% 
-     filter(year > (CURRENT_YEAR - 6)) %>% 
-    #filter(Jahr != 2022) %>% 
-    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%
-    ggplot(aes(x = day, y = spread)) +
-    geom_line(aes(col = Jahr, linewidth = is_current)) +
-    facet_wrap(.~country) +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
-    guides(linewidth = FALSE) +
-    xlab("Tag des Jahres") +
-    ylab("Monatliches Mittel des \nmaximalen täglichen Spreads (€/MWh)\n Rollierender 28 Tage Durchschnitt") +
-    ggtitle("Hypothetische Erlöse aus 1MWh Speicher")
+**Als Vergleich Gesamtinvestitionskosten**
+-- 1 MW Freiflächenphotovoltaik: ~€0,5 Millionen
+-- 1 MW Windkraft: ~€1,5 Millionen
 
+```{r income, fig.height=8}
+plot_cumsum_market_value(
+    d.market.value.cumsum.1mw.at,
+    title = "Kumulativer Marktwert: 1 MW Systeme in Österreich (2023+)"
+)
 ```
 
-Diese hypothetischen täglichen Erlöse aufsummiert über ein ganzes Jahr können dabei helfen, die Profitabilität eines Speichers einzuschätzen. Bei derzeitigen Großspeicherkosten für Batterien ist ein break-even bei Jahreserlösen von knapp 20.000€ zu erwarten. Die Grafik zeigt, dass diese Erlöse in den Krisenjahren 2021-2023 in allen Märkten zu erzielen war.
+## Flexibilität und Speichermöglichkeiten
 
-```{r flexibility-cumulative}
-d.prices.filtered %>%
-    mutate(day = yday(DateTime)) %>%
-    mutate(month = month(DateTime)) %>%
-    group_by(year, month, day, country) %>%
-    summarize(spread = max(price) - min(price),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(year, country) %>%
-    mutate(spread = cumsum(spread)) %>%
-    ungroup() %>%
-    mutate(Jahr = as.character(year)) %>% 
-    filter(year > (CURRENT_YEAR - 6)) %>% 
-    #filter(Jahr != 2022) %>% 
-    mutate(is_current = ifelse(Jahr == CURRENT_YEAR, "Current", "not Current")) %>%    ggplot(aes(x = day, y = spread)) +
-    geom_line(aes(col = Jahr, linewidth = is_current)) +
-    facet_wrap(.~country) +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))) +
-    scale_linewidth_manual(values = c(1.4, 0.4)) +
-    guides(linewidth = FALSE)  +
-    xlab("Tag des Jahres") +
-    ylab("Kumulativer maximaler \ntäglicher Spread (€/MWh)") +
-    ggtitle("Kumulativer Erlös von 1 MWh Speicher")
+Der deutlich geringere Wert von Photovoltaik ergibt sich aus einer geringeren Gesamtproduktion pro Jahr (ungefähr die Hälfte von Windkraft pro MW) und aus dem geringeren Marktwert der Photovoltaik. Die hochkonzentrierte Einspeisung von Solarstrom in den Mittagsstundern erzeugt hohe Preisunterschiede untertags. Davon können Flexibilitätsmaßnahmen, insbesondere Speicher, profitieren.
 
+### Preisvolatilität
+
+Der Preisunterschied zwischen der billigsten und teuersten Stunde pro Tag (Spread) zeigt die Flexibilität des Marktes. Ein verlustfreier Batteriespeicher mit 1 MWh Kapazität könnte diesen Betrag pro Tag verdienen.
+
+```{r flexibility, fig.height=10}
+plot_flexibility_spread(d.prices.filtered, window = 28, years_back = YEARS_BACK)
 ```
-Eine andere Form, den Wert von Strom aus Photovoltaik zu erhöhen, könnte eine unterschiedliche Ausrichtung der Systeme sein. So produziert eine Ost-West Ausrichtung zwar weniger Strom, aber tendenziell zu Tageszeiten wenn der Strom teurer ist. Zur Zeit ist dieser Effekt allerdings noch nicht groß genug: die Grafik zeigt den durchschnittlichen monetären Ertrag unterschiedlicher Ausrichtungen von PV-Anlagen in Österreich. Ein Tracking-System (two.axis) hat immer den optimalen Erlös, da es zu jeder Tageszeit den maximalen Ertrag garantiert Eine Ertragsoptimierende Ausrichtung (opt.opt) folgt aber ein zweiter Stelle: obwohl das Profil hochkorreliert ist mit anderen PV-Anlagen mit der gleichen Ausrichtung, kann in Summe über dieses System (noch) am meisten Erlöse lukriert werden. Optimal geneigte Ost-West Anlagen (angle.east.west) erzeugen aber ähnlich hohe Erlöse Vertikale PV-Anlagen, wie sie oft als Balkon PV-Anlagen zum Einsatz kommen, haben bei reiner Südausrichtung (vertical.south) vertretbare Erlöse, werden diese aber Ost-West (vertical.east.west) oder gar Nord-Süd (vertical.north.south) ausgerichtet, sinkt der Erlös aber beträchtlich. Noch zahlt sich eine bewusste Neuausrichtung von Anlagen zur Maximierung des Werts - und nicht des Stromertrags - also noch nicht aus.
- 
-```{r flexibility-pv}
-d.join.prices.pv = full_join(
-    d.prices.filtered %>%
-        filter(country == "AT"),
-    d.pv.gis.2018,
-    by = c("t" = "t"),
-    relationship = "many-to-many"
-) %>%
-    mutate(value = P / 1000 * price) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    filter(year > (CURRENT_YEAR - 5)) %>% 
-    #filter(Jahr != 2022) %>% 
-    
-    dplyr::select(year, month, DateTime, type, value, country) %>%
-    group_by(year, month, Tag = yday(DateTime), country, type) %>%
-    summarize(value = sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(country, type) %>%
-    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
-    mutate(rollvalue = value / 1000) %>%
-    ungroup() %>%
-    #na.omit() %>%
-    filter(year < max(year) |
-               (year == max(year) & month < month(max_date)))
 
-d.join.prices.pv %>%
-    group_by(year, type) %>%
-    mutate(c_value=cumsum(rollvalue)) %>%
-    ungroup() %>%
-    mutate(Ausrichtung = type) %>% 
-    na.omit() %>% 
-    ggplot(aes(x = Tag, y = c_value)) +
-    geom_line(aes(col = Ausrichtung)) +
-    facet_wrap(.~year, scale="free") +
-    theme_bw() +
-    xlab("Tag des Jahres") +
-    ylab("Kumulative Erlöse (€/kw_peak)") +
-    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+### Kumulatives Erlöspotential für Speicher
 
+Das kumulative Erlöspotential über ein ganzes Jahr hilft bei der Einschätzung der Rentabilität von Speichersystemen. Bei Großspeicherkosten für Batterien liegt das Break-even-Punkt bei jährlichen Erlösen von etwa €20.000.
+
+Die Grafik zeigt, dass diese Erlöse in allen Märkten zur Zeit zu erzielen sind
+
+```{r flexibility-cumulative, fig.height=10}
+plot_flexibility_cumulative(d.prices.filtered, years_back = YEARS_BACK)
 ```
+
+---
+
+*Datenquellen: ENTSO-E Transparency Platform, APG (Austria Power Grid), European Electricity Exchange*

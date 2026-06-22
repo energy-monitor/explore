@@ -2,110 +2,17 @@
 source("_shared.r")
 loadPackages('tidyverse')
 
-NINJA_DIR <- "data/ninja/"
-
-PV_FILE_NINJA <- "data/ninja/pv.zip"
-PV_GIS_OPT = "data/ninja/pv-gis-opt-opt.csv"
-PV_GIS_EAST = "data/ninja/pv-gis-38-east.csv"
-PV_GIS_WEST = "data/ninja/pv-gis-38-west.csv"
-PV_GIS_VERTICAL_EAST = "data/ninja/pv-gis-vertical-east.csv"
-PV_GIS_VERTICAL_WEST = "data/ninja/pv-gis-vertical-west.csv"
-PV_GIS_VERTICAL_NORTH = "data/ninja/pv-gis-vertical-north.csv"
-PV_GIS_VERTICAL_SOUTH = "data/ninja/pv-gis-vertical-south.csv"
-PV_GIS_TWO_AXIS = "data/ninja/pv-gis-two-axis.csv"
-
-list.csv.files <- c(
-    PV_GIS_OPT,
-    PV_GIS_EAST,
-    PV_GIS_WEST,
-    PV_GIS_VERTICAL_EAST,
-    PV_GIS_VERTICAL_WEST,
-    PV_GIS_VERTICAL_NORTH,
-    PV_GIS_VERTICAL_SOUTH,
-    PV_GIS_TWO_AXIS
-)
-
-download_ninja = TRUE
-download_pv_gis = TRUE
-
-if (file.exists(PV_FILE_NINJA)) {
-    download_ninja = FALSE
-}
-
-if (file.exists(PV_GIS_OPT)) {
-    download_pv_gis = FALSE
-}
-
-if (download_ninja) {
-    PV_FILE <- PV_FILE_NINJA
-    WIND_FILE <- "data/ninja/wind.zip"
-
-    download.file("https://renewables.ninja/downloads/ninja_europe_pv_v1.1.zip",
-                  PV_FILE)
-
-    options(timeout = 120)
-    download.file("https://renewables.ninja/downloads/ninja_europe_wind_v1.1.zip",
-                  WIND_FILE)
-    unzip(PV_FILE, exdir = NINJA_DIR)
-    unzip(WIND_FILE, exdir = NINJA_DIR)
-}
-
-if (download_pv_gis) {
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&optimalangles=1",
-        PV_GIS_OPT
-    )
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=38&aspect=-90",
-        PV_GIS_EAST
-    )
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=38&aspect=90",
-        PV_GIS_WEST
-    )
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=90&aspect=-90",
-        PV_GIS_VERTICAL_EAST
-    )
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=90&aspect=90",
-        PV_GIS_VERTICAL_WEST
-    )
-
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=90&aspect=0",
-        PV_GIS_VERTICAL_SOUTH
-    )
-
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&angle=90&aspect=180",
-        PV_GIS_VERTICAL_NORTH
-    )
-
-    download.file(
-        "https://re.jrc.ec.europa.eu/api/v5_2/seriescalc?pvcalculation=1&peakpower=1&loss=0.1&lat=48.32&lon=16.54&outputformat=csv&outputformat=1&trackingtype=2",
-        PV_GIS_TWO_AXIS
-    )
-
-    # replace \r in PV_GIS files
-    if(Sys.info()["sysname"] == "windows") {
-        for( f in list.csv.files){
-
-            x <- readLines(f)
-            y <- gsub( "\r", "", x)
-            cat(y, file=f, sep="\n")
-
-        }
-    }
-
-}
-
-COUNTRIES <- c("AT", "ES", "DE", "FR")
+COUNTRIES <- c("AT", "DE", "FR", "ES")
+COUNTRIES_PRICE <- c("AT", "DE", "FR", "ES")
 
 d.generation = loadFromStorage(id = "electricity-generation-hourly")
 
 d.prices = loadFromStorage(id = "electricity-price-entsoe-hourly") %>%
-    mutate(country = ifelse(country == "DE_LU", "DE", country))
+    mutate(country = ifelse(country == "DE_LU", "DE", country)) %>%
+    filter(price >= 0)
+
+d.prices %>% filter(country =="FR")
+
 
 d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
     filter(country %in% COUNTRIES)
@@ -113,7 +20,7 @@ d.load = loadFromStorage(id = "electricity-load-hourly-res") %>%
 d.gen.sel <- d.generation %>%
     filter(country %in% COUNTRIES) %>%
     group_by(year = year(DateTime), source, country) %>%
-    mutate(hour_of_year = 1:n()) %>%
+    mutate(hour_of_year = seq_len(n())) %>%
     ungroup()
 
 d.gen.sel.ren <- d.gen.sel %>%
@@ -161,170 +68,265 @@ d.residual.wo.nuclear <- d.gen.sel.ren.wo.nuclear %>%
 d.prices.filtered <- d.prices %>%
     mutate(year = year(DateTime)) %>%
     filter(year > 2018) %>%
-    filter(country %in% COUNTRIES) %>%
+    filter(country %in% COUNTRIES_PRICE) %>%
     arrange(DateTime) %>%
     dplyr::select(DateTime, year, price, country)
 
-### CAP FACT AVERAGE ###
-ninja_pv <-
-    read_csv(glue("{NINJA_DIR}ninja_pv_europe_v1.1_sarah.csv")) %>%
-    gather(country, value,-time) %>%
-    filter(country %in% COUNTRIES) %>%
-    group_by(year(time), country) %>%
-    mutate(t = 1:n()) %>%
-    ungroup() %>%
-    group_by(country, t) %>%
-    summarize(pv = mean(value))
+d.capacity = loadFromStorage(id = "capacity-at")
 
-ninja_wind <-
-    read_csv(glue(
-        "{NINJA_DIR}ninja_wind_europe_v1.1_future_nearterm_national.csv"
-    )) %>%
-    gather(country, value,-time) %>%
-    filter(country %in% COUNTRIES) %>%
-    group_by(year(time), country) %>%
-    mutate(t = 1:n()) %>%
-    ungroup() %>%
-    group_by(country, t) %>%
-    summarize(wind = mean(value))
+d.capacity.at <- d.capacity %>%
+    transmute(
+        year = year(`Time from [CET/CEST]`),
+        capacity_pv_mw = as.numeric(`Solar [MW]`),
+        capacity_wind_mw = as.numeric(`Wind [MW]`)
+    )
 
-d.prices.filtered <- d.prices.filtered %>%
-    group_by(year, country) %>%
-    mutate(t = 1:n()) %>%
-    ungroup()
+d.generation.at <- d.generation %>%
+    filter(country == "AT", source %in% c("Solar", "Wind Onshore")) %>%
+    mutate(technology = factor(ifelse(source == "Solar", "pv", "wind"), levels = c("pv", "wind"))) %>%
+    group_by(DateTime, technology) %>%
+    summarize(generation_mw = sum(value, na.rm = TRUE), .groups = "drop") %>%
+    tidyr::pivot_wider(
+        names_from = technology,
+        values_from = generation_mw,
+        names_prefix = "generation_",
+        names_expand = TRUE,
+        values_fill = 0
+    )
 
-max_date <- max(d.prices.filtered$DateTime)
-
-########## different pv system values for austria
-d.pv.gis = read_csv(list.csv.files, skip = 10, id = "type") %>%
-    mutate(time = ymd_hm(time)) %>%
-    mutate(type = str_remove_all(type, "pv-gis|\\.csv|data|ninja|/")) %>%
-    mutate(type = str_replace_all(type, "-", ".")) %>%
-    na.omit() %>%
-    mutate(P = as.numeric(P))
-
-d.pv.gis.2018 = d.pv.gis %>%
-    filter(year(time) == 2018) %>%
-    dplyr::select(time, type, P) %>%
-    spread(type, P) %>%
-    mutate(vertical.north.south = 0.5 * `.vertical.north` + 0.5 * `.vertical.south`) %>%
-    mutate(vertical.east.west = 0.5 * `.vertical.east` + 0.5 * `.vertical.west`) %>%
-    mutate(angle.east.west = 0.5 * `.38.east` + 0.5 * `.38.west`) %>%
-    dplyr::select(
-        time,
-        vertical.north.south,
-        vertical.east.west,
-        angle.east.west,
-        vertical.south = .vertical.south,
-        opt.opt = `.opt.opt`,
-        two.axis = `.two.axis`
-    ) %>%
-    gather(type, P,-time) %>%
-    group_by(type) %>%
-    mutate(t = 1:n()) %>%
-    ungroup()
-
-d.pv.gis.full = d.pv.gis %>%
-    dplyr::select(time, type, P) %>%
-    spread(type, P) %>%
-    mutate(vertical.north.south = 0.5 * `.vertical.north` + 0.5 * `.vertical.south`) %>%
-    mutate(vertical.east.west = 0.5 * `.vertical.east` + 0.5 * `.vertical.west`) %>%
-    mutate(angle.east.west = 0.5 * `.38.east` + 0.5 * `.38.west`) %>%
-    dplyr::select(
-        time,
-        vertical.north.south,
-        vertical.east.west,
-        angle.east.west,
-        vertical.south = .vertical.south,
-        opt.opt = `.opt.opt`,
-        two.axis = `.two.axis`
-    ) %>%
-    gather(type, P,-time) %>%
-    mutate(year.pv.generation = year(time)) %>%
-    group_by(type, year.pv.generation) %>%
-    mutate(t = 1:n()) %>%
-    ungroup()
-
-
-d.join.prices.pv = full_join(
-    d.prices.filtered %>%
-        filter(country == "AT"),
-    d.pv.gis.2018,
-    by = c("t" = "t"),
-    relationship = "many-to-many"
-) %>%
-    mutate(value = P / 1000 * price) %>%
-    mutate(month = month(DateTime)) %>%
+d.production.1mw.at <- d.generation.at %>%
     mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
-    dplyr::select(year, month, DateTime, type, value, country) %>%
-    group_by(year, month, Tag = yday(DateTime), country, type) %>%
-    summarize(value = sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
+    full_join(d.capacity.at, by = "year") %>%
+    transmute(
+        DateTime = DateTime,
+        year = year,
+        country = "AT",
+        production_pv_1mw = ifelse(capacity_pv_mw > 0, generation_pv / capacity_pv_mw, NA_real_),
+        production_wind_1mw = ifelse(capacity_wind_mw > 0, generation_wind / capacity_wind_mw, NA_real_)
+    ) %>%
+    filter(year > 2022)
+
+d.market.value.1mw.at <- d.production.1mw.at %>%
+    inner_join(
+        d.prices.filtered %>%
+            filter(country == "AT", year >= 2023) %>%
+            dplyr::select(DateTime, price),
+        by = "DateTime"
+    ) %>%
+    transmute(
+        DateTime = DateTime,
+        year = year,
+        country = country,
+        production_pv_1mw = production_pv_1mw,
+        production_wind_1mw = production_wind_1mw,
+        price = price,
+        market_value_pv_1mw = production_pv_1mw * ifelse(price > 0, price, 0),
+        market_value_wind_1mw = production_wind_1mw * ifelse(price > 0, price, 0)
+    )
+
+d.market.value.cumsum.1mw.at <- d.market.value.1mw.at %>%
+    group_by(year) %>%
+    arrange(DateTime, .by_group = TRUE) %>%
+    transmute(
+        DateTime = DateTime,
+        year = year,
+        day_of_year = yday(DateTime),
+        cumsum_market_value_pv = cumsum(ifelse(is.na(market_value_pv_1mw), 0, market_value_pv_1mw)),
+        cumsum_market_value_wind = cumsum(ifelse(is.na(market_value_wind_1mw), 0, market_value_wind_1mw))
+    ) %>%
     ungroup() %>%
-    group_by(country, type) %>%
-    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
-    mutate(rollvalue = value / 1000) %>%
-    ungroup() %>%
-    #na.omit() %>%
-    filter(year < max(year) |
-               (year == max(year) & month < month(max_date)))
+    tidyr::pivot_longer(
+        cols = starts_with("cumsum_"),
+        names_to = "technology",
+        names_prefix = "cumsum_market_value_",
+        values_to = "cumulative_market_value"
+    ) %>%
+    mutate(technology = toupper(technology))
+
+# - PLOTTING FUNCTIONS ---------------------------------------------------------
 
 
 
+# Common theme for all plots
+theme_energy <- function(base_size = 12) {
+    theme_minimal() +
+    theme(
+        plot.title = element_text(size = base_size * 1.17, face = "bold", margin = margin(b = base_size * 0.8)),
+        axis.title = element_text(size = base_size * 0.92),
+        axis.text = element_text(size = base_size * 0.83),
+        strip.text = element_text(size = base_size * 0.83, face = "bold"),
+        legend.text = element_text(size = base_size * 0.83),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.major = element_line(color = "#f0f0f0", linewidth = 0.3),
+        panel.grid.minor = element_blank(),
+        plot.background = element_rect(fill = "white", color = NA)
+    )
+}
 
-########################################################
+# Plot residual load by country and year
+plot_residual_load <- function(data, window = 28, years_back = 6, base_size = 14) {
+    data %>%
+        group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>%
+        summarize(residual = mean(residual, na.rm = TRUE), DateTime = min(DateTime), .groups = "drop") %>%
+        mutate(Land = factor(Land, levels = COUNTRIES)) %>%
+        mutate(Jahr = as.character(Jahr)) %>%
+        filter(Jahr > as.character(year(Sys.Date()) - years_back)) %>%
+        mutate(is_current = ifelse(Jahr == as.character(year(Sys.Date())), "Aktuell", "Archiv")) %>%
+        group_by(Land) %>%
+        mutate(residual_smooth = zoo::rollapply(residual / 1000, window, mean, align = "right", fill = NA)) %>%
+        ungroup() %>%
+        ggplot(aes(x = Tag, y = residual_smooth, color = Jahr, linewidth = is_current)) +
+        geom_line() +
+        facet_wrap(~Land, scales = "free", nrow = 2, drop = FALSE) +
+        scale_linewidth_manual(values = c("Aktuell" = 1.2, "Archiv" = 0.5), guide = "none") +
+        scale_color_viridis_d(end = 0.9) +
+        labs(
+            title = "Residuallast nach Abzug erneuerbarer Energien",
+            x = "Tag des Jahres",
+            y = glue("Residuallast (GW)\nRollierender {window}-Tage Durchschnitt"),
+            color = "Jahr"
+        ) +
+        theme_energy(base_size = base_size)
+}
 
-d.join.prices.pv = full_join(
-    d.prices.filtered %>%
-        filter(country == "AT"),
-    d.pv.gis.full,
-    by = c("t" = "t"),
-    relationship = "many-to-many") %>%
-    mutate(value = P / 1000 * price) %>%
-    mutate(month = month(DateTime)) %>%
-    mutate(year = year(DateTime)) %>%
-    filter(year > 2018) %>%
-    dplyr::select(year, year.pv.generation, month, DateTime, type, value, country) %>%
-    group_by(year, year.pv.generation, month, Tag = yday(DateTime), country, type) %>%
-    summarize(value = sum(value, na.rm = TRUE),
-              DateTime = min(DateTime)) %>%
-    ungroup() %>%
-    group_by(country, type, year.pv.generation) %>%
-    #mutate(rollvalue = rollsum(value, 12, fill = NA, align = "right") / 1000) %>%
-    mutate(rollvalue = value / 1000) %>%
-    ungroup() %>%
-    #na.omit() %>%
-    filter(year < max(year) |
-               (year == max(year) & month < month(max_date)))
+# Plot market prices by country and year
+    plot_market_prices <- function(data, window = 28, years_back = 6, base_size = 14) {
+    data %>%
+        group_by(Jahr = year(DateTime), Tag = yday(DateTime), Land = country) %>%
+        summarize(Preis = mean(price, na.rm = TRUE), DateTime = min(DateTime), .groups = "drop") %>%
+        mutate(Land = factor(Land, levels = COUNTRIES_PRICE)) %>%
+        mutate(Jahr = as.character(Jahr)) %>%
+        filter(Jahr > as.character(year(Sys.Date()) - years_back)) %>%
+        mutate(is_current = ifelse(Jahr == as.character(year(Sys.Date())), "Aktuell", "Archiv")) %>%
+        group_by(Land) %>%
+        mutate(Preis_smooth = zoo::rollapply(Preis, window, mean, align = "right", fill = NA)) %>%
+        ungroup() %>%
+        ggplot(aes(x = Tag, y = Preis_smooth, color = Jahr, linewidth = is_current)) +
+        geom_line() +
+        facet_wrap(~Land, scales = "fixed", nrow = 2, drop = FALSE) +
+        scale_linewidth_manual(values = c("Aktuell" = 1.2, "Archiv" = 0.5), guide = "none") +
+        scale_color_viridis_d(end = 0.9) +
+        labs(
+            title = "Großhandelspreise für Elektrizität",
+            x = "Tag des Jahres",
+            y = glue("Preis (€/MWh)\nRollierender {window}-Tage Durchschnitt"),
+            color = "Jahr"
+        ) +
+        theme_energy(base_size = base_size)
+}
 
-d.join.prices.pv %>%
-    group_by(year, type, year.pv.generation) %>%
-    mutate(c_value=cumsum(rollvalue)) %>%
-    ungroup() %>%
-    mutate(Ausrichtung = type) %>%
-    na.omit() %>%
-    ggplot(aes(x = Tag, y = c_value)) +
-    geom_line(aes(col = Ausrichtung, linetype=as.character(year.pv.generation))) +
-    facet_wrap(.~year, scale="free") +
-    theme_bw() +
-    xlab("Tag des Jahres") +
-    ylab("Kumulative Erlöse (€/kw_peak)") +
-    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+# Plot market value (price-weighted generation) by technology
+    plot_market_value <- function(gen_data, price_data, sources = c("Solar", "Wind Onshore", "Fossil Gas"), window = 40, years_back = 5, base_size = 14) {
+    gen_data %>%
+        inner_join(price_data, by = c("DateTime", "country")) %>%
+        filter(source %in% sources, !is.na(source)) %>%
+        mutate(value_weighted = value * price) %>%
+        group_by(Jahr = year(DateTime), Tag = yday(DateTime), country, source) %>%
+        summarize(value = sum(value_weighted, na.rm = TRUE) / sum(value, na.rm = TRUE), 
+                  DateTime = min(DateTime), .groups = "drop") %>%
+        filter(Jahr > year(Sys.Date()) - years_back) %>%
+        mutate(Jahr = as.character(Jahr)) %>%
+        group_by(source, country) %>%
+        mutate(value_smooth = zoo::rollapply(value, window, mean, na.rm = TRUE, align = "right", fill = NA)) %>%
+        ungroup() %>%
+        ggplot(aes(x = Tag, y = value_smooth, color = source)) +
+        geom_line(linewidth = 0.7) +
+        facet_grid(Jahr ~ country, scales = "fixed") +
+        scale_color_manual(
+            values = c("Solar" = "#FDB462", "Wind Onshore" = "#80B1D3", "Fossil Gas" = "#FB8072"),
+            name = "Technologie"
+        ) +
+        labs(
+            title = "Marktwert der Stromerzeugung nach Technologie",
+            x = "Tag des Jahres",
+            y = glue("Marktwert (€/MWh)\nRollierender {window}-Tage Durchschnitt"),
+            color = "Technologie"
+        ) +
+        theme_energy(base_size = base_size)
+}
 
-d.join.prices.pv %>%
-    filter(year == 2024) %>%
-    group_by(year, type, year.pv.generation) %>%
-    mutate(c_value=cumsum(rollvalue)) %>%
-    ungroup() %>%
-    mutate(Ausrichtung = type) %>%
-    na.omit() %>%
-    ggplot(aes(x = Tag, y = c_value)) +
-    geom_line(aes(col = Ausrichtung)) +
-    facet_wrap(.~year.pv.generation) +
-    theme_bw() +
-    xlab("Tag des Jahres") +
-    ylab("Kumulative Erlöse (€/kw_peak)") +
-    ggtitle("Ertrag von PV Anlagen mit unterschiedlichen Ausrichtungen in Österreich") +
-    scale_x_continuous(breaks = function(x) unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1)))))
+# Plot cumulative market value by year and technology (1 MW systems)
+    plot_cumsum_market_value <- function(data, title = "Kumulativer Marktwert: 1 MW Systeme in Österreich", base_size = 14) {
+    data %>%
+        ggplot(aes(x = day_of_year, y = cumulative_market_value, color = technology, linewidth = technology)) +
+        geom_line() +
+        facet_wrap(~year, scales = "fixed") +
+        scale_linewidth_manual(values = c("PV" = 0.9, "WIND" = 0.9), guide = "none") +
+        scale_color_manual(
+            values = c("PV" = "#FDB462", "WIND" = "#80B1D3"),
+            labels = c("PV" = "Photovoltaik", "WIND" = "Windkraft")
+        ) +
+        labs(
+            title = title,
+            x = "Tag des Jahres",
+            y = "Kumulativer Erlös (€/MW)",
+            color = "Technologie"
+        ) +
+        theme_energy(base_size = base_size)
+}
+
+# Plot price spread (flexibility opportunity) by country and year
+    plot_flexibility_spread <- function(data, window = 28, years_back = 6, base_size = 14) {
+    data %>%
+        mutate(Tag = yday(DateTime), Monat = month(DateTime)) %>%
+        group_by(year, Monat, Tag, country) %>%
+        summarize(spread = max(price, na.rm = TRUE) - min(price, na.rm = TRUE), 
+                  DateTime = min(DateTime), .groups = "drop") %>%
+        mutate(country = factor(country, levels = COUNTRIES_PRICE)) %>%
+        group_by(country) %>%
+        mutate(spread_smooth = zoo::rollapply(spread, window, mean, align = "right", fill = NA)) %>%
+        ungroup() %>%
+        mutate(Jahr = as.character(year)) %>%
+        filter(Jahr > as.character(year(Sys.Date()) - years_back)) %>%
+        mutate(is_current = ifelse(Jahr == as.character(year(Sys.Date())), "Aktuell", "Archiv")) %>%
+        ggplot(aes(x = Tag, y = spread_smooth, color = Jahr, linewidth = is_current)) +
+        geom_line() +
+        facet_wrap(~country, scales = "free", nrow = 2, drop = FALSE) +
+        scale_linewidth_manual(values = c("Aktuell" = 1.2, "Archiv" = 0.5), guide = "none") +
+        scale_color_viridis_d(end = 0.9) +
+        labs(
+            title = "Preisvolatilität und Flexibilitätsmöglichkeiten",
+            x = "Tag des Jahres",
+            y = glue("Max. täglicher Preisunterschied (€/MWh)\nRollierender {window}-Tage Durchschnitt"),
+            color = "Jahr"
+        ) +
+        theme_energy(base_size = base_size)
+}
+
+# Plot cumulative price spread (flexibility revenue potential)
+    plot_flexibility_cumulative <- function(data, years_back = 6, base_size = 14) {
+    data %>%
+        mutate(Tag = yday(DateTime), Monat = month(DateTime)) %>%
+        group_by(year, Monat, Tag, country) %>%
+        summarize(spread = max(price, na.rm = TRUE) - min(price, na.rm = TRUE), 
+                  DateTime = min(DateTime), .groups = "drop") %>%
+        mutate(country = factor(country, levels = COUNTRIES_PRICE)) %>%
+        group_by(year, country) %>%
+        mutate(spread_cumsum = cumsum(spread)) %>%
+        ungroup() %>%
+        mutate(Jahr = as.character(year)) %>%
+        filter(Jahr > as.character(year(Sys.Date()) - years_back)) %>%
+        mutate(is_current = ifelse(Jahr == as.character(year(Sys.Date())), "Aktuell", "Archiv")) %>%
+        ggplot(aes(x = Tag, y = spread_cumsum, color = Jahr, linewidth = is_current)) +
+        geom_line() +
+        facet_wrap(~country, scales = "free", nrow = 2, drop = FALSE) +
+        scale_linewidth_manual(values = c("Aktuell" = 1.2, "Archiv" = 0.5), guide = "none") +
+        scale_color_viridis_d(end = 0.9) +
+        labs(
+            title = "Kumulatives Erlöspotential für Speichersysteme (1 MWh)",
+            x = "Tag des Jahres",
+            y = "Kumulativer Preisunterschied (€/MWh)",
+            color = "Jahr"
+        ) +
+        theme_energy(base_size = base_size)
+}
+
+CURRENT_YEAR = year(Sys.Date())
+YEARS_BACK = 6
+
+plot_residual_load(d.residual.wo.nuclear, window = 28, years_back = YEARS_BACK)
+
+plot_market_prices(d.prices.filtered, window = 28, years_back = YEARS_BACK)
+
+

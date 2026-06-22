@@ -10,18 +10,10 @@ d.base = load_entsoe(
     c.nice2entsoe["generation"], from = date.start
 )
 
-# t = d.base[AreaMapCode == "AT"]
-# table(t$AreaTypeCode)
-# unique(d.base$ProductionType)
-
-# d.base.f = d.base[AreaTypeCode == "CTY"]
 d.base.f = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
-# d.base.f[, .(sum = sum(ActualGenerationOutput)), by=.(ProductionType)][order(sum)]
-# unique(d.base.f[,. (ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
 
 
-# - AGG -----------------------------------------------------------------------
 d.agg = d.base.f[, .(
     value = sum(`ActualGenerationOutput[MW]`*factor, na.rm = TRUE)/10^6,
     cons = sum(`ActualConsumption[MW]`*factor, na.rm = TRUE)/10^6
@@ -74,3 +66,28 @@ saveToStorages(d.agg.group, list(
     format = "csv",
     update.time = update.time
 ))
+
+d.base.f = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
+d.base.f[, hour := floor_date(`DateTime(UTC)`, unit = "hours")]
+
+
+d.agg = d.base.f[, .(
+    value = mean(`ActualGenerationOutput[MW]`, na.rm = TRUE),
+    cons = mean(`ActualConsumption[MW]`, na.rm = TRUE)
+), by = .(
+    country = AreaMapCode,
+    source = ProductionType,
+    DateTime = hour
+)][order(DateTime)]
+
+
+# - STORE ----------------------------------------------------------------------
+saveToStorages(
+    d.agg,
+    list(
+        id = "electricity-generation-hourly",
+        source = "entsoe",
+        format = "csv",
+        update.time = update.time
+    )
+)

@@ -10,14 +10,8 @@ d.base = load_entsoe(
     c.nice2entsoe["load"], from = date.start#, to = "2026-01-01"
 )
 
-# d.t = unique(d.base[, .(ResolutionCode, AreaCode, AreaTypeCode, AreaName, MapCode)])
-# d.t = unique(d.base[AreaTypeCode == "CTY", .(ResolutionCode, AreaCode, AreaName, MapCode)])
 
-# d.base.f = d.base[AreaTypeCode == "CTY"]
 d.base.f = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
-
-
-# sort(unique(d.base.f$ResolutionCode))
 
 d.base.f[, factor := c.resToFactor[ResolutionCode]]
 # d.base.f[, value := factor * TotalLoadValue]
@@ -39,3 +33,23 @@ saveToStorages(d.agg, list(
     format = "csv",
     update.time = update.time
 ))
+
+
+d.base.f.hourly = d.base[grep("CTY", AreaTypeCode, fixed = TRUE)]
+
+setnames(d.base.f.hourly, "DateTime(UTC)", "DateTime")
+d.base.f.hourly[, hour := (floor_date(DateTime, unit = "hours"))]
+
+d.agg = d.base.f.hourly[, .(
+    value = mean(`TotalLoad[MW]`, na.rm = TRUE)
+), by = .(country = AreaMapCode, DateTime = hour)]
+
+
+# - STORE ----------------------------------------------------------------------
+saveToStorages(d.agg, list(
+    id = "electricity-load-hourly-res",
+    source = "entsoe",
+    format = "csv",
+    update.time = update.time
+))
+

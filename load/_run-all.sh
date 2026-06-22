@@ -21,11 +21,7 @@ Rscript load/entsoe/generation-hourly.r
 Rscript load/entsoe/price.r
 # Rscript load/entsoe/netPosition.r
 Rscript load/entsoe/physicalFlows.r
-
-
-Rscript load/entsoe/load-hourly-res.r
-Rscript load/entsoe/generation-hourly-res.r
-Rscript load/entsoe/price-hourly-res.r
+Rscript load/apg/download-capacity-at.R
 
 
 # - OTHERS
