@@ -5,7 +5,6 @@ date: "`r Sys.Date()`"
 ---
 
 ```{r setup, include=FALSE}
-setwd(here())
 source("calc/setup-value-renewables.R")
 source("export/analysis/_theme.r")
 loadPackages(knitr)
