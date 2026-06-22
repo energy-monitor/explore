@@ -1,5 +1,6 @@
 {
     "d": {
+        "apg": "data/apg",
         "entsoe": "data/entsoe",
         "era5": "data/era5",
         "tmp": "data/tmp",
