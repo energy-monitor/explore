@@ -12,7 +12,7 @@
     "storage": {
         "default": {
             "load": "local",
-            "save": ["local", "googledrive"]
+            "save": ["local"]
         },
         "googledrive": {
             "path": "energy-monitor-data"

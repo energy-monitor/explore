@@ -12,6 +12,8 @@ Rscript calc/hdd.r
 Rscript load/econtrol-gas-consumption.r
 Rscript load/aggm/gas-consumption.r
 Rscript load/gie/detailed.r
+python3 load/cismo/1-gas-price.py
+Rscript load/cismo/2-gas-price.r
 
 # - ELECTRICITY
 Rscript load/entsoe/load.r

@@ -33,3 +33,4 @@ data/ninja/pv-gis-vertical-west.csv
 # pixi environments
 .pixi
 *.egg-info
+creds-boku.json
