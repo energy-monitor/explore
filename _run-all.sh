@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
-run_climate_download="$1"
-
 # run download scripts
-load/_run-all.sh "$run_climate_download"
+if [ -n "$1" ] && [ "$1" == "0" ]; then
+    echo "Parameter is 0, skipping downloads"
+else
+    load/_run-all.sh    
+fi
 
 # export data and analyses to website
 Rscript export/data/_run-all.r

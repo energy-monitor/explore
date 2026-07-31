@@ -8,12 +8,7 @@ echo "downloading climate data"
 # - TEMP/HEATING DAYS
 
 
-if [ -n "$1" ] && [ "$1" == "0" ]; then
-    echo "Parameter is 0, skipping climate download program"
-else
-    pixi run ./_run-all.sh "$run_climate_download" >> "$LOGFILE" 2>&1
-fi
-
+pixi run ./_run-all.sh "$run_climate_download" >> "$LOGFILE" 2>&1
 Rscript calc/hdd.r
 
 echo "gas data"
