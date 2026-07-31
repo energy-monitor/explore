@@ -6,7 +6,14 @@ cd $BASE_FOLDER
 echo "downloading climate data"
 
 # - TEMP/HEATING DAYS
-python3 load/era5/downloadExtractFull.py
+
+
+if [ -n "$1" ] && [ "$1" == "0" ]; then
+    echo "Parameter is 0, skipping climate download program"
+else
+    pixi run ./_run-all.sh "$run_climate_download" >> "$LOGFILE" 2>&1
+fi
+
 Rscript calc/hdd.r
 
 echo "gas data"
