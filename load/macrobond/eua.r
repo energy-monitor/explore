@@ -6,10 +6,15 @@ source("load/macrobond/_shared.r")
 # - DOIT -----------------------------------------------------------------------
 
 # Title	Source	Frequency	Start date	Name
-# EUA Future - Daily, 1st Position	NASDAQ OMX Commodities	Daily	10.10.2013	ned_c1_st
+# Future, ICE EUA, 1st Position, Close	Intercontinental Exchange (ICE)	Daily	22.04.2005	icec_c1_cl
+
+# The previous series (NASDAQ OMX Commodities, `ned_c1_st`) was discontinued by
+# the source: Nasdaq Commodities delisted all its futures and withdrew the
+# service on 30.04.2026, the last observation is 06.01.2026. Its data is kept
+# as `price-eua-nasdaq`.
 
 c.series = c(
-    ned_c1_st = "value"
+    icec_c1_cl = "value"
 )
 
 saveMacrobondData(c.series, "price-eua")
