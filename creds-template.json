@@ -9,5 +9,14 @@
     "aggm": {
         "user": "",
         "pass": ""
+    },
+    "sftp": {
+        "host": "",
+        "port": 22,
+        "user": "",
+        "keyfile": "~/.ssh/id_ed25519",
+        "knownHosts": "~/.ssh/known_hosts",
+        "path": "",
+        "keypass": ""
     }
 }

@@ -29,6 +29,9 @@ g = modifyList(read_json("config.json"), list(
         params = list()
     ), aggm = list(
         params = list()
+    ), sftp = list(
+        # key passphrase of the sftp storage, see `_storage.r`
+        params = list()
     )
 ))
 
