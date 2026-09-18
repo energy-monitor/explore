@@ -27,7 +27,8 @@ setnames(d.at, c.labels)
 d.base = d.at[, .(
     date = convertToDate(Date),
     euroSuper95 = as.numeric(sub(',', '', AT_price_with_tax_euro95))/1000,
-    gasOil = as.numeric(sub(',', '', AT_price_with_tax_diesel))/1000
+    gasOil = as.numeric(sub(',', '', AT_price_with_tax_diesel))/1000,
+    heatingOil = as.numeric(sub(',', '', AT_price_with_tax_heating_oil))/1000
 )][!is.na(date)]
 
 d.full = melt(d.base, id.vars = "date")[order(date), ]
