@@ -14,7 +14,7 @@ source("load/macrobond/_shared.r")
 # as `price-eua-nasdaq`.
 
 c.series = c(
-    icec_c1_cl = "value"
+    icec_c1_cl = "price"
 )
 
 saveMacrobondData(c.series, "price-eua")
