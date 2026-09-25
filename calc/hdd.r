@@ -37,7 +37,7 @@ d.austria = d.comb[, .(
 ), by=.(date = time)]
 
 d.vienna = d.comb[latitude == 48.25 & longitude == 16.25, .(
-    date = time, temp.vienna = temp, hdd.vienna = temp
+    date = time, temp.vienna = temp, hdd.vienna = hdd
 )]
 
 d.final = merge(d.austria, d.vienna, by = 'date')

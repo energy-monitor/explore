@@ -22,7 +22,7 @@ Rscript load/entsoe/price.r
 # Rscript load/entsoe/netPosition.r
 Rscript load/entsoe/physicalFlows.r
 Rscript load/entsoe/hydro-storage.r
-Rscript load/apg/download-capacity-at.R
+Rscript load/apg/installed-power-capacity-at.R
 
 
 # - OTHERS

@@ -14,9 +14,10 @@ idx = which(sapply(l.base, `[[`, "name") == "CEGH")
 
 date = sapply(l.base[[idx]]$data, `[[`, 1)
 price = sapply(l.base[[idx]]$data, `[[`, 2)
-price[sapply(price, is.null)] = list(0)
+price[sapply(price, is.null)] = list(NA_real_)
 
-d.raw = data.table(date = as.Date(as_datetime(date / 1000)), price = unlist(price))
+# days without a price are left out instead of being stored as 0
+d.raw = data.table(date = as.Date(as_datetime(date / 1000)), price = unlist(price))[!is.na(price)]
 
 
 # - STORE ----------------------------------------------------------------------
