@@ -21,9 +21,11 @@ Rscript load/entsoe/generation-hourly.r
 Rscript load/entsoe/price.r
 # Rscript load/entsoe/netPosition.r
 Rscript load/entsoe/physicalFlows.r
+Rscript load/entsoe/hydro-storage.r
 Rscript load/apg/download-capacity-at.R
 
 
 # - OTHERS
 Rscript load/ec-gas-oil.r
 Rscript load/stat-economic-activity.r
+Rscript load/stat-car-registrations.r

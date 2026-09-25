@@ -14,7 +14,8 @@ c.nice2entsoe = c(
     load = "ActualTotalLoad_6.1.A_r3",
     dayAheadPrices = "EnergyPrices_12.1.D_r3",
     netPositions = "ImplicitAllocationsNetPositions_12.1.E",
-    physicalFlows = "PhysicalFlows_12.1.G_r3"
+    physicalFlows = "PhysicalFlows_12.1.G_r3",
+    hydroStorage = "AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3"
 )
 
 
