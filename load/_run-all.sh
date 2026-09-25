@@ -29,3 +29,5 @@ Rscript load/apg/installed-power-capacity-at.R
 Rscript load/ec-gas-oil.r
 Rscript load/stat-economic-activity.r
 Rscript load/stat-car-registrations.r
+Rscript load/eurostat/passenger-cars.r
+Rscript load/eurostat/prc_hicp_minr.r

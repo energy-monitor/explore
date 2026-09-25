@@ -1,8 +1,8 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
-# no `load/eurostat/_shared.r`: the eurostat package is not on conda-forge and
-# can not be built in the pixi environment, the SDMX-CSV endpoint is read directly
-source("_shared.r")
+source("load/eurostat/_shared.r")
+# previously the SDMX-CSV endpoint was read directly, see commented code below
+# source("_shared.r")
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -12,15 +12,20 @@ source("_shared.r")
 # TOTAL = PET + DIE + ALT
 for (id in c("road_eqr_carpda", "road_eqs_carpda")) {
     update.time = now()
-    d.base = fread(glue(
-        "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{id}/?format=SDMX-CSV"
-    ))[freq == "A" & unit == "NR"]
+    # annual data, `time_format = "num"` gives the year
+    d.base = as.data.table(
+        get_eurostat(id, time_format = "num")
+    )[freq == "A" & unit == "NR"]
+    # d.base = fread(glue(
+    #     "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/{id}/?format=SDMX-CSV"
+    # ))[freq == "A" & unit == "NR"]
 
     # stock is additionally split by owner
     if ("leg_form" %in% names(d.base))
         d.base = d.base[leg_form == "TOTAL"]
 
-    d.wide = dcast(d.base, geo + TIME_PERIOD ~ mot_nrg, value.var = "OBS_VALUE")
+    d.wide = dcast(d.base, geo + TIME_PERIOD ~ mot_nrg, value.var = "values")
+    # d.wide = dcast(d.base, geo + TIME_PERIOD ~ mot_nrg, value.var = "OBS_VALUE")
 
     d.prep = melt(d.wide[, .(
         geo,
