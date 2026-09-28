@@ -6,9 +6,12 @@
 # - gas: inland consumption converted from GCV to NCV, minus the average gas
 #   used non-energetically for ammonia production
 # - oil: country specific calorific values and carbon factors per product,
-#   kerosene for international aviation is split off (share from the CRT), and
+#   kerosene delivered to international aviation is split off, and
 #   a constant monthly amount is added to calibrate to the CRT (combustion not
 #   covered by the selected products)
+# - international aviation: deliveries to international aviation from
+#   eurostat, calibrated to the inventory (Umweltbundesamt, load/uba-thg-crt.r)
+#   with the mean ratio of the last 3 years
 # - coal: as in load/eurostat/nrg_cb_sffm.r, not calibrated
 
 emissions.nid.path = "data/nid"
@@ -52,29 +55,31 @@ emissionsGas = function() {
     )]
 }
 
-# Share of kerosene used for international aviation, average of the last 3 CRT years
-emissionsIntAviationShare = function() {
-    d = readNid("aviation_percent.csv")[order(year)]
-    round(mean(tail(d$international_aviation_percent, 3)), 2) / 100
-}
-
 # Returns the oil emissions per product (incl. "intaviation", which is not
 # part of the oil total, and the "correction" calibrating to the CRT)
 emissionsOilProducts = function() {
-    share.int = emissionsIntAviationShare()
-
     d = loadFromStorage(id = "nrg_cb_oilm-emissions")[, .(
         date = as.Date(date), product, value = ths.t
     )]
-    d = completeMonths(d, emissions.oil.factors$product)
-    d = merge(d, emissions.oil.factors[, .(product, kt.co2.per.kt)], by = "product")
+    d = completeMonths(d, c(emissions.oil.factors$product, "intaviation"))
+
+    # Kerosene for international aviation is not part of the national emissions
+    d = dcast(d, date ~ product, value.var = "value")[, kerosene := kerosene - intaviation]
+    d = melt(d, id.vars = "date", variable.name = "product", variable.factor = FALSE)
+    d = merge(d, rbind(
+        emissions.oil.factors[, .(product, kt.co2.per.kt)],
+        emissions.oil.factors[product == "kerosene", .(product = "intaviation", kt.co2.per.kt)]
+    ), by = "product")
     d[, kt.co2 := value * kt.co2.per.kt]
 
-    d = rbind(
-        d[product != "kerosene", .(date, product, kt.co2)],
-        d[product == "kerosene", .(date, product, kt.co2 = kt.co2 * (1 - share.int))],
-        d[product == "kerosene", .(date, product = "intaviation", kt.co2 = kt.co2 * share.int)]
-    )
+    # Calibration of international aviation: mean ratio of the last 3 years
+    d.crt.av = loadFromStorage(id = "uba-thg-crt")[pollutant == "CO2" & code == "Memo 1 D 1 a", .(year, crt = value / 1000)]
+    d.av = d[product == "intaviation", .(kt.co2 = sum(kt.co2), n = uniqueN(date)), by = .(year = year(date))][n == 12]
+    d.av = tail(merge(d.av, d.crt.av, by = "year")[order(year)], 3)
+    factor.av = mean(d.av$crt / d.av$kt.co2)
+    l(glue("international aviation calibration factor: {round(factor.av, 4)} ({paste(d.av$year, collapse = ', ')})"), iL = 2)
+    d[product == "intaviation", kt.co2 := kt.co2 * factor.av]
+    d = d[, .(date, product, kt.co2)]
 
     # Calibration: mean yearly difference to the CRT, as constant monthly
     # value, rounded to 10 kt

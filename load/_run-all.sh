@@ -3,12 +3,14 @@
 BASE_FOLDER=`dirname -- "$0"`/..;
 cd $BASE_FOLDER
 
-echo "downloading climate data"
-
 # - TEMP/HEATING DAYS
 
-
-python3 load/era5/downloadExtractFull.py
+if [ "$1" == "no-climate" ]; then
+    echo "skipping climate data download"
+else
+    echo "downloading climate data"
+    python3 load/era5/downloadExtractFull.py
+fi
 Rscript calc/hdd.r
 
 echo "gas data"
@@ -45,3 +47,4 @@ Rscript load/eurostat/nrg_cb_gasm.r
 Rscript load/eurostat/nrg_cb_oilm.r
 Rscript load/eurostat/nrg_cb_sffm.r
 Rscript load/eurostat/emissions.r
+Rscript load/uba-thg-crt.r

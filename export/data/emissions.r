@@ -34,7 +34,8 @@ fwrite(d.plot[order(date, product)], file.path(g$d$wd, "others", "emissions-oil.
 # - INTERNATIONAL AVIATION -----------------------------------------------------
 d.plot = emissionsFuels()[fuel == "intaviation", .(date, value = kt.co2)]
 
-d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date))]
+# eurostat reports international aviation from 2014 on
+d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
 
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)

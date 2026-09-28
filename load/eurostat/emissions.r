@@ -36,13 +36,23 @@ c.oil = c(
     O4630 = "lpg"               # Liquefied petroleum gases
 )
 
-d.oil = as.data.table(
+d.base = as.data.table(
     get_eurostat("nrg_cb_oilm", filters = list(geo = "AT", freq = "M"), time_format = "date")
-)[nrg_bal == "GID_OBS" & siec %in% names(c.oil) & unit == "THS_T" & !is.na(values), .(
-    date = time,
-    product = c.oil[siec],
-    ths.t = values
-)]
+)[unit == "THS_T" & !is.na(values)]
+
+d.oil = rbind(
+    d.base[nrg_bal == "GID_OBS" & siec %in% names(c.oil), .(
+        date = time,
+        product = c.oil[siec],
+        ths.t = values
+    )],
+    # International aviation (part of the gross inland deliveries of kerosene)
+    d.base[nrg_bal == "INTAVI_E" & siec == "O4661XR5230B", .(
+        date = time,
+        product = "intaviation",
+        ths.t = values
+    )]
+)
 
 saveToStorages(d.oil[order(date, product)], list(
     id = "nrg_cb_oilm-emissions",
