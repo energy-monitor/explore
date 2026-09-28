@@ -25,4 +25,11 @@ d.plot = d.plot[, .(
     }
 )]
 
+# Feb 29 of the averages only contains leap years, interpolate it from its neighbours instead
+d.plot[startsWith(year, "avg"), value := ifelse(
+    date20 == as.Date("2020-02-29"),
+    (value[date20 == as.Date("2020-02-28")] + value[date20 == as.Date("2020-03-01")]) / 2,
+    value
+), by = year]
+
 fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "temperature.csv"))
