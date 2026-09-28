@@ -4,28 +4,28 @@ source("export/data/_shared.r")
 
 
 # - LOAD/PREP ------------------------------------------------------------------
-countries = c("AT", "EU")
+countries = c("AT")
 
-for (country in countries) {
-    d.base = loadFromStorage(id = glue("storage-{country}"))[,
-        gasDayStart := as.Date(gasDayStart)
-    ]
+d.base = loadFromStorage(id = "electricity-hydro-storage")[,
+    date := as.Date(date)
+]
 
+for (c.country in countries) {
     # - PLOT -------------------------------------------------------------------
-    # Preparation
-    d.plot = d.base[, .(
+    # Preparation, weekly values in TWh
+    d.plot = d.base[country == c.country, .(
         type = "stock",
-        date = gasDayStart,
-        value = gasInStorage
+        date,
+        value
     )][order(date)]
 
     d.plot = rbind(d.plot, d.plot[, .(
         type = "flow",
         date,
-        value = value - shift(value, 7)
+        value = value - shift(value, 1)
     )])
     dates2PlotDates(d.plot)
 
     # Save
-    fwrite(d.plot[year >= 2019], file.path(g$d$wd, "gas", glue("storage-{country}.csv")))
+    fwrite(d.plot[year >= 2019], file.path(g$d$wd, "electricity", glue("hydro-storage-{c.country}.csv")))
 }

@@ -17,6 +17,13 @@ BASE_URL = "https://monitor.cismo.at/Gas/Gas_Ref_Prices/__sockjs__"
 CHANNEL_ID = "0"
 ALL_START = "2009-12-12"
 TAG_PREFIX_RE = re.compile(r"^[0-9A-F]+#")
+# The server sends the wrong intermediate certificate, so the chain can not be
+# verified with the default trust store alone. The issuer of the server
+# certificate (from its AIA URL) is shipped next to this script instead.
+INTERMEDIATE_CA = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "sectigo-public-server-authentication-ca-dv-r36.pem",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,8 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--insecure",
         action="store_true",
-        default=True,
-        help="Ignore TLS certificate verification (needed for this host here)",
+        help="Ignore TLS certificate verification",
     )
     parser.add_argument(
         "--last-message-file",
@@ -270,7 +276,11 @@ def main() -> int:
     if start > end:
         raise SystemExit("--start must be on or before --end.")
 
-    ctx = ssl._create_unverified_context() if args.insecure else ssl.create_default_context()
+    if args.insecure:
+        ctx = ssl._create_unverified_context()
+    else:
+        ctx = ssl.create_default_context()
+        ctx.load_verify_locations(cafile=INTERMEDIATE_CA)
     printer = StreamPrinter(
         pretty=args.pretty,
         raw_sockjs=args.raw_sockjs,

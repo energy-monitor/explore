@@ -30,10 +30,14 @@ Rscript load/entsoe/generation-hourly.r
 Rscript load/entsoe/price.r
 # Rscript load/entsoe/netPosition.r
 Rscript load/entsoe/physicalFlows.r
-Rscript load/apg/download-capacity-at.R
+Rscript load/entsoe/hydro-storage.r
+Rscript load/apg/installed-power-capacity-at.R
 
 echo "other"
 
 # - OTHERS
 Rscript load/ec-gas-oil.r
 Rscript load/stat-economic-activity.r
+Rscript load/stat-car-registrations.r
+Rscript load/eurostat/passenger-cars.r
+Rscript load/eurostat/prc_hicp_minr.r

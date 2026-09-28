@@ -15,22 +15,39 @@ download.file(url, t, mode = "wb")
 
 
 # - PREP -----------------------------------------------------------------------
+c.products = c(
+    euro95 = "euroSuper95",
+    diesel = "gasOil",
+    heating_oil = "heatingOil"
+)
+
 c.cols = as.character(openxlsx::read.xlsx(t, sheet = "Prices with taxes", rows = 1, colNames = FALSE, skipEmptyCols = FALSE))
-c.cols.at = startsWith(c.cols, "AT_")
-c.cols.at[1] = TRUE
 d.raw = as.data.table(openxlsx::read.xlsx(t, sheet = "Prices with taxes", startRow = 4, colNames = FALSE, skipEmptyCols = FALSE))
-d.at = d.raw[, ..c.cols.at]
-c.labels = c.cols[c.cols.at]
-c.labels[1] = "Date"
-setnames(d.at, c.labels)
+# trailing columns without any data are dropped by read.xlsx
+c.cols = c.cols[seq_len(ncol(d.raw))]
+c.cols[1] = "Date"
+setnames(d.raw, make.unique(c.cols))
 
-d.base = d.at[, .(
-    date = convertToDate(Date),
-    euroSuper95 = as.numeric(sub(',', '', AT_price_with_tax_euro95))/1000,
-    gasOil = as.numeric(sub(',', '', AT_price_with_tax_diesel))/1000
-)][!is.na(date)]
+# drop the notes below the data
+d.raw = d.raw[grepl("^[0-9]+$", Date)]
 
-d.full = melt(d.base, id.vars = "date")[order(date), ]
+# one column per country (incl. the EU and EUR aggregates) and product, e.g. 'AT_price_with_tax_diesel'
+c.pattern = glue("^([A-Z]+)_price_with_tax_({paste(names(c.products), collapse = '|')})$")
+c.cols.price = grep(c.pattern, names(d.raw), value = TRUE)
+d.raw[, (c.cols.price) := lapply(.SD, function(x) {
+    if (is.character(x)) x = gsub(",", "", x)
+    as.numeric(x)/1000
+}), .SDcols = c.cols.price]
+
+d.full = melt(
+    d.raw[, c("Date", c.cols.price), with = FALSE],
+    id.vars = "Date", variable.factor = FALSE
+)[, .(
+    date = convertToDate(as.numeric(Date)),
+    country = sub(c.pattern, "\\1", variable),
+    variable = unname(c.products[sub(c.pattern, "\\2", variable)]),
+    value
+)][!is.na(value)][order(date, country, variable)]
 
 
 # - STORAGE --------------------------------------------------------------------

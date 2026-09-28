@@ -4,7 +4,7 @@ source("export/data/_shared.r")
 
 
 # - LOAD/PREP ------------------------------------------------------------------
-d.plot = loadFromStorage(id = "consumption-gas-aggm")[, 
+d.plot = loadFromStorage(id = "consumption-gas-aggm")[,
     date := as.Date(date)
 ]
 
@@ -18,5 +18,4 @@ d.plot = meltAndRemove(d.plot)
 dates2PlotDates(d.plot)
 
 # Save plot data
-fwrite(d.plot, file.path(g$d$wd, 'gas', 'consumption-aggm.csv'))
-
+fwrite(d.plot, file.path(g$d$wd, "gas", "consumption-aggm.csv"))
