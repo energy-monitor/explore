@@ -18,6 +18,7 @@ fwrite(d.plot[order(date, fuel)], file.path(g$d$wd, "others", "emissions-total.c
 # Sum of all fuels, by year
 d.plot = d.fuels[, .(value = sum(kt.co2) / 1000), by = date]
 d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
+d.plot = d.plot[year == "avg14-18" | year %in% yearsShown()]
 
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)
@@ -58,6 +59,7 @@ d.plot = emissionsFuels()[fuel == "intaviation", .(date, value = kt.co2)]
 
 # eurostat reports international aviation from 2014 on
 d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
+d.plot = d.plot[year == "avg14-18" | year %in% yearsShown()]
 
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)

@@ -45,4 +45,4 @@ ggplot(d.plot[date > "2023-11-01" & date < "2024-11-01"], aes(x = date, y = valu
 
 
 # Save
-fwrite(d.plot[year >= 2019], file.path(g$d$wd, "electricity", glue("flows.csv")))
+fwrite(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("flows.csv")))

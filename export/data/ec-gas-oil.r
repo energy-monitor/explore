@@ -21,7 +21,7 @@ d.plot = merge(
 
 d.plot[, last := na.locf(value), by=variable]
 
-d.plot = d.plot[date >= "2019-01-01"]
+d.plot = d.plot[date >= firstDateShown()]
 d.plot[, value := NULL]
 dates2PlotDates(d.plot)
 
