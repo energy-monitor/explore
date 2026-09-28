@@ -45,12 +45,16 @@ emissions.coal.factors = data.table(
 )[, kt.co2.per.kt := tj.per.kt * tc.per.tj * 0.98 * 44 / 12 / 1000]
 
 
-# Drops months with missing products and everything after the first gap
+# Keeps the months with data for all products. Months missing at the start
+# (series starting later) and at the end (not published yet) are dropped,
+# gaps in between stop with an error, as they would break sums and rolling
+# means silently.
 completeMonths = function(d, products) {
-    d = d[, if (all(products %in% product[value > 0])) .SD, by = date][order(date)]
-    c.all = seq(min(d$date), max(d$date), by = "month")
-    c.gap = setdiff(c.all, unique(d$date))
-    if (length(c.gap) > 0) d = d[date < min(as.Date(c.gap))]
+    d = d[, if (all(products %in% product[!is.na(value) & value > 0])) .SD, by = date][order(date)]
+    c.gap = as.Date(setdiff(seq(min(d$date), max(d$date), by = "month"), unique(d$date)))
+    if (length(c.gap) > 0) {
+        stop(glue("missing data for {paste(products, collapse = ', ')} in {paste(format(c.gap, '%Y-%m'), collapse = ', ')}"))
+    }
     d
 }
 
@@ -95,13 +99,13 @@ emissionsOilProducts = function() {
     d = d[, .(date, product, kt.co2)]
 
     # Calibration: mean yearly difference to the CRT, as constant monthly
-    # value, rounded to 10 kt
+    # value (positive if the estimate is too low), rounded to 10 kt
     d.crt = readNid("nid_2026_1a_fuel_combustion_gas_oil.csv")[
         grepl("^Liquid", fuel_type), .(year, crt = co2_kt)
     ]
     d.year = d[product != "intaviation", .(kt.co2 = sum(kt.co2), n = uniqueN(date)), by = .(year = year(date))][n == 12]
     d.diff = merge(d.year, d.crt, by = "year")
-    correction = round(abs(mean(d.diff$kt.co2 - d.diff$crt) / 12), -1)
+    correction = round(mean(d.diff$crt - d.diff$kt.co2) / 12, -1)
 
     rbind(d, unique(d[, .(date)])[, .(date, product = "correction", kt.co2 = correction)])[order(date, product)]
 }
