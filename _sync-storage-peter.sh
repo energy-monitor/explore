@@ -14,9 +14,12 @@ SFTP_REMOTE_DIR="data"
 LOCAL_DIR="$SCRIPT_DIR/data/storage"
 
 echo "Downloading newer files from ${SFTP_USER}@${SFTP_HOST}:${SFTP_REMOTE_DIR} to ${LOCAL_DIR}"
-if ! lftp "sftp://${SFTP_USER}@${SFTP_HOST}" <<EOF
+if ! lftp -u "${SFTP_USER}," "sftp://${SFTP_HOST}" <<EOF
 set cmd:fail-exit yes
-set sftp:connect-program "ssh -a -x -p $SFTP_PORT -i $SFTP_KEYFILE -o IdentitiesOnly=yes -o UserKnownHostsFile=$SFTP_KNOWN_HOSTS"
+set net:max-retries 2
+set net:timeout 30
+set net:reconnect-interval-base 5
+set sftp:connect-program "ssh -a -x -p $SFTP_PORT -i $SFTP_KEYFILE -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=30 -o UserKnownHostsFile=$SFTP_KNOWN_HOSTS"
 mirror --only-newer --verbose "$SFTP_REMOTE_DIR" "$LOCAL_DIR"
 bye
 EOF
