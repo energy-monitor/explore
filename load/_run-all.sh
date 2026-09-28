@@ -8,7 +8,7 @@ echo "downloading climate data"
 # - TEMP/HEATING DAYS
 
 
-pixi run ./_run-all.sh "$run_climate_download" >> "$LOGFILE" 2>&1
+python3 load/era5/downloadExtractFull.py
 Rscript calc/hdd.r
 
 echo "gas data"
