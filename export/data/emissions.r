@@ -29,7 +29,13 @@ d.plot = d.plot[, .(
     }
 )]
 
-fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "emissions-total-year.csv"))
+d.plot = d.plot[order(year, date20)]
+d.plot = rbind(
+    d.plot[, .(year, date20, variable = "month", value)],
+    d.plot[, .(date20, variable = "cum", value = cumsum(value)), by = year]
+)
+
+fwrite(d.plot, file.path(g$d$wd, "others", "emissions-total-year.csv"))
 
 
 # - OIL PRODUCTS ---------------------------------------------------------------
