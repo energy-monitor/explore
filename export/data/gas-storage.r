@@ -7,7 +7,7 @@ source("export/data/_shared.r")
 countries = c("AT", "EU")
 
 for (country in countries) {
-    d.base = loadFromStorage(id = glue("storage-{country}"))[, 
+    d.base = loadFromStorage(id = glue("storage-{country}"))[,
         gasDayStart := as.Date(gasDayStart)
     ]
 

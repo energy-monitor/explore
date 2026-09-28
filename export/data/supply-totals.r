@@ -27,7 +27,11 @@ d.plot = d.plot[, .(
     twh = mean(t.j, na.rm = TRUE) / 1000 / 3.6,
     mt.co2 = mean(t.co2, na.rm = TRUE) / 1000 / 1000
 ), by = .(
-    year, product, date20 = {t = copy(date); year(t) = 2020; t}
+    year, product, date20 = {
+        t = copy(date)
+        year(t) = 2020
+        t
+    }
 )]
 
 

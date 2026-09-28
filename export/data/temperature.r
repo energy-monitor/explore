@@ -17,8 +17,12 @@ d.plot[, year := ifelse(year(date) %in% 1940:2018, "avg40-18", year(date)), by=d
 
 d.plot = d.plot[, .(
     value = mean(get(glue("rm{mean.length}")), na.rm = TRUE)
-), by=.(
-    year, date20 = {t = copy(date); year(t) = 2020; t}
+), by = .(
+    year, date20 = {
+        t = copy(date)
+        year(t) = 2020
+        t
+    }
 )]
 
 fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "temperature.csv"))

@@ -18,7 +18,11 @@ d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by =
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)
 ), by = .(
-    year, product, date20 = {t = copy(date); year(t) = 2020; t}
+    year, product, date20 = {
+        t = copy(date)
+        year(t) = 2020
+        t
+    }
 )]
 
 
