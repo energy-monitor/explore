@@ -19,7 +19,7 @@ l.plots = list(
     "others/brent" = list(data = "price-brent", value = "price", lags = 3),
     "others/coal" = list(data = "price-coal", value = "price", lags = 3),
     "others/dollar" = list(data = "price-dollar", value = "price", lags = 3),
-    #"gas/price-lng" = list(data = "price-lng", value = "price", lags = 3),
+    "gas/price-lng" = list(data = "price-lng", value = "price", lags = 3),
     "others/eua" = list(data = "price-eua", value = "price", lags = 3),
     "others/hdd" = list(data = "temperature-hdd", value = "hdd", lags = 28, cum = TRUE)
 )
