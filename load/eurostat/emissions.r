@@ -60,3 +60,38 @@ saveToStorages(d.oil[order(date, product)], list(
     format = "csv",
     update.time = update.time
 ))
+
+
+# - COAL -----------------------------------------------------------------------
+# Gross inland deliveries (calculated) of hard coal, brown coal and coke, and
+# the coke produced in Austria (made from hard coal, which is counted already)
+update.time = now()
+c.coal = c(
+    C0100 = "hardcoal",   # Hard coal
+    C0200 = "browncoal",  # Brown coal
+    C0311 = "coke"        # Coke oven coke
+)
+
+d.base = as.data.table(
+    get_eurostat("nrg_cb_sffm", filters = list(geo = "AT", freq = "M"), time_format = "date")
+)[unit == "THS_T" & !is.na(values)]
+
+d.coal = rbind(
+    d.base[nrg_bal == "GID_CAL" & siec %in% names(c.coal), .(
+        date = time,
+        product = c.coal[siec],
+        ths.t = values
+    )],
+    d.base[nrg_bal == "IPRD" & siec == "C0311", .(
+        date = time,
+        product = "cokeproduction",
+        ths.t = values
+    )]
+)
+
+saveToStorages(d.coal[order(date, product)], list(
+    id = "nrg_cb_sffm-emissions",
+    source = "eurostat",
+    format = "csv",
+    update.time = update.time
+))

@@ -12,7 +12,11 @@
 # - international aviation: deliveries to international aviation from
 #   eurostat, calibrated to the inventory (Umweltbundesamt, load/uba-thg-crt.r)
 #   with the mean ratio of the last 3 years
-# - coal: as in load/eurostat/nrg_cb_sffm.r, not calibrated
+# - coal: hard coal, brown coal and net imports of coke (coke produced in
+#   Austria is made from hard coal, which is counted already), with the
+#   country specific factors of the NID, not calibrated; compared against the
+#   solid fuels of the reference approach incl. the carbon stored (used as
+#   reductant in blast furnaces, CRT 2.C.1)
 
 emissions.nid.path = "data/nid"
 
@@ -31,10 +35,19 @@ emissions.oil.factors = data.table(
     tc.per.tj = c(20.20, 21.10, 17.20, 18.90, 19.50)
 )[, kt.co2.per.kt := tj.per.kt * tc.per.tj * 44 / 12 / 1000]
 
+# NID 2026, Annex 3, Table A 67, incl. the fraction of carbon oxidised (0.98);
+# hard coal as coking coal (by far the largest share), brown coal as
+# sub-bituminous coal
+emissions.coal.factors = data.table(
+    product = c("hardcoal", "browncoal", "coke"),
+    tj.per.kt = c(30.78, 21.84, 28.21),
+    tc.per.tj = c(25.53, 26.20, 29.73)
+)[, kt.co2.per.kt := tj.per.kt * tc.per.tj * 0.98 * 44 / 12 / 1000]
+
 
 # Drops months with missing products and everything after the first gap
 completeMonths = function(d, products) {
-    d = d[, if (uniqueN(product[value > 0]) == length(products)) .SD, by = date][order(date)]
+    d = d[, if (all(products %in% product[value > 0])) .SD, by = date][order(date)]
     c.all = seq(min(d$date), max(d$date), by = "month")
     c.gap = setdiff(c.all, unique(d$date))
     if (length(c.gap) > 0) d = d[date < min(as.Date(c.gap))]
@@ -94,9 +107,23 @@ emissionsOilProducts = function() {
 }
 
 emissionsCoal = function() {
-    loadFromStorage(id = "nrg_cb_sffm")[product == "total", .(
-        date = as.Date(date), fuel = "coal", kt.co2 = t.co2 / 1000
-    )][!is.na(kt.co2) & kt.co2 > 0][order(date)]
+    d = loadFromStorage(id = "nrg_cb_sffm-emissions")[, .(
+        date = as.Date(date), product, value = ths.t
+    )]
+    d = completeMonths(d, c("hardcoal", "coke", "cokeproduction"))
+
+    d = dcast(d, date ~ product, value.var = "value", fill = 0)[, coke := coke - cokeproduction]
+    d = melt(d[, !"cokeproduction"], id.vars = "date", variable.name = "product", variable.factor = FALSE)
+    d = merge(d, emissions.coal.factors[, .(product, kt.co2.per.kt)], by = "product")
+    d = d[, .(fuel = "coal", kt.co2 = sum(value * kt.co2.per.kt)), by = date][order(date)]
+
+    # Deviation from the reference approach of the NID (not calibrated)
+    d.ref = readNid("nid_2026_ra_solid_fuels.csv")[, .(year, ref = co2_incl_stored_kt)]
+    d.year = d[, .(kt.co2 = sum(kt.co2), n = .N), by = .(year = year(date))][n == 12]
+    d.diff = merge(d.year, d.ref, by = "year")
+    l(glue("coal deviation from NID: {paste0(d.diff$year, ': ', sprintf('%+.1f%%', 100 * (d.diff$kt.co2 / d.diff$ref - 1)), collapse = ', ')}"), iL = 2)
+
+    d
 }
 
 # Monthly emissions by fuel (gas, oil, coal, intaviation) in kt CO₂
