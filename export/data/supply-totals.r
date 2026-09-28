@@ -32,8 +32,9 @@ d.plot = rbind(
 )
 
 
-d.plot = d.plot[year(date) >= 2013]
-d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", as.character(year(date)))]
+# emissions of oil are available from 2014 on
+d.plot = d.plot[year(date) >= 2014]
+d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", as.character(year(date)))]
 
 d.plot = d.plot[, .(
     twh = mean(t.j, na.rm = TRUE) / 1000 / 3.6,
