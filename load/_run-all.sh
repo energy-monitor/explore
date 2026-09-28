@@ -41,3 +41,7 @@ Rscript load/stat-economic-activity.r
 Rscript load/stat-car-registrations.r
 Rscript load/eurostat/passenger-cars.r
 Rscript load/eurostat/prc_hicp_minr.r
+Rscript load/eurostat/nrg_cb_gasm.r
+Rscript load/eurostat/nrg_cb_oilm.r
+Rscript load/eurostat/nrg_cb_sffm.r
+Rscript load/eurostat/emissions.r

@@ -1,6 +1,7 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("export/data/_shared.r")
+source("export/data/_emissions.r")
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -14,14 +15,25 @@ d.gas = loadFromStorage(id = "nrg_cb_gasm")[,
     date := as.Date(date)
 ]
 
-d.plot = rbindlist(list(
-    d.oil[product == "total", .(date, product = "oil", t.j, t.co2)],
-    d.coal[product == "total", .(date, product = "coal", t.j, t.co2)],
-    d.gas[product == "total", .(date, product = "gas", t.j, t.co2)]
+# Energy content of the sales
+d.twh = rbindlist(list(
+    d.oil[product == "total", .(date, product = "oil", t.j)],
+    d.coal[product == "total", .(date, product = "coal", t.j)],
+    d.gas[product == "total", .(date, product = "gas", t.j)]
 ))
 
+# Emissions calibrated to the national inventory, see export/data/_emissions.r
+d.co2 = emissionsFuels()[fuel %in% c("oil", "coal", "gas"), .(date, product = fuel, t.co2 = kt.co2 * 1000)]
 
-d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
+d.plot = merge(d.twh, d.co2, by = c("date", "product"), all = TRUE)
+d.plot = rbind(
+    d.plot,
+    d.plot[, if (.N == 3) .(product = "total", t.j = sum(t.j), t.co2 = sum(t.co2)), by = date]
+)
+
+
+d.plot = d.plot[year(date) >= 2013]
+d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", as.character(year(date)))]
 
 d.plot = d.plot[, .(
     twh = mean(t.j, na.rm = TRUE) / 1000 / 3.6,
