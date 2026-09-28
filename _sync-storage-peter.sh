@@ -8,7 +8,7 @@ echo $SCRIPT_DIR
 SFTP_HOST="server.abteil.org"
 SFTP_PORT="33123"
 SFTP_USER="energy"
-SFTP_KEYFILE="$HOME/.ssh/id_ed25519"
+SFTP_KEYFILE="$HOME/.ssh/id_ed25519_energy_sync"
 SFTP_KNOWN_HOSTS="$HOME/.ssh/known_hosts"
 SFTP_REMOTE_DIR="data"
 LOCAL_DIR="$SCRIPT_DIR/data/storage"
