@@ -92,13 +92,13 @@ d.plot = rbind(d.plot, d.plot[fuel %in% c.fuels, if (.N == length(c.fuels)) .(
     fuel = "total", value.own = sum(value.own), value.nid = sum(value.nid)
 ), by = year])
 
-d.plot = melt(d.plot, id.vars = c("fuel", "year"), variable.name = "source", variable.factor = FALSE)
-d.plot[, source := sub("value.", "", source, fixed = TRUE)]
-
-# Bars of a year left (own) and right (NID) of the 1st of January
-d.plot[, date := as.Date(paste0(year, "-01-01")) + fifelse(source == "own", -45, 45)]
-d.plot[, value := value / 1000]
+# Relative deviation of the own estimate from the NID
+d.plot[, `:=`(
+    date = as.Date(paste0(year, "-01-01")),
+    deviation = value.own / value.nid - 1
+)]
+d.plot[, sign := fifelse(deviation >= 0, "higher", "lower")]
 
 # Order of the facets
 d.plot[, fuel := factor(fuel, levels = c("total", "gas", "oil", "coal", "intaviation"))]
-fwrite(d.plot[order(fuel, year, source), .(date, year, fuel, source, value)], file.path(g$d$wd, "others", "emissions-nid.csv"))
+fwrite(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "others", "emissions-nid.csv"))
