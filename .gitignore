@@ -6,6 +6,7 @@
 __pycache__
 
 creds.json
+config.local.json
 data/ninja/ninja_pv_europe_v1.1_merra2.csv
 data/ninja/ninja_pv_europe_v1.1_sarah.csv
 data/ninja/Ninja-PV-Readme-v1.1.pdf

@@ -9,7 +9,24 @@ loadPackages(
 source("_storage.r")
 
 # - GLOB -----------------------------------------------------------------------
-g = modifyList(read_json("config.json"), list(
+# Merges the settings of `y` into `x`, objects are merged recursively, all
+# other values (incl. arrays) are replaced
+mergeConfig = function(x, y) {
+    isObject = function(v) is.list(v) && !is.null(names(v))
+    for (n in names(y)) {
+        x[[n]] = if (isObject(x[[n]]) && isObject(y[[n]])) mergeConfig(x[[n]], y[[n]]) else y[[n]]
+    }
+    x
+}
+
+# Settings specific to a machine (storage, paths) go into the untracked
+# config.local.json, which overrides config.json
+l.config = read_json("config.json")
+if (file.exists("config.local.json")) {
+    l.config = mergeConfig(l.config, read_json("config.local.json"))
+}
+
+g = modifyList(l.config, list(
     entsoe = list(
         params = list(
             protocol = "sftp",
@@ -41,7 +58,7 @@ creds = read_json(g$f$creds)
 invisible(sapply(names(creds), function(n) {
     g[[n]]$params <<- modifyList(g[[n]]$params, creds[[n]])
 }))
-rm(creds)
+rm(creds, l.config)
 
 
 # - HELPERS --------------------------------------------------------------------

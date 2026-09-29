@@ -47,6 +47,21 @@ Copy the `creds-template.json` file to `creds.json` and fill it with your creden
 
 Calling one of the scripts in the `load` folder will download the data from the corresponding data source, extract, aggregate and store the data for the visualisation.
 
+## Configuration
+
+`config.json` holds the defaults shared by all machines. Settings specific to a machine, like the storage to use or the path to the web project, go into `config.local.json` (not tracked), which overrides `config.json`. Objects are merged, all other values (incl. arrays) are replaced, e.g.:
+
+```json
+{
+    "storage": {
+        "default": {
+            "load": "sftp",
+            "save": ["local", "sftp"]
+        }
+    }
+}
+```
+
 ## Storage
 
 Prepared data sets are written by `saveToStorages()` and read back by `loadFromStorage()` (see `_storage.r`). Three storage types are implemented:
@@ -57,7 +72,7 @@ Prepared data sets are written by `saveToStorages()` and read back by `loadFromS
 | `googledrive` | `config.json` | `path` | Folder on Google Drive. |
 | `sftp` | `creds.json` | `host`, `port`, `user`, `path`, `keyfile`, `knownHosts`, `keypass` | Remote directory on an SFTP server. |
 
-`storage.default.load` in `config.json` selects the type to read from, `storage.default.save` lists the types to write to.
+`storage.default.load` selects the type to read from, `storage.default.save` lists the types to write to (both `local` by default, see [Configuration](#configuration)).
 
 The settings of the `sftp` type are kept in the `sftp` section of `creds.json` instead of `config.json`, so that the server does not end up in the repository. It authenticates with a public key only, no passwords. Point `keyfile` at the private key, the matching `.pub` file is picked up automatically if it exists. A `path` that is not absolute is taken relative to the login home directory. `keypass` is only needed if the private key is protected by a passphrase.
 
