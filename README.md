@@ -31,7 +31,7 @@ Following data sources are used:
     - Brent Price
     - EUA Price
 - [NASDAQ OMX - Nasdaq Commodities ](http://www.nasdaqomx.com/) via [Macrobond](https://www.macrobond.com/)
-    - EUA Price (discontinued, Nasdaq Commodities withdrew all futures on 30.04.2026, last observation 06.01.2026, kept as `price-eua-nasdaq`)
+    - EUA Price until 06.01.2026, replaced by ICE (Nasdaq Commodities withdrew all futures on 30.04.2026, the old series is kept as `price-eua-nasdaq`)
 - others
 
 ## Contribute
