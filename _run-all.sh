@@ -4,7 +4,7 @@
 if [ -n "$1" ] && [ "$1" == "0" ]; then
     echo "Parameter is 0, skipping downloads"
 else
-    load/_run-all.sh    
+    load/_run-all.sh "$1"
 fi
 
 # sync storage from sftp server
