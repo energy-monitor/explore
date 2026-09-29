@@ -64,12 +64,11 @@ Calling one of the scripts in the `load` folder will download the data from the 
 
 ## Storage
 
-Prepared data sets are written by `saveToStorages()` and read back by `loadFromStorage()` (see `_storage.r`). Three storage types are implemented:
+Prepared data sets are written by `saveToStorages()` and read back by `loadFromStorage()` (see `_storage.r`). Two storage types are implemented:
 
 | Type | Configured in | Setting | Description |
 | --- | --- | --- | --- |
 | `local` | `config.json` | `path` | Directory below the project root. |
-| `googledrive` | `config.json` | `path` | Folder on Google Drive. |
 | `sftp` | `creds.json` | `host`, `port`, `user`, `path`, `keyfile`, `knownHosts`, `keypass` | Remote directory on an SFTP server. |
 
 `storage.default.load` selects the type to read from, `storage.default.save` lists the types to write to (both `local` by default, see [Configuration](#configuration)).

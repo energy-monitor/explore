@@ -1,5 +1,5 @@
 loadPackages(
-    'googledrive', 'curl'
+    'curl'
 )
 
 saveToStorages = function(data, meta, storages = g$storage$default$save) {
@@ -15,11 +15,6 @@ saveToStorages = function(data, meta, storages = g$storage$default$save) {
             filePath = file.path(g$storage$local$path, fileName)
             l(glue("-> '{filePath}'"), iL = 2)
             fileWriteFunction(data, filePath)
-        } else if (storage == "googledrive") {
-            fileTemp = tempfile()
-            fileWriteFunction(data, fileTemp)
-            l(glue("-> '{fileName}'"), iL = 2)
-            uploadGoogleDrive(fileTemp, fileName)
         } else if (storage == "sftp") {
             fileTemp = tempfile()
             fileWriteFunction(data, fileTemp)
@@ -45,10 +40,6 @@ loadFromStorage = function(id, format = 'csv', storage = g$storage$default$load)
     if (storage == "local") {
         file = file.path(g$storage$local$path, fileName)
         return(fileReadFunction(file))
-    } else if (storage == "googledrive") {
-        file = tempfile()
-        drive_download(file.path(g$storage$googledrive$path, fileName), file)
-        return(fileReadFunction(file))
     } else if (storage == "sftp") {
         file = tempfile()
         downloadSftp(fileName, file)
@@ -56,11 +47,6 @@ loadFromStorage = function(id, format = 'csv', storage = g$storage$default$load)
     } else {
         stop(glue("Storage type '{storage}' not implemented!"))
     }
-}
-
-
-uploadGoogleDrive = function(file, fileName) {
-    drive_put(file, path = file.path(g$storage$googledrive$path, fileName))
 }
 
 

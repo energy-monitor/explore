@@ -14,9 +14,6 @@
             "load": "local",
             "save": ["local"]
         },
-        "googledrive": {
-            "path": "energy-monitor-data"
-        },
         "local": {
             "path": "data/storage"
         }

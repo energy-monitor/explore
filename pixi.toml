@@ -8,10 +8,7 @@ version = "0.1.0"
 
 [tasks]
 #load-data = "Rscript load/_run-all.r"
-sync-data = "./sync-storage.sh"
 export-data = "Rscript export/data/_run-all.r"
-
-sync-export-data = { depends-on = ["sync-data", "export-data"] }
 
 [dependencies]
 pyyaml = ">=6.0.3,<7"
@@ -29,7 +26,6 @@ r-devtools = ">=2.5.2,<3"
 r-zoo = ">=1.9_0,<2"
 r-tidyverse = ">=2.0.0,<3"
 r-jsonlite = ">=2.0.0,<3"
-r-googledrive = ">=2.1.2,<3"
 r-xml2 = ">=1.6.0,<2"
 r-httr = ">=1.4.9,<2"
 r-clock = ">=0.7.4,<0.8"
