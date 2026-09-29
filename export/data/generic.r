@@ -39,7 +39,8 @@ invisible(lapply(names(l.plots), function(id) {
     ][, date := as.Date(date)][]
 
     d.plot = melt(d.base, id.vars = "date")[order(date), ]
-    d.plot = d.plot[date >= "2018-01-01"]
+    # a year before the shown ones, for the rolling mean at the start
+    d.plot = d.plot[date >= firstDateShown() - years(1)]
 
     # Fill missing dates
     d.plot = merge(

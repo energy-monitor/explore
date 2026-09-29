@@ -10,7 +10,8 @@ d.base = loadFromStorage(id = "price-gas-oil")[,
 # - AUSTRIA --------------------------------------------------------------------
 d.price = d.base[country == "AT", .(date, variable, value)]
 
-d.plot = d.price[date > "2018-12-01"]
+# a month before the shown years, to carry the last price into the start
+d.plot = d.price[date >= firstDateShown() - months(1)]
 
 # Fill missing dates
 d.plot = merge(

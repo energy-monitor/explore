@@ -89,6 +89,6 @@ d.agg = rbind(d.agg, d.grid[!d.agg, on = .(country, year, type)][, value := 0])
 
 d.agg[, share := value/sum(value), by=.(country, year)]
 
-d.plot = d.agg[year >= 2019 & !is.na(share)][order(country, year)]
+d.plot = d.agg[year >= min(yearsShown()) & !is.na(share)][order(country, year)]
 
 fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-year-g2.csv"))

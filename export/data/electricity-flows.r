@@ -1,9 +1,7 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("export/data/_shared.r")
-loadPackages(c(
-    "ggplot2"
-))
+
 # - LOAD/PREP ------------------------------------------------------------------
 d.base = loadFromStorage(id = glue("physical-flows-entsoe"))
 
@@ -39,10 +37,6 @@ d.plot[, value := rollmean(
 )]
 
 dates2PlotDates(d.plot)
-
-ggplot(d.plot[date > "2023-11-01" & date < "2024-11-01"], aes(x = date, y = value)) +
-    geom_line()
-
 
 # Save
 fwrite(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("flows.csv")))
