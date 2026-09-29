@@ -61,10 +61,10 @@ invisible(lapply(names(l.plots), function(id) {
         value, def$lags, fill = NA, align = "right", na.rm = TRUE
     ), by=variable]
 
-    d.plot = d.plot[date >= "2019-01-01" & !is.na(rm)]
+    d.plot = d.plot[date >= firstDateShown() & !is.na(rm)]
 
     setnames(d.plot, "variable", "type")
-    d.plot = melt(d.plot, id.vars = c("date", "type"), measure.vars = c.vars)[!is.na(value) & date >= "2019-01-01"]
+    d.plot = melt(d.plot, id.vars = c("date", "type"), measure.vars = c.vars)[!is.na(value) & date >= firstDateShown()]
 
     dates2PlotDates(d.plot)
 

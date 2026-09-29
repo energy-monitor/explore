@@ -6,7 +6,7 @@ source("export/data/_shared.r")
 # - LOAD/PREP ------------------------------------------------------------------
 d.base = loadFromStorage(id = "economic-activity")
 
-d.plot = d.base[year >= 2019, .(
+d.plot = d.base[year >= min(yearsShown()), .(
     date = as.Date(paste(year, month, 1, sep = "-")), value
 )]
 

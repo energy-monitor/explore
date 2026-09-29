@@ -1,6 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 source("_shared.r")
-loadPackages(stringr, tidyverse, imputeTS)
+loadPackages(xts, nnet, stringr, tidyverse, imputeTS)
 
 source("calc/prediction-gas-consumption/_functions.r")
 

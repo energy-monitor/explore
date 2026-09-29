@@ -13,7 +13,7 @@ d.plot = d.base[, .(date, type, value = cars)]
 d.plot[, share := value / value[match("total", type)], by = date]
 dates2PlotDates(d.plot)
 
-fwrite(d.plot[year >= 2019][order(type, date)], file.path(g$d$wd, "others", "car-registrations.csv"))
+fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "others", "car-registrations.csv"))
 
 
 # - ANNUAL ---------------------------------------------------------------------

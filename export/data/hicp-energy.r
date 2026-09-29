@@ -21,5 +21,5 @@ for (c.country in names(countries)) {
     dates2PlotDates(d.plot)
 
     # Save
-    fwrite(d.plot[year >= 2019][order(type, date)], file.path(g$d$wd, "others", glue("hicp-energy-{c.country}.csv")))
+    fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "others", glue("hicp-energy-{c.country}.csv")))
 }
