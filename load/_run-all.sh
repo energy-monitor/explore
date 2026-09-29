@@ -48,6 +48,7 @@ run Rscript load/eurostat/nrg_cb_oilm.r
 run Rscript load/eurostat/nrg_cb_sffm.r
 run Rscript load/eurostat/emissions.r
 run Rscript load/uba-thg-crt.r
+run Rscript calc/emissions.r
 
 
 if [ ${#failed[@]} -gt 0 ]; then

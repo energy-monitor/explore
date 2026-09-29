@@ -2,7 +2,7 @@
 rm(list = ls())
 source("load/eurostat/_shared.r")
 
-# Inputs for the CO₂ emission estimates (export/data/_emissions.r), following
+# Inputs for the CO₂ emission estimates (calc/emissions.r), following
 # the methodology of https://github.com/ElijahStaengl/co2_fuel_combustion_final
 
 

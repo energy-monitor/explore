@@ -1,15 +1,19 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("export/data/_shared.r")
-source("export/data/_emissions.r")
 
 start.year = 2014
+
+# Estimates and inventory values, see calc/emissions.r
+d.emissions = loadFromStorage(id = "emissions-fuels")[, date := as.Date(date)]
+d.oil.products = loadFromStorage(id = "emissions-oil-products")[, date := as.Date(date)]
+d.nid = loadFromStorage(id = "emissions-nid")
 
 
 # - TOTAL ----------------------------------------------------------------------
 # Monthly emissions by fuel, only months with data for all fuels
 c.fuels = c("gas", "oil", "coal")
-d.fuels = emissionsFuels()[fuel %in% c.fuels]
+d.fuels = d.emissions[fuel %in% c.fuels]
 d.fuels = d.fuels[, if (.N == length(c.fuels)) .SD, by = date]
 
 d.plot = d.fuels[year(date) >= start.year, .(date, fuel, value = kt.co2 / 1000)]
@@ -46,7 +50,7 @@ c.groups = c(
     kerosene = "others", lpg = "others", fueloil = "others",
     correction = "correction"
 )
-d.oil = emissionsOilProducts()[product %in% names(c.groups)]
+d.oil = d.oil.products[product %in% names(c.groups)]
 d.oil = d.oil[, .(kt.co2 = sum(kt.co2)), by = .(date, product = c.groups[product])][order(product, date)]
 d.oil[, value := frollmean(kt.co2, 12), by = product]
 
@@ -55,7 +59,7 @@ fwrite(d.plot[order(date, product)], file.path(g$d$wd, "others", "emissions-oil.
 
 
 # - INTERNATIONAL AVIATION -----------------------------------------------------
-d.plot = emissionsFuels()[fuel == "intaviation", .(date, value = kt.co2)]
+d.plot = d.emissions[fuel == "intaviation", .(date, value = kt.co2)]
 
 # eurostat reports international aviation from 2014 on
 d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
@@ -76,17 +80,9 @@ fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "emissions-aviat
 
 # - COMPARISON WITH THE NID ----------------------------------------------------
 # Yearly estimates vs the national inventory, for the years available in both
-d.own = emissionsFuels()[, .(value = sum(kt.co2), n = .N), by = .(fuel, year = year(date))][n == 12, !"n"]
+d.own = d.emissions[, .(value = sum(kt.co2), n = .N), by = .(fuel, year = year(date))][n == 12, !"n"]
 
-d.nid.1a = readNid("nid_2026_1a_fuel_combustion_gas_oil.csv")
-d.nid = rbind(
-    d.nid.1a[grepl("^Gaseous", fuel_type), .(fuel = "gas", year, value = co2_kt)],
-    d.nid.1a[grepl("^Liquid", fuel_type), .(fuel = "oil", year, value = co2_kt)],
-    readNid("nid_2026_ra_solid_fuels.csv")[, .(fuel = "coal", year, value = co2_incl_stored_kt)],
-    loadFromStorage(id = "uba-thg-crt")[pollutant == "CO2" & code == "Memo 1 D 1 a", .(fuel = "intaviation", year, value = value / 1000)]
-)
-
-d.plot = merge(d.own, d.nid, by = c("fuel", "year"), suffixes = c(".own", ".nid"))[year >= start.year]
+d.plot = merge(d.own, d.nid[, .(fuel, year, value = kt.co2)], by = c("fuel", "year"), suffixes = c(".own", ".nid"))[year >= start.year]
 
 # Total of gas, oil and coal, only for years with all three
 c.fuels = c("gas", "oil", "coal")

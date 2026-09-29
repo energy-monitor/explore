@@ -1,4 +1,10 @@
-# CO₂ emissions from the combustion of fossil fuels in Austria, monthly in kt.
+# - INIT -----------------------------------------------------------------------
+rm(list = ls())
+source("_shared.r")
+
+# CO₂ emissions from the combustion of fossil fuels in Austria, monthly in kt,
+# saved as "emissions-fuels" (by fuel) and "emissions-oil-products", together
+# with the yearly values of the national inventory ("emissions-nid").
 #
 # Gas and oil follow the methodology of co2-emissions-austria
 # (https://github.com/ElijahStaengl/co2_fuel_combustion_final), which has been
@@ -18,6 +24,8 @@
 #   solid fuels of the reference approach incl. the carbon stored (used as
 #   reductant in blast furnaces, CRT 2.C.1)
 
+
+# - CONF -----------------------------------------------------------------------
 emissions.nid.path = "data/nid"
 
 readNid = function(file) {
@@ -45,6 +53,7 @@ emissions.coal.factors = data.table(
 )[, kt.co2.per.kt := tj.per.kt * tc.per.tj * 0.98 * 44 / 12 / 1000]
 
 
+# - FUNCTIONS ------------------------------------------------------------------
 # Keeps the months with data for all products. Months missing at the start
 # (series starting later) and at the end (not published yet) are dropped,
 # gaps in between stop with an error, as they would break sums and rolling
@@ -130,13 +139,26 @@ emissionsCoal = function() {
     d
 }
 
+# - DOIT -----------------------------------------------------------------------
+d.oil = emissionsOilProducts()
+
 # Monthly emissions by fuel (gas, oil, coal, intaviation) in kt CO₂
-emissionsFuels = function() {
-    d.oil = emissionsOilProducts()
-    rbind(
-        emissionsGas(),
-        d.oil[product != "intaviation", .(fuel = "oil", kt.co2 = sum(kt.co2)), by = date],
-        d.oil[product == "intaviation", .(date, fuel = "intaviation", kt.co2)],
-        emissionsCoal()
-    )[order(date, fuel)]
-}
+d.fuels = rbind(
+    emissionsGas(),
+    d.oil[product != "intaviation", .(fuel = "oil", kt.co2 = sum(kt.co2)), by = date],
+    d.oil[product == "intaviation", .(date, fuel = "intaviation", kt.co2)],
+    emissionsCoal()
+)[order(date, fuel)]
+
+# Yearly values of the national inventory in kt CO₂, to compare with
+d.nid.1a = readNid("nid_2026_1a_fuel_combustion_gas_oil.csv")
+d.nid = rbind(
+    d.nid.1a[grepl("^Gaseous", fuel_type), .(fuel = "gas", year, kt.co2 = co2_kt)],
+    d.nid.1a[grepl("^Liquid", fuel_type), .(fuel = "oil", year, kt.co2 = co2_kt)],
+    readNid("nid_2026_ra_solid_fuels.csv")[, .(fuel = "coal", year, kt.co2 = co2_incl_stored_kt)],
+    loadFromStorage(id = "uba-thg-crt")[pollutant == "CO2" & code == "Memo 1 D 1 a", .(fuel = "intaviation", year, kt.co2 = value / 1000)]
+)
+
+saveToStorages(d.fuels, list(id = "emissions-fuels", source = "calc", format = "csv"))
+saveToStorages(d.oil, list(id = "emissions-oil-products", source = "calc", format = "csv"))
+saveToStorages(d.nid[order(fuel, year)], list(id = "emissions-nid", source = "calc", format = "csv"))

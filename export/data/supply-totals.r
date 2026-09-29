@@ -1,7 +1,6 @@
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
 source("export/data/_shared.r")
-source("export/data/_emissions.r")
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -22,8 +21,8 @@ d.twh = rbindlist(list(
     d.gas[product == "total", .(date, product = "gas", t.j)]
 ))
 
-# Emissions calibrated to the national inventory, see export/data/_emissions.r
-d.co2 = emissionsFuels()[fuel %in% c("oil", "coal", "gas"), .(date, product = fuel, t.co2 = kt.co2 * 1000)]
+# Emissions calibrated to the national inventory, see calc/emissions.r
+d.co2 = loadFromStorage(id = "emissions-fuels")[fuel %in% c("oil", "coal", "gas"), .(date = as.Date(date), product = fuel, t.co2 = kt.co2 * 1000)]
 
 d.plot = merge(d.twh, d.co2, by = c("date", "product"), all = TRUE)
 d.plot = rbind(
