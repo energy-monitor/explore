@@ -3,48 +3,55 @@
 BASE_FOLDER=`dirname -- "$0"`/..;
 cd $BASE_FOLDER
 
-# - TEMP/HEATING DAYS
+# An error in one script does not stop the others, the failed ones are listed
+# at the end (and the exit status is set)
+failed=()
+run() {
+    echo "- $*"
+    "$@" || failed+=("$*")
+}
 
+# - TEMP/HEATING DAYS
 if [ "$1" == "no-climate" ]; then
     echo "skipping climate data download"
 else
-    echo "downloading climate data"
-    python3 load/era5/downloadExtractFull.py
+    run python3 load/era5/downloadExtractFull.py
 fi
-Rscript calc/hdd.r
-
-echo "gas data"
+run Rscript calc/hdd.r
 
 # - GAS
-Rscript load/econtrol-gas-consumption.r
-Rscript load/aggm/gas-consumption.r
-Rscript load/gie/detailed.r
-python3 load/cismo/1-gas-price.py
-Rscript load/cismo/2-gas-price.r
-
-echo "entso-e"
+run Rscript load/econtrol-gas-consumption.r
+run Rscript load/aggm/gas-consumption.r
+run Rscript load/gie/detailed.r
+run python3 load/cismo/1-gas-price.py
+run Rscript load/cismo/2-gas-price.r
 
 # - ELECTRICITY
-Rscript load/entsoe/load.r
-Rscript load/entsoe/load-hourly.r
-Rscript load/entsoe/generation.r
-Rscript load/entsoe/generation-hourly.r
-Rscript load/entsoe/price.r
-# Rscript load/entsoe/netPosition.r
-Rscript load/entsoe/physicalFlows.r
-Rscript load/entsoe/hydro-storage.r
-Rscript load/apg/installed-power-capacity-at.R
-
-echo "other"
+run Rscript load/entsoe/load.r
+run Rscript load/entsoe/load-hourly.r
+run Rscript load/entsoe/generation.r
+run Rscript load/entsoe/generation-hourly.r
+run Rscript load/entsoe/price.r
+# run Rscript load/entsoe/netPosition.r
+run Rscript load/entsoe/physicalFlows.r
+run Rscript load/entsoe/hydro-storage.r
+run Rscript load/apg/installed-power-capacity-at.R
 
 # - OTHERS
-Rscript load/ec-gas-oil.r
-Rscript load/stat-economic-activity.r
-Rscript load/stat-car-registrations.r
-Rscript load/eurostat/passenger-cars.r
-Rscript load/eurostat/prc_hicp_minr.r
-Rscript load/eurostat/nrg_cb_gasm.r
-Rscript load/eurostat/nrg_cb_oilm.r
-Rscript load/eurostat/nrg_cb_sffm.r
-Rscript load/eurostat/emissions.r
-Rscript load/uba-thg-crt.r
+run Rscript load/ec-gas-oil.r
+run Rscript load/stat-economic-activity.r
+run Rscript load/stat-car-registrations.r
+run Rscript load/eurostat/passenger-cars.r
+run Rscript load/eurostat/prc_hicp_minr.r
+run Rscript load/eurostat/nrg_cb_gasm.r
+run Rscript load/eurostat/nrg_cb_oilm.r
+run Rscript load/eurostat/nrg_cb_sffm.r
+run Rscript load/eurostat/emissions.r
+run Rscript load/uba-thg-crt.r
+
+
+if [ ${#failed[@]} -gt 0 ]; then
+    echo "failed scripts:"
+    printf -- '- %s\n' "${failed[@]}"
+    exit 1
+fi
