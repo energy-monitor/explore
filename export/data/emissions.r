@@ -5,6 +5,23 @@ source("export/data/_emissions.r")
 
 start.year = 2014
 
+# Monthly values and cumulated values since the start of the year, each year
+# on the axis of 2020, the years 2014-18 averaged; by optional groups (g)
+yearProfile = function(d, g = character(0)) {
+    d = copy(d)[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
+    d = d[year == "avg14-18" | year %in% yearsShown()]
+
+    d = d[, .(
+        value = mean(value, na.rm = TRUE)
+    ), by = c("year", g, "date20")][order(year, date20)]
+
+    rbind(
+        d[, c("year", g, "date20", "value"), with = FALSE][, variable := "month"],
+        d[, .(date20, value = cumsum(value)), by = c("year", g)][, variable := "cum"],
+        use.names = TRUE
+    )[, c("year", g, "variable", "date20", "value"), with = FALSE]
+}
+
 
 # - TOTAL ----------------------------------------------------------------------
 # Monthly emissions by fuel, only months with data for all fuels
@@ -17,26 +34,15 @@ fwrite(d.plot[order(date, fuel)], file.path(g$d$wd, "others", "emissions-total.c
 
 # Sum of all fuels, by year
 d.plot = d.fuels[, .(value = sum(kt.co2) / 1000), by = date]
-d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date))]
-d.plot = d.plot[year == "avg14-18" | year %in% yearsShown()]
+dates2PlotDates(d.plot)
+fwrite(yearProfile(d.plot), file.path(g$d$wd, "others", "emissions-total-year.csv"))
 
-d.plot = d.plot[, .(
-    value = mean(value, na.rm = TRUE)
-), by = .(
-    year, date20 = {
-        t = copy(date)
-        year(t) = 2020
-        t
-    }
-)]
-
-d.plot = d.plot[order(year, date20)]
-d.plot = rbind(
-    d.plot[, .(year, date20, variable = "month", value)],
-    d.plot[, .(date20, variable = "cum", value = cumsum(value)), by = year]
-)
-
-fwrite(d.plot, file.path(g$d$wd, "others", "emissions-total-year.csv"))
+# Gas and coal, by year
+for (f in c("gas", "coal")) {
+    d.plot = emissionsFuels()[fuel == f & year(date) >= start.year, .(date, value = kt.co2 / 1000)]
+    dates2PlotDates(d.plot)
+    fwrite(yearProfile(d.plot), file.path(g$d$wd, "others", glue("emissions-{f}-year.csv")))
+}
 
 
 # - OIL PRODUCTS ---------------------------------------------------------------
@@ -52,6 +58,19 @@ d.oil[, value := frollmean(kt.co2, 12), by = product]
 
 d.plot = d.oil[year(date) >= start.year & !is.na(value), .(date, product, value)]
 fwrite(d.plot[order(date, product)], file.path(g$d$wd, "others", "emissions-oil.csv"))
+
+# Oil in total and by product group, by year (without the constant correction,
+# which is part of the total only)
+d.plot = rbind(
+    d.oil[, .(product = "total", value = sum(kt.co2) / 1000), by = date],
+    d.oil[product != "correction", .(date, product, value = kt.co2 / 1000)]
+)[year(date) >= start.year]
+dates2PlotDates(d.plot)
+d.plot = yearProfile(d.plot, "product")
+d.plot[, product := factor(product, levels = c("total", "gasoil", "gasoline", "others"))]
+# facets support one dimension only, so product and variable are combined
+d.plot = d.plot[order(product, variable != "month")][, panel := paste(product, variable, sep = "-")]
+fwrite(d.plot, file.path(g$d$wd, "others", "emissions-oil-year.csv"))
 
 
 # - INTERNATIONAL AVIATION -----------------------------------------------------
