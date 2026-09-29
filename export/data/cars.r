@@ -13,6 +13,10 @@ d.plot = d.base[, .(date, type, value = cars)]
 d.plot[, share := value / value[match("total", type)], by = date]
 dates2PlotDates(d.plot)
 
+# the order of the stacked bars: electrified, fossil, others, unknown types are kept
+c.types = c("bev", "phev", "hybrid", "petrol", "diesel", "other", "total")
+d.plot[, type := factor(type, c(c.types, setdiff(unique(type), c.types)))]
+
 fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "others", "car-registrations.csv"))
 
 
