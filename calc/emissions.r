@@ -68,6 +68,7 @@ completeMonths = function(d, products) {
 }
 
 emissionsGas = function() {
+    # NID 2026, page 336, Table 138: natural gas input for ammonia production [TJ, NCV]
     d.ammonia = readNid("nid_2026_ammonia_gas.csv")
     tj.ammonia.month = mean(d.ammonia$gas_used_ammonia_tj) / 12
 
