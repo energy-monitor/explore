@@ -13,6 +13,12 @@ d.plot = d.plot[, .(
     value = mio.m3
 )]
 
+# Monthly values for the bar plot, there is no split by products
+fwrite(
+    monthlyStacked(d.plot, "total", "value"),
+    file.path(g$d$wd, "others", "supply-gas-monthly.csv")
+)
+
 d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by = .(date, product)]
 
 d.plot = d.plot[, .(

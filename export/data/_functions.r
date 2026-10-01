@@ -17,6 +17,16 @@ meltAndRemove = function(d, g = character(0)) {
     melt(d, id.vars = c("date", g))[!is.na(value) & date >= firstDateShown()]
 }
 
+# Monthly values for the stacked plots: only months with all products and
+# without missing values, with the shares of the months as `<col>.share`
+# (the order of the stacks is set by the definition of the plot)
+monthlyStacked = function(d, products, cols) {
+    d = d[product %in% products & date >= firstDateShown()]
+    d = d[, if (.N == length(products) && !anyNA(.SD)) .SD, by = date, .SDcols = c("product", cols)]
+    d[, (paste0(cols, ".share")) := lapply(.SD, function(v) v / sum(v)), by = date, .SDcols = cols]
+    d[order(date, match(product, products))]
+}
+
 dates2PlotDates = function(d) {
     c.date20 = copy(d$date)
     year(c.date20) = 2020

@@ -13,6 +13,12 @@ d.plot = d.plot[, .(
     value = ths.t
 )]
 
+# Monthly values for the stacked plot, the products add up to the total
+fwrite(
+    monthlyStacked(d.plot, c("stein", "koks", "braun"), "value"),
+    file.path(g$d$wd, "others", "supply-coal-monthly.csv")
+)
+
 d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
 
 d.plot = d.plot[, .(

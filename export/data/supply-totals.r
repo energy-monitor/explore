@@ -25,6 +25,15 @@ d.twh = rbindlist(list(
 d.co2 = loadFromStorage(id = "emissions-fuels")[fuel %in% c("oil", "coal", "gas"), .(date = as.Date(date), product = fuel, t.co2 = kt.co2 * 1000)]
 
 d.plot = merge(d.twh, d.co2, by = c("date", "product"), all = TRUE)
+
+# Monthly values for the stacked plot
+d.monthly = monthlyStacked(d.plot[, .(
+    date, product,
+    twh = t.j / 1000 / 3.6,
+    mt.co2 = t.co2 / 1000 / 1000
+)], c("oil", "coal", "gas"), c("twh", "mt.co2"))
+fwrite(d.monthly, file.path(g$d$wd, "others", "supply-total-monthly.csv"))
+
 d.plot = rbind(
     d.plot,
     d.plot[, if (.N == 3) .(product = "total", t.j = sum(t.j), t.co2 = sum(t.co2)), by = date]
