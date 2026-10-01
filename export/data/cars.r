@@ -10,7 +10,7 @@ d.base = loadFromStorage(id = "car-registrations")[,
 ]
 
 d.plot = d.base[, .(date, type, value = cars)]
-d.plot[, share := value / value[match("total", type)], by = date]
+d.plot[, value.share := value / value[match("total", type)], by = date]
 dates2PlotDates(d.plot)
 
 # the order of the stacked bars: electrified, fossil, others, unknown types are kept
