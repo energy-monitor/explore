@@ -38,4 +38,4 @@ d.plot[startsWith(year, "avg"), value := ifelse(
     value
 ), by = year]
 
-fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "temperature.csv"))
+fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "weather", "temperature.csv"))

@@ -12,4 +12,4 @@ d.plot = d.base[year >= min(yearsShown()), .(
 
 dates2PlotDates(d.plot)
 
-fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "economic-activity.csv"))
+fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "economy", "economic-activity.csv"))

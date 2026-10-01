@@ -16,7 +16,7 @@ d.plot = d.plot[, .(
 # Monthly values for the stacked plot, the products add up to the total
 fwrite(
     monthlyStacked(d.plot, c("diesel", "gasoline", "kerosin", "heating"), "value"),
-    file.path(g$d$wd, "others", "supply-oil-monthly.csv")
+    file.path(g$d$wd, "oil", "supply-stacked.csv")
 )
 
 d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by=.(date, product)]
@@ -33,5 +33,5 @@ d.plot = d.plot[, .(
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "others", "supply-oil.csv"))
+fwrite(d.plot, file.path(g$d$wd, "oil", "supply.csv"))
 # fwrite(d.plot[order(year, date20)], file.path(g$d$wd, 'others', 'supply-trans-prod.csv'))

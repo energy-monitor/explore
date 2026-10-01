@@ -28,7 +28,7 @@ dates2PlotDates(d.plot)
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "others", "gas-oil.csv"))
+fwrite(d.plot, file.path(g$d$wd, "oil", "fuel-prices.csv"))
 
 
 # - EUROPE ---------------------------------------------------------------------
@@ -36,4 +36,4 @@ fwrite(d.plot, file.path(g$d$wd, "others", "gas-oil.csv"))
 d.plot = d.base[!country %in% c("EU", "EUR")]
 d.plot = d.plot[date == max(date), .(country, date, variable, value)]
 
-fwrite(d.plot[order(country, variable)], file.path(g$d$wd, "others", "gas-oil-europe.csv"))
+fwrite(d.plot[order(country, variable)], file.path(g$d$wd, "oil", "fuel-prices-map.csv"))

@@ -38,7 +38,7 @@ d.plot[, variable := NULL]
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "load-international.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "load-countries.csv"))
 
 
 # - COUNTRY CODES FOR JSON -----------------------------------------------------

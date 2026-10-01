@@ -17,15 +17,15 @@ dates2PlotDates(d.plot)
 c.types = c("bev", "phev", "hybrid", "petrol", "diesel", "other", "total")
 d.plot[, type := factor(type, c(c.types, setdiff(unique(type), c.types)))]
 
-fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "others", "car-registrations.csv"))
+fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "mobility", "registrations.csv"))
 
 
 # - ANNUAL ---------------------------------------------------------------------
 # new passenger cars and stock by country, eurostat
-# same layout as `electricity/generation-year-g2.csv` (europe map)
+# same layout as `electricity/generation-map.csv` (europe map)
 c.files = c(
-    road_eqr_carpda = "car-registrations-europe",
-    road_eqs_carpda = "car-stock-europe"
+    road_eqr_carpda = "cars-map-registrations",
+    road_eqs_carpda = "cars-map-stock"
 )
 c.geo2iso = c(EL = "GR", UK = "GB")
 
@@ -37,5 +37,5 @@ for (id in names(c.files)) {
     d.plot = d.base[, .(country = geo, year, type, value = cars)]
     d.plot[, share := value / value[match("total", type)], by = .(country, year)]
 
-    fwrite(d.plot[order(country, year, type)], file.path(g$d$wd, "others", glue("{c.files[[id]]}.csv")))
+    fwrite(d.plot[order(country, year, type)], file.path(g$d$wd, "mobility", glue("{c.files[[id]]}.csv")))
 }

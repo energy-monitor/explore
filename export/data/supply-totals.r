@@ -32,7 +32,7 @@ d.monthly = monthlyStacked(d.plot[, .(
     twh = t.j / 1000 / 3.6,
     mt.co2 = t.co2 / 1000 / 1000
 )], c("oil", "coal", "gas"), c("twh", "mt.co2"))
-fwrite(d.monthly, file.path(g$d$wd, "others", "supply-total-monthly.csv"))
+fwrite(d.monthly, file.path(g$d$wd, "fossil", "supply-stacked.csv"))
 
 d.plot = rbind(
     d.plot,
@@ -57,4 +57,4 @@ d.plot = d.plot[, .(
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "others", "supply-total.csv"))
+fwrite(d.plot, file.path(g$d$wd, "fossil", "supply.csv"))

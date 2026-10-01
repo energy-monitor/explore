@@ -21,7 +21,7 @@ d.plot = d.base.g1[date >= firstDateShown() & country == "AT", .(
 ), by = .(date = {t = as.Date(date); day(t) = 1; t}, source.group)]
 
 # share of the month, the stacked bars add up to 100%
-d.plot[, share := value/sum(value), by = date]
+d.plot[, value.share := value/sum(value), by = date]
 
 # the order of the stacked bars: renewables, fossil, others, solar between
 # the blues of hydro and wind, unknown groups before the others
@@ -31,7 +31,7 @@ c.order = c(c.order, setdiff(unique(d.plot$source.group), c(c.order, nameOthers)
 d.plot[, source.group := factor(source.group, c.order, c.order)]
 d.plot = d.plot[order(date, source.group)]
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-monthly-g1.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-stacked.csv"))
 
 
 
@@ -61,7 +61,7 @@ d.plot = d.plot[order(date, source.group)]
 addRollMean(d.plot, 28, g = "source.group")
 dates2PlotDates(d.plot)
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-g1.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-sources.csv"))
 
 
 # - AT G2 ----------------------------------------------------------------------
@@ -77,7 +77,7 @@ d.plot = d.plot[order(date, source.group)]
 addRollMean(d.plot, 28, g = "source.group")
 dates2PlotDates(d.plot)
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-g2.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-renewable.csv"))
 
 
 # MAP INT
@@ -91,4 +91,4 @@ d.agg[, share := value/sum(value), by=.(country, year)]
 
 d.plot = d.agg[year >= min(yearsShown()) & !is.na(share)][order(country, year)]
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-year-g2.csv"))
+fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-map.csv"))

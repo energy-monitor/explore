@@ -17,7 +17,7 @@ d.fuels = d.emissions[fuel %in% c.fuels]
 d.fuels = d.fuels[, if (.N == length(c.fuels)) .SD, by = date]
 
 d.plot = d.fuels[year(date) >= start.year, .(date, fuel, value = kt.co2 / 1000)]
-fwrite(d.plot[order(date, fuel)], file.path(g$d$wd, "others", "emissions-total.csv"))
+fwrite(d.plot[order(date, fuel)], file.path(g$d$wd, "fossil", "emissions-total.csv"))
 
 # Sum of all fuels, by year
 d.plot = d.fuels[, .(value = sum(kt.co2) / 1000), by = date]
@@ -40,7 +40,7 @@ d.plot = rbind(
     d.plot[, .(date20, variable = "cum", value = cumsum(value)), by = year]
 )
 
-fwrite(d.plot, file.path(g$d$wd, "others", "emissions-total-year.csv"))
+fwrite(d.plot, file.path(g$d$wd, "fossil", "emissions-total-year.csv"))
 
 
 # - OIL PRODUCTS ---------------------------------------------------------------
@@ -55,7 +55,7 @@ d.oil = d.oil[, .(kt.co2 = sum(kt.co2)), by = .(date, product = c.groups[product
 d.oil[, value := frollmean(kt.co2, 12), by = product]
 
 d.plot = d.oil[year(date) >= start.year & !is.na(value), .(date, product, value)]
-fwrite(d.plot[order(date, product)], file.path(g$d$wd, "others", "emissions-oil.csv"))
+fwrite(d.plot[order(date, product)], file.path(g$d$wd, "fossil", "emissions-oil.csv"))
 
 
 # - INTERNATIONAL AVIATION -----------------------------------------------------
@@ -75,7 +75,7 @@ d.plot = d.plot[, .(
     }
 )]
 
-fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "others", "emissions-aviation.csv"))
+fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "fossil", "emissions-aviation.csv"))
 
 
 # - COMPARISON WITH THE NID ----------------------------------------------------
@@ -99,4 +99,4 @@ d.plot[, sign := fifelse(deviation >= 0, "higher", "lower")]
 
 # Order of the facets
 d.plot[, fuel := factor(fuel, levels = c("total", "gas", "oil", "coal", "intaviation"))]
-fwrite(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "others", "emissions-nid.csv"))
+fwrite(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "fossil", "emissions-nid.csv"))

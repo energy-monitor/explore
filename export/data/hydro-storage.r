@@ -27,5 +27,5 @@ for (c.country in countries) {
     dates2PlotDates(d.plot)
 
     # Save
-    fwrite(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("hydro-storage-{c.country}.csv")))
+    fwrite(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("hydro-storage-{tolower(c.country)}.csv")))
 }

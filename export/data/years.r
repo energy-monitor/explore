@@ -7,14 +7,14 @@ source("export/data/_shared.r")
 # position of a year). Only the lines of the year keys are changed, the files
 # are left as they are otherwise.
 
-c.files = c("shared.json", "electricity/price-entsoe.json")
+c.files = c("_years.json", "electricity/price.json")
 re.year = '^(\\s*)"(\\d{4})":'
 
 
 # - DOIT -----------------------------------------------------------------------
 readYears = function(lines) as.integer(sub(paste0(re.year, ".*$"), "\\2", grep(re.year, lines, value = TRUE)))
 
-c.shared = readLines(file.path(g$d$wd, "shared.json"), warn = FALSE)
+c.shared = readLines(file.path(g$d$wd, "_years.json"), warn = FALSE)
 shift = max(yearsShown()) - max(readYears(c.shared))
 
 if (shift != 0) {

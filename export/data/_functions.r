@@ -1,5 +1,5 @@
 # Years shown in the charts comparing years: the current and the 7 before
-# (the colours in web/data/shared.json are rotated by export/data/years.r)
+# (the colours in web/data/_years.json are rotated by export/data/years.r)
 yearsShown = function() (year(Sys.Date()) - 7):year(Sys.Date())
 firstDateShown = function() as.Date(paste0(min(yearsShown()), "-01-01"))
 
