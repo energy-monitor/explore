@@ -6,7 +6,7 @@ source("export/data/_shared.r")
 # - DOIT -----------------------------------------------------------------------
 d.plot = loadFromStorage(id = "nrg_cb_gasm")[,
     date := as.Date(date)
-][year(date) >= 2013]
+][year(date) >= 2014]
 
 d.plot = d.plot[, .(
     date, product,
@@ -19,7 +19,9 @@ fwrite(
     file.path(g$d$wd, "gas", "supply-stacked.csv")
 )
 
-d.plot[, year := ifelse(year(date) %in% 2013:2018, "avg13-18", year(date)), by = .(date, product)]
+# the reference period of all fossil fuels, the first years with all series,
+# also the CO₂ emissions of the totals (gas and oil start in 2014)
+d.plot[, year := ifelse(year(date) %in% 2014:2018, "avg14-18", year(date)), by = .(date, product)]
 
 d.plot = d.plot[, .(
     value = mean(value, na.rm = TRUE)
