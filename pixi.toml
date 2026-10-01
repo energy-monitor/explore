@@ -1,4 +1,4 @@
-[project]
+[workspace]
 authors = ["Peter Reschenhofer <peter@abteil.org>"]
 channels = ["conda-forge"]
 description = "Codebase for data wrangling and analyis of https://energie.wifo.ac.at"
