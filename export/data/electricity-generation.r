@@ -23,9 +23,9 @@ d.plot = d.base.g1[date >= firstDateShown() & country == "AT", .(
 # share of the month, the stacked bars add up to 100%
 d.plot[, value.share := value/sum(value), by = date]
 
-# the order of the stacked bars: renewables, fossil, others, solar between
-# the blues of hydro and wind, unknown groups before the others
-c.order = c("Hydro", "Solar", "Wind", "Gas", "Coal", "Oil")
+# the order of the rows: renewables, fossil, others, as in the definition of
+# the plot (which sets the order of the stacks), unknown groups before the others
+c.order = c("Hydro", "Wind", "Solar", "Gas", "Coal", "Oil")
 c.order = c(c.order, setdiff(unique(d.plot$source.group), c(c.order, nameOthers)), nameOthers)
 
 d.plot[, source.group := factor(source.group, c.order, c.order)]
