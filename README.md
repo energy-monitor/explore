@@ -15,6 +15,8 @@ Following data sources are used:
     - Gas Storage
 - [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
     - Gas Consumption
+- [ASFINAG](https://www.asfinag.at/verkehr-sicherheit/verkehrszaehlung/)
+    - Traffic on motorways and expressways
 - [CDS - Climate Data Store](https://cds.climate.copernicus.eu/)
     - Temperature
 - [EEX - European Energy Exchange](https://www.eex.com/) via [Macrobond](https://www.macrobond.com/)
