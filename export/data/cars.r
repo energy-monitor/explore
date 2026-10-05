@@ -21,21 +21,18 @@ fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "
 
 
 # - ANNUAL ---------------------------------------------------------------------
-# new passenger cars and stock by country, eurostat
-# same layout as `electricity/generation-map.csv` (europe map)
-c.files = c(
-    road_eqr_carpda = "cars-map-registrations",
-    road_eqs_carpda = "cars-map-stock"
+# new passenger cars and stock by country, eurostat, in one file with the
+# series as column, the layout of `electricity/generation-map.csv` (europe map)
+c.series = c(
+    road_eqr_carpda = "registrations",
+    road_eqs_carpda = "stock"
 )
-c.geo2iso = c(EL = "GR", UK = "GB")
 
-for (id in names(c.files)) {
+d.plot = rbindlist(lapply(names(c.series), function(id) {
     # countries only, no aggregates
     d.base = loadFromStorage(id = id)[nchar(geo) == 2]
-    d.base[geo %in% names(c.geo2iso), geo := c.geo2iso[geo]]
+    d.base[, .(series = c.series[[id]], country = iso2(geo), year, type, value = cars)]
+}))
+d.plot[, share := value / value[match("total", type)], by = .(series, country, year)]
 
-    d.plot = d.base[, .(country = geo, year, type, value = cars)]
-    d.plot[, share := value / value[match("total", type)], by = .(country, year)]
-
-    fwrite(d.plot[order(country, year, type)], file.path(g$d$wd, "mobility", glue("{c.files[[id]]}.csv")))
-}
+fwrite(d.plot[order(series, country, year, type)], file.path(g$d$wd, "mobility", "cars-map.csv"))

@@ -24,7 +24,7 @@ fwrite(d.plot, file.path(g$d$wd, "electricity", "load.csv"))
 
 
 # - INT -------------------------------------------------------------------------
-d.int = d.base[, .(country, date, value = value * 1000)] # TWh -> GWh
+d.int = d.base[, .(country = iso2(country), date, value = value * 1000)] # TWh -> GWh
 
 addRollMean(d.int, 7, g = "country")
 addCum(d.int, g = "country")

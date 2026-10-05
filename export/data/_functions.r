@@ -3,6 +3,13 @@
 yearsShown = function() (year(Sys.Date()) - 7):year(Sys.Date())
 firstDateShown = function() as.Date(paste0(min(yearsShown()), "-01-01"))
 
+# ISO 3166 codes of the countries, as the ids of web/assets/geo/europe.json,
+# eurostat and ENTSO-E use EL for Greece and UK for the United Kingdom
+iso2 = function(x) {
+    c.map = c(EL = "GR", UK = "GB")
+    ifelse(x %in% names(c.map), c.map[x], x)
+}
+
 addRollMean = function(d, l, g = character(0)) {
     d[, (paste0('rm', l)) := rollmean(value, l, fill = NA, align = "right"), by=c(g)]
 }

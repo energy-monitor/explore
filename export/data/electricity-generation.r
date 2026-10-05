@@ -81,7 +81,7 @@ fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-renewable.csv"))
 
 
 # MAP INT
-d.agg = d.base.g2[, .(value = sum(value)), by=.(country, year = year(date), type = source.group)]
+d.agg = d.base.g2[, .(value = sum(value)), by=.(country = iso2(country), year = year(date), type = source.group)]
 
 # types a country does not report in a year are 0, not missing, e.g. nuclear in AT
 d.grid = unique(d.agg[, .(country, year)])[, .(type = unique(d.agg$type)), by = .(country, year)]
