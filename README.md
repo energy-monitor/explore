@@ -17,6 +17,8 @@ Following data sources are used:
     - Gas Consumption
 - [ASFINAG](https://www.asfinag.at/verkehr-sicherheit/verkehrszaehlung/)
     - Traffic on motorways and expressways
+- [Eurostat](https://ec.europa.eu/eurostat/)
+    - Rail transport (goods quarterly, passengers annual)
 - [CDS - Climate Data Store](https://cds.climate.copernicus.eu/)
     - Temperature
 - [EEX - European Energy Exchange](https://www.eex.com/) via [Macrobond](https://www.macrobond.com/)

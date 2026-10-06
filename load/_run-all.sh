@@ -43,6 +43,7 @@ run Rscript load/stat-economic-activity.r
 run Rscript load/stat-car-registrations.r
 run Rscript load/eurostat/passenger-cars.r
 run Rscript load/asfinag/traffic.r
+run Rscript load/eurostat/rail.r
 run Rscript load/eurostat/prc_hicp_minr.r
 run Rscript load/eurostat/nrg_cb_gasm.r
 run Rscript load/eurostat/nrg_cb_oilm.r
