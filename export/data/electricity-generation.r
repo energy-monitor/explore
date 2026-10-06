@@ -83,6 +83,10 @@ fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-renewable.csv"))
 # MAP INT
 d.agg = d.base.g2[, .(value = sum(value)), by=.(country = iso2(country), year = year(date), type = source.group)]
 
+# ENTSO-E stopped publishing GB data with Brexit, the data ends mid 2021, after
+# that only a few TWh (Northern Ireland?) are reported, so no data for GB
+d.agg = d.agg[!(country == "GB" & year >= 2021)]
+
 # types a country does not report in a year are 0, not missing, e.g. nuclear in AT
 d.grid = unique(d.agg[, .(country, year)])[, .(type = unique(d.agg$type)), by = .(country, year)]
 d.agg = rbind(d.agg, d.grid[!d.agg, on = .(country, year, type)][, value := 0])
