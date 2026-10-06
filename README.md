@@ -79,11 +79,21 @@ Prepared data sets are written by `saveToStorages()` and read back by `loadFromS
 
 The settings of the `sftp` type are kept in the `sftp` section of `creds.json` instead of `config.json`, so that the server does not end up in the repository. It authenticates with a public key only, no passwords. Point `keyfile` at the private key, the matching `.pub` file is picked up automatically if it exists. A `path` that is not absolute is taken relative to the login home directory. `keypass` is only needed if the private key is protected by a passphrase.
 
-The host key is verified against the file given in `knownHosts`, so the server needs an entry there before the first transfer:
+The host key is verified against the file given in `knownHosts`, so the server needs an entry there before the first transfer. Use a dedicated file rather than appending to your regular `~/.ssh/known_hosts`:
 
 ```bash
-    ssh-keyscan -p <port> <host> >> ~/.ssh/known_hosts
+    ssh-keyscan -p <port> <host> > ~/.ssh/known_hosts_sftp
 ```
 
 Compare the fingerprint with the one on the server (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) before trusting it. Setting `knownHosts` to an empty string disables the check entirely, which is not recommended.
+
+The entries in this file must not be **hashed**, otherwise the connection fails before authentication with:
+
+```
+    Failure establishing ssh session: -5, Unable to exchange encryption keys
+```
+
+Transfers run through curl's libssh2 backend, which reads `knownHosts` before the key exchange to pin the host key algorithm to the type recorded for the target host. libssh2 exposes no host name for a hashed entry, and curl treats such a nameless entry as a match without comparing host names, so it pins the key type of the first hashed entry in the file instead of the one belonging to the server ([`ssh_force_knownhost_key_type()`](https://github.com/curl/curl/blob/master/lib/vssh/libssh2.c), the `found = TRUE` branch taken when `store->name` is `NULL`). If that key type is one the server does not offer, the key exchange fails. Midnight Commander hit the same libssh2 limitation and describes it in detail in [MidnightCommander/mc#4506](https://github.com/MidnightCommander/mc/issues/4506); [curl#10143](https://github.com/curl/curl/issues/10143) shows the same error from the same function.
+
+`ssh-keyscan` writes unhashed entries, so the command above is fine as it stands. What breaks it is pointing `knownHosts` at `~/.ssh/known_hosts`: `ssh` hashes what it adds, since `HashKnownHosts` is enabled by default on Debian and Ubuntu. That file is therefore usually hashed, which is why a plain `ssh` or `sftp` to the same server succeeds while the transfer here does not. Do not run `ssh-keygen -H` on the file given in `knownHosts`, and do not point the setting at a file that `ssh` maintains itself.
 
