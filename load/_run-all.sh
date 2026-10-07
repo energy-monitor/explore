@@ -37,6 +37,10 @@ run Rscript load/entsoe/physicalFlows.r
 run Rscript load/entsoe/hydro-storage.r
 run Rscript load/apg/installed-power-capacity-at.R
 
+# - WOOD
+run Rscript load/agrarforschung/pellets.r
+run Rscript load/agrarforschung/brennholz.r
+
 # - OTHERS
 run Rscript load/ec-gas-oil.r
 run Rscript load/stat-economic-activity.r
