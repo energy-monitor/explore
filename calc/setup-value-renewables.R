@@ -28,7 +28,7 @@ d.gen.sel.ren <- d.gen.sel %>%
         source %in% c(
             "Wind Onshore",
             "Solar",
-            "Hydro Run-of-river and poundage",
+            "Hydro Run-of-river and pondage",
             "Nuclear",
             "Wind Offshore"
         )
@@ -41,7 +41,7 @@ d.gen.sel.ren.wo.nuclear <- d.gen.sel %>%
         source %in% c(
             "Wind Onshore",
             "Solar",
-            "Hydro Run-of-river and poundage",
+            "Hydro Run-of-river and pondage",
             "Wind Offshore"
         )
     ) %>%
@@ -321,12 +321,3 @@ plot_residual_load <- function(data, window = 28, years_back = 6, base_size = 14
         ) +
         theme_energy(base_size = base_size)
 }
-
-CURRENT_YEAR = year(Sys.Date())
-YEARS_BACK = 6
-
-plot_residual_load(d.residual.wo.nuclear, window = 28, years_back = YEARS_BACK)
-
-plot_market_prices(d.prices.filtered, window = 28, years_back = YEARS_BACK)
-
-
