@@ -32,6 +32,16 @@ readNid = function(file) {
     fread(file.path(emissions.nid.path, file), sep = ";", dec = ",")
 }
 
+# CO₂ emissions of fuel combustion (CRT 1.A) of liquid and gaseous fuels,
+# from the submission to the UNFCCC (load/unfccc-crt.r)
+readCrtFuelCombustion = function() {
+    d = loadFromStorage(id = "unfccc-crt")[
+        gas == "CO2" & code == "1.A." & fuel %in% c("liquid", "gaseous"), .(year, fuel, kt.co2 = value)
+    ]
+    stopifnot(nrow(d) > 0, !anyDuplicated(d[, .(year, fuel)]))
+    d
+}
+
 # NID 2026, page 164 and 172
 emissions.gas.tco2.per.tj = 55.6
 emissions.gas.ncv.per.gcv = 0.9
@@ -110,9 +120,7 @@ emissionsOilProducts = function() {
 
     # Calibration: mean yearly difference to the CRT, as constant monthly
     # value (positive if the estimate is too low), rounded to 10 kt
-    d.crt = readNid("nid_2026_1a_fuel_combustion_gas_oil.csv")[
-        grepl("^Liquid", fuel_type), .(year, crt = co2_kt)
-    ]
+    d.crt = readCrtFuelCombustion()[fuel == "liquid", .(year, crt = kt.co2)]
     d.year = d[product != "intaviation", .(kt.co2 = sum(kt.co2), n = uniqueN(date)), by = .(year = year(date))][n == 12]
     d.diff = merge(d.year, d.crt, by = "year")
     correction = round(mean(d.diff$crt - d.diff$kt.co2) / 12, -1)
@@ -152,10 +160,10 @@ d.fuels = rbind(
 )[order(date, fuel)]
 
 # Yearly values of the national inventory in kt CO₂, to compare with
-d.nid.1a = readNid("nid_2026_1a_fuel_combustion_gas_oil.csv")
+d.nid.1a = readCrtFuelCombustion()
 d.nid = rbind(
-    d.nid.1a[grepl("^Gaseous", fuel_type), .(fuel = "gas", year, kt.co2 = co2_kt)],
-    d.nid.1a[grepl("^Liquid", fuel_type), .(fuel = "oil", year, kt.co2 = co2_kt)],
+    d.nid.1a[fuel == "gaseous", .(fuel = "gas", year, kt.co2)],
+    d.nid.1a[fuel == "liquid", .(fuel = "oil", year, kt.co2)],
     readNid("nid_2026_ra_solid_fuels.csv")[, .(fuel = "coal", year, kt.co2 = co2_incl_stored_kt)],
     loadFromStorage(id = "uba-thg-crt")[pollutant == "CO2" & code == "Memo 1 D 1 a", .(fuel = "intaviation", year, kt.co2 = value / 1000)]
 )

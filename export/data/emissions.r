@@ -100,3 +100,23 @@ d.plot[, sign := fifelse(deviation >= 0, "higher", "lower")]
 # Order of the facets
 d.plot[, fuel := factor(fuel, levels = c("total", "gas", "oil", "coal", "intaviation"))]
 fwrite(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "fossil", "emissions-nid.csv"))
+
+
+# - LONG TERM ------------------------------------------------------------------
+# Inventory since 1990 and the estimates as rolling sums of 12 months in Mt,
+# the sum of December is the one of the calendar year, so the yearly values
+# of the inventory are dated to December. The inventory of coal (reference
+# approach) only has some years, the total only the years of all three.
+c.facets = c(c.fuels, "total")
+
+d.est = d.emissions[fuel %in% c.fuels][order(fuel, date), .(date, value = frollsum(kt.co2, 12) / 1000), by = fuel]
+d.est = rbind(d.est, d.est[, if (.N == length(c.fuels) && !anyNA(value)) .(fuel = "total", value = sum(value)), by = date])
+
+d.inv = d.nid[fuel %in% c.fuels, .(fuel, year, value = kt.co2 / 1000)]
+d.inv = rbind(d.inv, d.inv[, if (.N == length(c.fuels)) .(fuel = "total", value = sum(value)), by = year])
+
+d.plot = rbind(
+    d.est[!is.na(value), .(date, facet = fuel, type = "estimate", value)],
+    d.inv[, .(date = as.Date(paste0(year, "-12-01")), facet = fuel, type = "inventory", value)]
+)
+fwrite(d.plot[order(match(facet, c.facets), type, date)], file.path(g$d$wd, "emissions", "estimate.csv"))

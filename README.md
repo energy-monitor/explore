@@ -19,6 +19,9 @@ Following data sources are used:
     - Traffic on motorways and expressways
 - [Eurostat](https://ec.europa.eu/eurostat/)
     - Rail transport (goods quarterly, passengers annual)
+- [Umweltbundesamt](https://www.umweltbundesamt.at/)
+    - Greenhouse gas inventory by CRT sector ([data.gv.at](https://www.data.gv.at/datasets/78bd7b69-c1a7-456b-8698-fac3b24f7aa5))
+    - Greenhouse gas inventory by CRT sector and fuel, submission to the UNFCCC (summary workbook in `data/unfccc`)
 - [CDS - Climate Data Store](https://cds.climate.copernicus.eu/)
     - Temperature
 - [EEX - European Energy Exchange](https://www.eex.com/) via [Macrobond](https://www.macrobond.com/)
