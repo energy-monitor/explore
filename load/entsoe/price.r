@@ -44,8 +44,6 @@ saveToStorages(
 
 
 d.base.f = d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR"]
-table(d.base.f$ContractType)
-table(d.base.f$ResolutionCode)
 
 # max(d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR" & ResolutionCode == "PT60M"]$DateTime)
 

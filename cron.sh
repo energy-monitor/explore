@@ -3,7 +3,8 @@
 # The nightly load of all data sources on the server, e.g. in the crontab
 #   0 1 * * * /path/to/explore/cron.sh >> /path/to/cron.log 2>&1
 # Runs load/_run-all.sh in the pixi environment of this repository, arguments
-# are passed on (e.g. `cron.sh no-climate` skips the grid downloads).
+# are passed on (`no-climate` skips the grid downloads, `all` runs the weekly
+# scripts as well).
 
 # cron has a minimal PATH, pixi is in /usr/local/bin
 PATH=$PATH:/usr/local/bin
