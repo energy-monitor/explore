@@ -5,9 +5,8 @@ import cdsapi
 import os, sys
 from datetime import date, timedelta
 from pathlib import Path
-import rootpath
 
-ROOT_PATH = Path(rootpath.detect())
+ROOT_PATH = Path(__file__).resolve().parents[2]
 os.chdir(str(ROOT_PATH))
 sys.path.append(str(ROOT_PATH))
 
@@ -90,7 +89,7 @@ download_era5_temperature_last_year(until, CLIMATE_FOLDER)
 import xarray as xr
 import pandas as pd
 
-POPULATION_FOLDER = DATA_FOLDER/"population"
+POPULATION_FOLDER = ROOT_PATH/"data/population"
 
 pop = xr.open_dataarray(POPULATION_FOLDER/'pop_era5_rel.nc')
 # POP TO CSV
