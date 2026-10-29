@@ -3,6 +3,7 @@
         "apg": "data/apg",
         "entsoe": "data/entsoe",
         "era5": "data/era5",
+        "geosphere": "data/geosphere",
         "tmp": "data/tmp",
         "wd": "../web/data"
     },

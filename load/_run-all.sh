@@ -19,6 +19,14 @@ else
 fi
 run Rscript calc/hdd.r
 
+# - PRECIPITATION/SNOW/CLIMATE BY DISTRICT
+if [ "$1" == "no-climate" ]; then
+    echo "skipping GeoSphere grid download"
+else
+    run python3 load/geosphere/districts.py
+fi
+run Rscript calc/climate-regions.r
+
 # - GAS
 run Rscript load/econtrol-gas-consumption.r
 run Rscript load/aggm/gas-consumption.r

@@ -24,6 +24,11 @@ Following data sources are used:
     - Greenhouse gas inventory by CRT sector and fuel, submission to the UNFCCC (summary workbook in `data/unfccc`)
 - [CDS - Climate Data Store](https://cds.climate.copernicus.eu/)
     - Temperature
+- [GeoSphere Austria Data Hub](https://data.hub.geosphere.at/)
+    - Precipitation, temperature, sunshine (SPARTACUS v3, 1 km grid)
+    - Snow water equivalent, snow depth (SNOWGRID-CL v2, 1 km grid)
+- [Statistik Austria](https://data.statistik.gv.at/)
+    - Boundaries of the political districts
 - [EEX - European Energy Exchange](https://www.eex.com/) via [Macrobond](https://www.macrobond.com/)
     - Electricity price
 - [ICE - Intercontinental Exchange](https://www.theice.com/) via [Macrobond](https://www.macrobond.com/)
@@ -53,6 +58,10 @@ Install dependencies with :
 Copy the `creds-template.json` file to `creds.json` and fill it with your credentials. Credentials can be obtained by registering on the corresponding data supplier webpages (free, except for data series fetched via the data provider Macrobond).
 
 Calling one of the scripts in the `load` folder will download the data from the corresponding data source, extract, aggregate and store the data for the visualisation.
+
+### Climate grids of GeoSphere Austria
+
+`load/geosphere/districts.py` fetches the daily 1 km grids (precipitation, temperature, sunshine, snow) since 1961 in chunks of a few days and keeps them below `d.tmp` (about 12 GB), only the aggregated district data ends up in the storages. The first run is a backfill of about 3400 requests; with the rate limit of the API (240 per hour) it takes roughly 15 hours. It can be interrupted and resumed at any time, existing chunks are skipped. `calc/climate-regions.r` refuses to write partial data to the storages, so run the backfill to the end before it (or set `CLIMATE_ALLOW_PARTIAL=1` for a test).
 
 ## Configuration
 
