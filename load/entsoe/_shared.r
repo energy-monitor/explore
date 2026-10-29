@@ -12,8 +12,8 @@ set_entsoe_credentials(g$entsoe$params$user, g$entsoe$params$pass)
 c.nice2entsoe = c(
     generation = "AggregatedGenerationPerType_16.1.B_C_r3",
     load = "ActualTotalLoad_6.1.A_r3",
-    dayAheadPrices = "EnergyPrices_12.1.D_r3",
-    netPositions = "ImplicitAllocationsNetPositions_12.1.E",
+    dayAheadPrices = "EnergyPrices_12.1.D_r3.1",
+    netPositions = "ImplicitAllocationsNetPositions_12.1.E_r3.1",
     physicalFlows = "PhysicalFlows_12.1.G_r3",
     hydroStorage = "AggregatedFillingRateOfWaterReservoirsAndHydroStoragePlants_16.1.D_r3"
 )

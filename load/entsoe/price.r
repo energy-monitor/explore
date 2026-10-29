@@ -11,16 +11,21 @@ d.base = load_entsoe(
 )
 setnames(d.base, "DateTime(UTC)", "DateTime")
 
-d.base <- d.base[Sequence == 1|is.na(Sequence)]
+# Since the revision r3.1 (October 2026) the files also contain intraday
+# prices (ContractType) and sometimes a timestamp twice from two publications
+# (InstanceCode, UpdateTime), the last one counts
+d.base = d.base[ContractType == "Day-ahead"]
+d.base = d.base[Sequence == 1 | is.na(Sequence)]
+d.base = d.base[ResolutionCode %in% c("PT60M", "PT15M")]
+d.base = d.base[order(`UpdateTime(UTC)`)]
+d.base = d.base[!duplicated(d.base, by = c("AreaMapCode", "DateTime", "ResolutionCode"), fromLast = TRUE)]
 
+d.base[, hour := floor_date(DateTime, unit = "hours")]
 
-d.base.f = d.base[ResolutionCode == "PT60M"| ResolutionCode == "PT15M",]
-d.base.f = d.base.f[, hour := floor_date(DateTime, unit = "hours")]
-
-d.agg = d.base.f[, .(
+d.agg = d.base[, .(
     price = mean(`Price[Currency/MWh]`)
 ), by = .(
-    country = MapCode,
+    country = AreaMapCode,
     DateTime = hour,
     ResolutionCode
 )][order(country, DateTime)]
