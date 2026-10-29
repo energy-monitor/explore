@@ -59,6 +59,8 @@ Copy the `creds-template.json` file to `creds.json` and fill it with your creden
 
 Calling one of the scripts in the `load` folder will download the data from the corresponding data source, extract, aggregate and store the data for the visualisation.
 
+`load/_run-all.sh` runs all loaders in sequence, a failed script does not stop the others, they are listed at the end. On the server it is run nightly by `cron.sh`, which wraps it in the pixi environment (`cron.sh no-climate` skips the large grid downloads). The data folders below `data/` (`tmp`, `storage`, `entsoe`, `era5`, `geosphere`) contain nothing tracked and can be symlinks to another drive.
+
 ### Climate grids of GeoSphere Austria
 
 `load/geosphere/districts.py` fetches the daily 1 km grids (precipitation, temperature, sunshine, snow) since 1961 in chunks of a few days and keeps them below `d.tmp` (about 12 GB), only the aggregated district data ends up in the storages. The first run is a backfill of about 3400 requests; with the rate limit of the API (240 per hour) it takes roughly 15 hours. It can be interrupted and resumed at any time, existing chunks are skipped. `calc/climate-regions.r` refuses to write partial data to the storages, so run the backfill to the end before it (or set `CLIMATE_ALLOW_PARTIAL=1` for a test).
