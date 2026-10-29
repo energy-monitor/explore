@@ -31,6 +31,16 @@ data/ninja/pv-gis-vertical-north.csv
 data/ninja/pv-gis-vertical-south.csv
 data/ninja/pv-gis-vertical-west.csv
 
+# The data folders, which may be symlinks to another drive (nothing below them
+# is tracked, the inputs of the repository are in data/nid, data/population and
+# data/unfccc)
+data/apg/
+data/entsoe/
+data/era5/
+data/geosphere/
+data/storage/
+data/tmp/
+
 # pixi environments
 .pixi
 *.egg-info
