@@ -19,12 +19,18 @@ roundSignif = function(x, s = 6) {
     round(x, d)
 }
 
-# The CSV of a chart for the web, the numbers rounded by roundSignif, the
-# dates (and other classes) are kept, the data is not changed
+# The CSV of a chart for the web and the same rows as parquet next to it, e.g.
+# gas/price.parquet of gas/price.csv, gen-vis reads both, the numbers rounded
+# by roundSignif, the dates (and other classes) are kept, the data is not
+# changed. Parquet with snappy (the default of arrow), which gen-vis reads
+# without loading further decompressors, arrow is not attached, it masks
+# utils::timestamp
 fwriteWeb = function(d, file, ...) {
+    stopifnot(grepl("\\.csv$", file))
     cols = names(d)[sapply(d, function(x) is.double(x) && !is.object(x))]
     d = copy(as.data.table(d))[, (cols) := lapply(.SD, roundSignif), .SDcols = cols]
     fwrite(d, file, ...)
+    arrow::write_parquet(d, sub("\\.csv$", ".parquet", file))
 }
 
 addRollMean = function(d, l, g = character(0)) {
