@@ -10,4 +10,4 @@ d.base = loadFromStorage(id = "electricity-load-hourly-year")
 #     geom_line()
 
 # Save
-fwriteWeb(d.base, file.path(g$d$wd, "electricity", "load-hourly.csv"))
+fwriteWeb(d.base[, .(year, hour, value)], file.path(g$d$wd, "electricity", "load-hourly.csv"))
