@@ -24,7 +24,7 @@ existing chunks are skipped.
 Usage: districts.py [--from YYYY-MM-DD]   (start date, 1961-01-01 by default)
 """
 
-import os, sys, time, json, zipfile, argparse
+import os, sys, time, json, fcntl, zipfile, argparse
 from datetime import date, timedelta, datetime
 from pathlib import Path
 
@@ -203,14 +203,17 @@ def download_chunk(dataset, start, end, today):
         f'&bbox={BBOX}&output_format=netcdf'
     )
     print(f'  downloading {dataset} {start} - {end}')
-    request(url, file)
-    # Make sure the file is readable, otherwise it would be skipped forever
+    # Downloaded to a temporary file that is renamed once it is readable, an
+    # interrupted or invalid download would otherwise be skipped forever
+    part = file.with_name(file.name + '.part')
+    request(url, part)
     try:
-        with xr.open_dataset(file) as d:
+        with xr.open_dataset(part, engine='netcdf4') as d:
             d.load()
     except Exception as e:
-        file.unlink()
-        raise RuntimeError(f'{file} is not a valid NetCDF file: {e}')
+        part.unlink()
+        raise RuntimeError(f'{url} returned no valid NetCDF file: {e}')
+    part.replace(file)
     return file
 
 
@@ -260,6 +263,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--from', dest='date_from', type=date.fromisoformat, default=DATE_START)
     args = parser.parse_args()
+
+    # Only one run at a time, e.g. the nightly run during the backfill: two runs
+    # download the same chunks and break each other's files
+    TMP_FOLDER.mkdir(parents=True, exist_ok=True)
+    lock = open(TMP_FOLDER/'districts.lock', 'w')
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit('another run of districts.py is still going, stopping')
 
     today = date.today()
     DATA_FOLDER.mkdir(parents=True, exist_ok=True)
