@@ -6,8 +6,9 @@
 # are passed on (`no-climate` skips the grid downloads, `all` runs the weekly
 # scripts as well).
 
-# cron has a minimal PATH, pixi is in /usr/local/bin
-PATH=$PATH:/usr/local/bin
+# cron has a minimal PATH, pixi is installed per user in ~/.pixi/bin (the one
+# in /usr/local/bin is too old for the lock file)
+PATH=$HOME/.pixi/bin:$PATH
 
 cd "$(dirname -- "$0")" || exit 1
 
