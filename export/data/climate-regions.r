@@ -1,12 +1,15 @@
 # Yearly climate indicators of Austria, its states and districts for the
 # climate section, from the monthly regional data of the GeoSphere grids
 # (`calc/climate-regions.r`):
-# - climate/districts.csv: the indicators of all regions by year, for the maps
+# - climate/districts.csv: the indicators of all regions by year, for the maps,
+#   the anomalies of the maps as indicators of their own
 # - climate/regions.csv: the states and Austria as time series, for the line
-#   chart with the indicator as radio
+#   chart with the indicator as radio, the anomaly in the column
+#   `value.anomaly`
 #
 # Only complete years are exported. Anomalies refer to 1961 - 1990, of the
-# precipitation in %, of the days in days.
+# amounts of water (precipitation, snow water equivalent) in %, of the others
+# the difference.
 
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
@@ -37,37 +40,55 @@ if (Sys.getenv("CLIMATE_ALLOW_PARTIAL") == "") {
 }
 
 # Anomalies
-d.yearly[, `:=`(
-    tm.anomaly = tm - mean(tm[year %in% c.reference]),
-    rr.anomaly = rr / mean(rr[year %in% c.reference]) * 100 - 100,
-    days.hot.anomaly = days.hot - mean(days.hot[year %in% c.reference], na.rm = TRUE),
-    days.snow.anomaly = days.snow - mean(days.snow[year %in% c.reference], na.rm = TRUE)
-), by = region]
+c.indicators = c(
+    "tm", "rr", "sa", "swe.max",
+    "days.hot", "days.summer", "days.frost", "days.ice", "days.snow"
+)
+c.relative = c("rr", "swe.max")
+
+anomaly = function(v, year, relative) {
+    ref = mean(v[year %in% c.reference], na.rm = TRUE)
+    if (relative) v / ref * 100 - 100 else v - ref
+}
+
+for (i in c.indicators) {
+    d.yearly[, paste0(i, ".anomaly") := anomaly(get(i), year, i %in% c.relative), by = region]
+}
 
 
 # - EXPORT ---------------------------------------------------------------------
-c.indicators = c(
-    "tm", "tm.anomaly", "rr", "rr.anomaly", "sa", "swe.max",
-    "days.hot", "days.hot.anomaly", "days.summer", "days.frost", "days.ice",
-    "days.snow", "days.snow.anomaly"
-)
+c.ids = c("level", "region", "name", "year")
 
-d.plot = melt(
-    d.yearly, id.vars = c("level", "region", "name", "year"), measure.vars = c.indicators,
-    variable.name = "indicator"
+d.plot = merge(
+    melt(
+        d.yearly, id.vars = c.ids, measure.vars = c.indicators,
+        variable.name = "indicator", variable.factor = FALSE
+    ),
+    melt(
+        d.yearly, id.vars = c.ids, measure.vars = paste0(c.indicators, ".anomaly"),
+        variable.name = "indicator", value.name = "value.anomaly", variable.factor = FALSE
+    )[, indicator := sub("\\.anomaly$", "", indicator)],
+    by = c(c.ids, "indicator")
 )[!is.na(value)]
-d.plot[, value := round(value, 2)]
+d.plot[, `:=`(value = round(value, 2), value.anomaly = round(value.anomaly, 2))]
+
+# The anomalies shown on the maps
+c.maps = c("tm", "rr", "days.hot", "days.snow")
 
 dir.create(file.path(g$d$wd, "climate"), showWarnings = FALSE)
 
 # Maps: the districts
+d.districts = d.plot[level == "district"]
 fwrite(
-    d.plot[level == "district", .(district = region, year, indicator, value)][order(indicator, year, district)],
+    rbind(
+        d.districts[, .(district = region, year, indicator, value)],
+        d.districts[indicator %in% c.maps, .(district = region, year, indicator = paste0(indicator, ".anomaly"), value = value.anomaly)]
+    )[order(indicator, year, district)],
     file.path(g$d$wd, "climate", "districts.csv")
 )
 
 # Time series: the states and Austria
 fwrite(
-    d.plot[level != "district", .(date = as.Date(sprintf("%d-07-01", year)), type = region, indicator, value)][order(indicator, type, date)],
+    d.plot[level != "district", .(date = as.Date(sprintf("%d-07-01", year)), type = region, indicator, value, value.anomaly)][order(indicator, type, date)],
     file.path(g$d$wd, "climate", "regions.csv")
 )
