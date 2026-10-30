@@ -5,7 +5,8 @@
 # - climate/regions.csv: the states and Austria as time series, for the line
 #   chart with the indicator as radio
 #
-# Only complete years are exported. Anomalies refer to 1961 - 1990.
+# Only complete years are exported. Anomalies refer to 1961 - 1990, of the
+# precipitation in %, of the days in days.
 
 # - INIT -----------------------------------------------------------------------
 rm(list = ls())
@@ -38,14 +39,17 @@ if (Sys.getenv("CLIMATE_ALLOW_PARTIAL") == "") {
 # Anomalies
 d.yearly[, `:=`(
     tm.anomaly = tm - mean(tm[year %in% c.reference]),
-    rr.anomaly = rr / mean(rr[year %in% c.reference]) * 100 - 100
+    rr.anomaly = rr / mean(rr[year %in% c.reference]) * 100 - 100,
+    days.hot.anomaly = days.hot - mean(days.hot[year %in% c.reference], na.rm = TRUE),
+    days.snow.anomaly = days.snow - mean(days.snow[year %in% c.reference], na.rm = TRUE)
 ), by = region]
 
 
 # - EXPORT ---------------------------------------------------------------------
 c.indicators = c(
     "tm", "tm.anomaly", "rr", "rr.anomaly", "sa", "swe.max",
-    "days.hot", "days.summer", "days.frost", "days.ice", "days.snow"
+    "days.hot", "days.hot.anomaly", "days.summer", "days.frost", "days.ice",
+    "days.snow", "days.snow.anomaly"
 )
 
 d.plot = melt(
