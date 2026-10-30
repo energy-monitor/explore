@@ -33,7 +33,7 @@ d.check = merge(
 stopifnot(nrow(d.check) == uniqueN(d.plot$year), all(abs(d.check$value - d.check$total) < 1e-6))
 
 addShares(d.plot)
-fwrite(d.plot[order(year, match(sector, c.sectors))], file.path(g$d$wd, "emissions", "sectors.csv"))
+fwriteWeb(d.plot[order(year, match(sector, c.sectors))], file.path(g$d$wd, "emissions", "sectors.csv"))
 
 
 # - FUELS ----------------------------------------------------------------------
@@ -48,4 +48,4 @@ d.plot = d.crt[gas == "activity" & code == "1.A." & fuel %in% names(c.fuels), .(
 ), by = .(year, fuel = c.fuels[fuel])]
 
 addShares(d.plot)
-fwrite(d.plot[order(year, match(fuel, unique(c.fuels)))], file.path(g$d$wd, "emissions", "fuels.csv"))
+fwriteWeb(d.plot[order(year, match(fuel, unique(c.fuels)))], file.path(g$d$wd, "emissions", "fuels.csv"))

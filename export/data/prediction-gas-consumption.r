@@ -19,4 +19,4 @@ source("export/data/_shared.r")
 # dates2PlotDates(d.plot)
 #
 # # SAVE
-# fwrite(d.plot[date >= "2019-01-01"], file.path(g$d$wd, 'pred-gas-cons.csv'))
+# fwriteWeb(d.plot[date >= "2019-01-01"], file.path(g$d$wd, 'pred-gas-cons.csv'))

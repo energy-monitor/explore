@@ -22,7 +22,7 @@ fromDate = "2025-01-10"
 # d.plot = d.base[year == 2021, .(
 #     hour, source.group, value
 # )]
-# fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
+# fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
 
 
 loadPackages("ggplot2")

@@ -18,7 +18,7 @@ d.plot = meltAndRemove(d.at)
 dates2PlotDates(d.plot)
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "load.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "load.csv"))
 
 
 
@@ -38,7 +38,7 @@ d.plot[, variable := NULL]
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "load-countries.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "load-countries.csv"))
 
 
 # - COUNTRY CODES FOR JSON -----------------------------------------------------

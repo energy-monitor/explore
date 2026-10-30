@@ -39,4 +39,4 @@ d.plot[, value := rollmean(
 dates2PlotDates(d.plot)
 
 # Save
-fwrite(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("flows.csv")))
+fwriteWeb(d.plot[year >= min(yearsShown())], file.path(g$d$wd, "electricity", glue("flows.csv")))

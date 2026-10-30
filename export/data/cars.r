@@ -17,7 +17,7 @@ dates2PlotDates(d.plot)
 c.types = c("bev", "phev", "hybrid", "petrol", "diesel", "other", "total")
 d.plot[, type := factor(type, c(c.types, setdiff(unique(type), c.types)))]
 
-fwrite(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "mobility", "registrations.csv"))
+fwriteWeb(d.plot[year >= min(yearsShown())][order(type, date)], file.path(g$d$wd, "mobility", "registrations.csv"))
 
 
 # - ANNUAL ---------------------------------------------------------------------
@@ -35,4 +35,4 @@ d.plot = rbindlist(lapply(names(c.series), function(id) {
 }))
 d.plot[, share := value / value[match("total", type)], by = .(series, country, year)]
 
-fwrite(d.plot[order(series, country, year, type)], file.path(g$d$wd, "mobility", "cars-map.csv"))
+fwriteWeb(d.plot[order(series, country, year, type)], file.path(g$d$wd, "mobility", "cars-map.csv"))

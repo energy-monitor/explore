@@ -14,7 +14,7 @@ d.plot = d.plot[, .(
 )]
 
 # Monthly values for the bar plot, there is no split by products
-fwrite(
+fwriteWeb(
     monthlyStacked(d.plot, "total", "value"),
     file.path(g$d$wd, "gas", "supply-stacked.csv")
 )
@@ -35,5 +35,5 @@ d.plot = d.plot[, .(
 
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "gas", "supply.csv"))
-# fwrite(d.plot[order(year, date20)], file.path(g$d$wd, 'others', 'supply-trans-prod.csv'))
+fwriteWeb(d.plot, file.path(g$d$wd, "gas", "supply.csv"))
+# fwriteWeb(d.plot[order(year, date20)], file.path(g$d$wd, 'others', 'supply-trans-prod.csv'))

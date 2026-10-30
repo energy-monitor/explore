@@ -55,4 +55,4 @@ d.plot = rbindlist(lapply(c.baseYears, function(b) d.base[,
 ]))
 
 # Save
-fwrite(d.plot[order(base, type, date)], file.path(g$d$wd, "economy", "price-index.csv"))
+fwriteWeb(d.plot[order(base, type, date)], file.path(g$d$wd, "economy", "price-index.csv"))

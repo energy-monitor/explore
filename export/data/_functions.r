@@ -10,6 +10,23 @@ iso2 = function(x) {
     ifelse(x %in% names(c.map), c.map[x], x)
 }
 
+# The values with 6 significant digits, the integer part is kept, e.g. 164.732
+# of 164.732471428571, 0.00199541 and 1234568, the charts show at most 2
+# decimals (or a share in .1%), the full precision makes the files a fifth larger
+roundSignif = function(x, s = 6) {
+    d = s - 1 - floor(log10(abs(x)))
+    d[!is.finite(d) | d < 0] = 0
+    round(x, d)
+}
+
+# The CSV of a chart for the web, the numbers rounded by roundSignif, the
+# dates (and other classes) are kept, the data is not changed
+fwriteWeb = function(d, file, ...) {
+    cols = names(d)[sapply(d, function(x) is.double(x) && !is.object(x))]
+    d = copy(as.data.table(d))[, (cols) := lapply(.SD, roundSignif), .SDcols = cols]
+    fwrite(d, file, ...)
+}
+
 addRollMean = function(d, l, g = character(0)) {
     d[, (paste0('rm', l)) := rollmean(value, l, fill = NA, align = "right"), by=c(g)]
 }

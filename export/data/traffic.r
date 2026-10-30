@@ -50,6 +50,6 @@ d.plot[, road := factor(road, c.roads)]
 d.plot[, vehicle := factor(vehicle, c("all", "heavy", "light"))]
 dates2PlotDates(d.plot)
 
-fwrite(d.plot[year >= min(yearsShown())][order(road, vehicle, date), .(
+fwriteWeb(d.plot[year >= min(yearsShown())][order(road, vehicle, date), .(
     road, vehicle, date, value, stations, year, date20
 )], file.path(g$d$wd, "mobility", "traffic.csv"))

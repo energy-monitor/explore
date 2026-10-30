@@ -34,18 +34,18 @@ d.fuels = d.emissions[fuel %in% c.fuels]
 d.fuels = d.fuels[, if (.N == length(c.fuels)) .SD, by = date]
 
 d.plot = d.fuels[year(date) >= start.year, .(date, fuel, value = kt.co2 / 1000)]
-fwrite(d.plot[order(date, fuel)], file.path(g$d$wd, "fossil", "emissions-total.csv"))
+fwriteWeb(d.plot[order(date, fuel)], file.path(g$d$wd, "fossil", "emissions-total.csv"))
 
 # Sum of all fuels, by year
 d.plot = d.fuels[, .(value = sum(kt.co2) / 1000), by = date]
 dates2PlotDates(d.plot)
-fwrite(yearProfile(d.plot), file.path(g$d$wd, "fossil", "emissions-total-year.csv"))
+fwriteWeb(yearProfile(d.plot), file.path(g$d$wd, "fossil", "emissions-total-year.csv"))
 
 # Gas and coal, by year
 for (f in c("gas", "coal")) {
     d.plot = d.emissions[fuel == f & year(date) >= start.year, .(date, value = kt.co2 / 1000)]
     dates2PlotDates(d.plot)
-    fwrite(yearProfile(d.plot), file.path(g$d$wd, "fossil", glue("emissions-{f}-year.csv")))
+    fwriteWeb(yearProfile(d.plot), file.path(g$d$wd, "fossil", glue("emissions-{f}-year.csv")))
 }
 
 
@@ -61,7 +61,7 @@ d.oil = d.oil[, .(kt.co2 = sum(kt.co2)), by = .(date, product = c.groups[product
 d.oil[, value := frollmean(kt.co2, 12), by = product]
 
 d.plot = d.oil[year(date) >= start.year & !is.na(value), .(date, product, value)]
-fwrite(d.plot[order(date, product)], file.path(g$d$wd, "fossil", "emissions-oil.csv"))
+fwriteWeb(d.plot[order(date, product)], file.path(g$d$wd, "fossil", "emissions-oil.csv"))
 
 # Oil in total and by product group, by year (without the constant correction,
 # which is part of the total only)
@@ -74,7 +74,7 @@ d.plot = yearProfile(d.plot, "product")
 d.plot[, product := factor(product, levels = c("total", "gasoil", "gasoline", "others"))]
 # facets support one dimension only, so product and variable are combined
 d.plot = d.plot[order(product, variable != "month")][, panel := paste(product, variable, sep = "-")]
-fwrite(d.plot, file.path(g$d$wd, "fossil", "emissions-oil-year.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "fossil", "emissions-oil-year.csv"))
 
 
 # - INTERNATIONAL AVIATION -----------------------------------------------------
@@ -94,7 +94,7 @@ d.plot = d.plot[, .(
     }
 )]
 
-fwrite(d.plot[order(year, date20)], file.path(g$d$wd, "fossil", "emissions-aviation.csv"))
+fwriteWeb(d.plot[order(year, date20)], file.path(g$d$wd, "fossil", "emissions-aviation.csv"))
 
 
 # - COMPARISON WITH THE NID ----------------------------------------------------
@@ -118,7 +118,7 @@ d.plot[, sign := fifelse(deviation >= 0, "higher", "lower")]
 
 # Order of the facets
 d.plot[, fuel := factor(fuel, levels = c("total", "gas", "oil", "coal", "intaviation"))]
-fwrite(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "fossil", "emissions-nid.csv"))
+fwriteWeb(d.plot[order(fuel, year), .(date, year, fuel, sign, value = deviation, own = value.own / 1000, nid = value.nid / 1000)], file.path(g$d$wd, "fossil", "emissions-nid.csv"))
 
 
 # - LONG TERM ------------------------------------------------------------------
@@ -138,4 +138,4 @@ d.plot = rbind(
     d.est[!is.na(value), .(date, facet = fuel, type = "estimate", value)],
     d.inv[, .(date = as.Date(paste0(year, "-12-01")), facet = fuel, type = "inventory", value)]
 )
-fwrite(d.plot[order(match(facet, c.facets), type, date)], file.path(g$d$wd, "emissions", "estimate.csv"))
+fwriteWeb(d.plot[order(match(facet, c.facets), type, date)], file.path(g$d$wd, "emissions", "estimate.csv"))

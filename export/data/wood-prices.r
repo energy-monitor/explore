@@ -14,7 +14,7 @@ d.plot = loadFromStorage(id = "price-pellets")[, .(
 dates2PlotDates(d.plot)
 
 # Save
-fwrite(
+fwriteWeb(
     d.plot[year >= min(yearsShown())][order(date)],
     file.path(g$d$wd, "wood", "pellets.csv")
 )
@@ -30,7 +30,7 @@ d.plot = melt(d.raw, id.vars = "date", variable.name = "type")
 dates2PlotDates(d.plot)
 
 # Save
-fwrite(
+fwriteWeb(
     d.plot[year >= min(yearsShown())][order(type, date)],
     file.path(g$d$wd, "wood", "firewood.csv")
 )

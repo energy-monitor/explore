@@ -53,5 +53,5 @@ yearsOverlay = function(d) {
     d.plot[order(year, date20)]
 }
 
-fwrite(yearsOverlay(d.precipitation), file.path(g$d$wd, "weather", "precipitation.csv"))
-fwrite(yearsOverlay(d.snow), file.path(g$d$wd, "weather", "snow.csv"))
+fwriteWeb(yearsOverlay(d.precipitation), file.path(g$d$wd, "weather", "precipitation.csv"))
+fwriteWeb(yearsOverlay(d.snow), file.path(g$d$wd, "weather", "snow.csv"))

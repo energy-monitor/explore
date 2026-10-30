@@ -79,7 +79,7 @@ dir.create(file.path(g$d$wd, "climate"), showWarnings = FALSE)
 
 # Maps: the districts
 d.districts = d.plot[level == "district"]
-fwrite(
+fwriteWeb(
     rbind(
         d.districts[, .(district = region, year, indicator, value)],
         d.districts[indicator %in% c.maps, .(district = region, year, indicator = paste0(indicator, ".anomaly"), value = value.anomaly)]
@@ -88,7 +88,7 @@ fwrite(
 )
 
 # Time series: the states and Austria
-fwrite(
+fwriteWeb(
     d.plot[level != "district", .(date = as.Date(sprintf("%d-07-01", year)), type = region, indicator, value, value.anomaly)][order(indicator, type, date)],
     file.path(g$d$wd, "climate", "regions.csv")
 )

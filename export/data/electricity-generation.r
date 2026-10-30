@@ -31,7 +31,7 @@ c.order = c(c.order, setdiff(unique(d.plot$source.group), c(c.order, nameOthers)
 d.plot[, source.group := factor(source.group, c.order, c.order)]
 d.plot = d.plot[order(date, source.group)]
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-stacked.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-stacked.csv"))
 
 
 
@@ -45,7 +45,7 @@ d.plot = meltAndRemove(d.plot)
 dates2PlotDates(d.plot)
 
 # Save
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-gas.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-gas.csv"))
 
 
 # - AT G1 ----------------------------------------------------------------------
@@ -61,7 +61,7 @@ d.plot = d.plot[order(date, source.group)]
 addRollMean(d.plot, 28, g = "source.group")
 dates2PlotDates(d.plot)
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-sources.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-sources.csv"))
 
 
 # - AT G2 ----------------------------------------------------------------------
@@ -77,7 +77,7 @@ d.plot = d.plot[order(date, source.group)]
 addRollMean(d.plot, 28, g = "source.group")
 dates2PlotDates(d.plot)
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-renewable.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-renewable.csv"))
 
 
 # MAP INT
@@ -95,4 +95,4 @@ d.agg[, share := value/sum(value), by=.(country, year)]
 
 d.plot = d.agg[year >= min(yearsShown()) & !is.na(share)][order(country, year)]
 
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-map.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-map.csv"))

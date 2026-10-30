@@ -11,4 +11,4 @@ d.base = loadFromStorage(id = "electricity-generation-hourly-year-g1")
 d.plot = d.base[year == 2021, .(
     hour, source.group, value
 )]
-fwrite(d.plot, file.path(g$d$wd, "electricity", "generation-hourly.csv"))
+fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-hourly.csv"))

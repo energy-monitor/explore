@@ -73,7 +73,7 @@ invisible(lapply(names(l.plots), function(id) {
     if (length(unique(d.plot$variable)) == 1)
         d.plot[, variable := NULL]
 
-    fwrite(d.plot, file.path(g$d$wd, glue("{id}.csv")))
+    fwriteWeb(d.plot, file.path(g$d$wd, glue("{id}.csv")))
     NULL
 }))
 
@@ -86,4 +86,4 @@ invisible(lapply(names(l.plots), function(id) {
 # ), by=.(year, hour)][order(year, hour)]
 
 # # Save
-# fwrite(d.plot, file.path(g$d$wd, "electricity", "price-hourly.csv"))
+# fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "price-hourly.csv"))

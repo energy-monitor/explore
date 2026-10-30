@@ -14,7 +14,7 @@ d.plot = rbind(
 )[!is.na(value)]
 dates2PlotDates(d.plot)
 
-fwrite(d.plot[year >= min(yearsShown())][order(measure, date)], file.path(g$d$wd, "mobility", "rail-goods.csv"))
+fwriteWeb(d.plot[year >= min(yearsShown())][order(measure, date)], file.path(g$d$wd, "mobility", "rail-goods.csv"))
 
 
 # - ANNUAL ---------------------------------------------------------------------
@@ -27,4 +27,4 @@ d.plot = rbind(
     d.base[, .(measure = "pkm", year, value = mio.pkm / 1e3)]
 )[!is.na(value)]
 
-fwrite(d.plot[order(measure, year)], file.path(g$d$wd, "mobility", "rail-passengers.csv"))
+fwriteWeb(d.plot[order(measure, year)], file.path(g$d$wd, "mobility", "rail-passengers.csv"))
