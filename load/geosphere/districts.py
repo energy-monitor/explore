@@ -51,6 +51,8 @@ REVISION_DAYS = 7
 API_BASE = 'https://dataset.api.hub.geosphere.at/v1/grid/historical'
 BBOX = '46.16,9.39,49.18,17.39'  # south, west, north, east: the whole grid
 GRID_CRS = 'EPSG:3416'
+STATE_NAMES = {'1': 'Burgenland', '2': 'Kärnten', '3': 'Niederösterreich', '4': 'Oberösterreich',
+               '5': 'Salzburg', '6': 'Steiermark', '7': 'Tirol', '8': 'Vorarlberg', '9': 'Wien'}
 # Seconds between two requests, the API allows 240 per hour
 REQUEST_INTERVAL = 15.5
 REQUEST_RETRIES = 5
@@ -258,6 +260,26 @@ def aggregate_chunk(file, districts, mask_file):
     return result
 
 
+def write_topology(districts, file):
+    """The districts and the states for the maps of the web page as one
+    topology, simplified along their shared arcs: simplified one by one the
+    borders of neighbours differ, their gaps show as lines, e.g. the borders
+    of the states of geo:mesh"""
+    import topojson
+    states = districts.dissolve('state', as_index=False).assign(
+        district=lambda x: x.state, name=lambda x: x.state.map(STATE_NAMES))
+    layers = [d.to_crs('EPSG:4326').rename(columns={'district': 'id', 'name': 'NAME'})[['id', 'NAME', 'geometry']]
+              for d in (districts, states)]
+    # toposimplify is in degrees, 0.003 about 300 m
+    topo = json.loads(topojson.Topology(layers, object_name=['districts', 'states'], prequantize=1e5,
+                                        topology=True, toposimplify=0.003).to_json())
+    # The id of a geometry is its row number, the maps join by the district
+    for o in topo['objects'].values():
+        for geometry in o['geometries']:
+            geometry['id'] = geometry['properties']['id']
+    file.write_text(json.dumps(topo, ensure_ascii=False))
+
+
 # - MAIN -----------------------------------------------------------------------
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -305,15 +327,7 @@ if __name__ == '__main__':
         cells=np.bincount(mask[mask >= 0], minlength=len(districts))
     ).to_csv(DATA_FOLDER/'districts.csv', index=False)
 
-    # The district boundaries for the maps of the web page, simplified
     geo_folder = ROOT_PATH/config['d']['wd']/'..'/'assets'/'geo'
     if geo_folder.exists():
-        import topojson
-        geo = districts.assign(geometry=districts.simplify(300)).to_crs('EPSG:4326')
-        geo = geo.rename(columns={'district': 'id', 'name': 'NAME'})[['id', 'NAME', 'geometry']]
-        topo = json.loads(topojson.Topology(geo, prequantize=1e5, topology=True, object_name='districts').to_json())
-        # The id of a geometry is its row number, the maps join by the district
-        for geometry in topo['objects']['districts']['geometries']:
-            geometry['id'] = geometry['properties']['id']
-        (geo_folder/'austria-districts.json').write_text(json.dumps(topo, ensure_ascii=False))
+        write_topology(districts, geo_folder/'austria-districts.json')
     print(f'  {len(d)} rows, {d.date.min().date()} - {d.date.max().date()}')
