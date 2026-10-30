@@ -67,3 +67,23 @@ dates2PlotDates = function(d) {
         date20 = c.date20
     )]
 }
+
+# Sets a text of a chart definition, e.g. the period of the data in the
+# subtitle or the default of a global, only the first line of the key `line`
+# is changed (the text of `key` in it, e.g. of "globals": { "period": "2025" }),
+# the definition is left as it is otherwise
+setDefText = function(def, line, text, key = line) {
+    p = file.path(g$d$wd, def)
+    c.lines = readLines(p, warn = FALSE)
+    i = grep(paste0('^\\s*"', line, '":'), c.lines)[1]
+    if (is.na(i))
+        stop(glue("{def}: no line of '{line}'"))
+    new = sub(paste0('("', key, '":\\s*)".*?"'), paste0('\\1"', text, '"'), c.lines[i], perl = TRUE)
+    if (new != c.lines[i]) {
+        c.lines[i] = new
+        writeLines(c.lines, p)
+        l(glue("{def}: {key} '{text}'"), iL = 2)
+    }
+}
+
+setSubtitle = function(def, text) setDefText(def, "subtitle", text)
