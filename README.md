@@ -59,7 +59,7 @@ Copy the `creds-template.json` file to `creds.json` and fill it with your creden
 
 Calling one of the scripts in the `load` folder will download the data from the corresponding data source, extract, aggregate and store the data for the visualisation.
 
-`load/_run-all.sh` runs all loaders in sequence, a failed script does not stop the others, they are listed at the end. Sources that change monthly or yearly are only loaded on Mondays (`all` runs them as well). The output of each script goes to `data/tmp/log`, the log of the run has one line per script and the end of the output of a failed one. On the server it is run nightly by `cron.sh`, which wraps it in the pixi environment (`cron.sh no-climate` skips the large grid downloads). The data folders below `data/` (`tmp`, `storage`, `entsoe`, `era5`, `geosphere`) contain nothing tracked and can be symlinks to another drive.
+`load/_run-all.sh` runs all loaders in sequence, a failed script does not stop the others, they are listed at the end. Sources that change monthly or yearly are only loaded on Mondays (`all` runs them as well). The output of each script goes to `data/tmp/log`, the log of the run has one line per script and the end of the output of a failed one. On the server it is run nightly by `cron.sh`, which wraps it in the pixi environment (`cron.sh no-climate` skips the large grid downloads). The data folders below `data/` (`tmp`, `storage`, `entsoe`, `era5`, `geosphere`, `hydro`) contain nothing tracked and can be symlinks to another drive.
 
 ### Climate grids of GeoSphere Austria
 

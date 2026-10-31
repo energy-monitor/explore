@@ -4,6 +4,7 @@
         "entsoe": "data/entsoe",
         "era5": "data/era5",
         "geosphere": "data/geosphere",
+        "hydro": "data/hydro",
         "tmp": "data/tmp",
         "wd": "../web/data"
     },

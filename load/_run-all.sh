@@ -60,6 +60,8 @@ run daily Rscript calc/hdd.r
 
 # - PRECIPITATION/SNOW/CLIMATE BY DISTRICT
 [ $climate == 1 ] && run daily python3 load/geosphere/districts.py
+run daily python3 load/hydro/plants.py
+[ $climate == 1 ] && run daily python3 load/geosphere/catchments.py
 run daily Rscript calc/climate-regions.r
 
 # - GAS
