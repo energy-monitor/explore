@@ -7,7 +7,9 @@ source("load/entsoe/_shared.r")
 # (GW, i.e. GWh per hour) of each hour of the day, by year and by month. The
 # hours are local time (Europe/Vienna), e.g. hour 12 is 12:00-13:00 in summer
 # and in winter. `n` is the number of quarter hours of a source, e.g. to weight
-# the months of a season.
+# the months of a season. The hydro power plants by type, `consumption` the
+# mean power used by a source, i.e. the pumping of the pumped storage (not in
+# the load of ENTSO-E, 6.1.A).
 
 
 # - DOIT -----------------------------------------------------------------------
@@ -27,7 +29,8 @@ loadYear = function(y) {
         grepl("CTY", AreaTypeCode, fixed = TRUE) & AreaMapCode == "AT" & ResolutionCode == "PT15M", .(
         time = with_tz(`DateTime(UTC)`, "Europe/Vienna"),
         source = ProductionType,
-        value = `ActualGenerationOutput[MW]`
+        value = `ActualGenerationOutput[MW]`,
+        consumption = fcoalesce(`ActualConsumption[MW]`, 0)
     )][!is.na(value)]
 }
 d = rbindlist(lapply(year(date.start):year(date.end), loadYear))
@@ -42,16 +45,23 @@ d = d[time < floor_date(max(time), "month")]
 # first month of the data, e.g. of the winter 2018/19
 d.month = d[, .(
     value = mean(value) / 10^3,
+    consumption = mean(consumption) / 10^3,
     n = .N
 ), by = .(year, month, hour, source)]
 
 # Group
 nameOthers = "others"
-addGroupCol(d.month, c.sourceGroups1, nameOthers = nameOthers)
-d.month = d.month[, .(value = sum(value), n = max(n)), by = .(year, month, hour, source.group)]
+addGroupCol(d.month, c.sourceGroups1Hydro, nameOthers = nameOthers)
+d.month = d.month[, .(
+    value = sum(value), consumption = sum(consumption), n = max(n)
+), by = .(year, month, hour, source.group)]
 
-# Order of the sources: the largest first, others last
-c.order = d.month[, .(value = sum(value * n)), by = source.group][order(-value)]$source.group
+# Order of the sources: the largest first, the hydro power plants together (by
+# the first word of the group), others last
+d.order = d.month[, .(value = sum(value * n)), by = source.group]
+d.order[, family := sub(" .*", "", source.group)]
+d.order[, value.family := sum(value), by = family]
+c.order = d.order[order(-value.family, -value)]$source.group
 c.order = c(c.order[c.order != nameOthers], nameOthers)
 d.month[, source.group := factor(source.group, c.order, c.order)]
 d.month = d.month[order(year, month, hour, source.group)]
@@ -59,6 +69,7 @@ d.month = d.month[order(year, month, hour, source.group)]
 # By year, the months weighted by their quarter hours
 d.year = d.month[year >= 2019, .(
     value = weighted.mean(value, n),
+    consumption = weighted.mean(consumption, n),
     n = sum(n)
 ), by = .(year, hour, source.group)][order(year, hour, source.group)]
 

@@ -39,6 +39,17 @@ c.sourceGroups1 = list(
     # "Waste"   = c("Waste")
 )
 
+# The groups 1 with the hydro power plants by type, e.g. the pumped storage
+# apart from the run-of-river plants
+c.sourceGroups1Hydro = c(
+    list(
+        "Hydro run-of-river"   = c("Hydro Run-of-river and pondage"),
+        "Hydro reservoir"      = c("Hydro Water Reservoir"),
+        "Hydro pumped storage" = c("Hydro Pumped Storage")
+    ),
+    c.sourceGroups1[names(c.sourceGroups1) != "Hydro"]
+)
+
 c.sourceGroups2 = list(
     "Renewable" = c(
         c.sourceGroups1$Hydro, c.sourceGroups1$Solar, c.sourceGroups1$Wind,

@@ -24,12 +24,21 @@ d.plot = seasons(d.gen, "source.group")
 d.plot = d.plot[, if (any(value > 0)) .SD, by = .(period, season, source.group)]
 d.plot[, value.share := value / sum(value), by = .(period, season, hour)]
 
-# The total generation and the load as rows of their own (`total` and `load`,
-# the charts do not stack them with the sources), the share of the load is the
-# one of the generation, e.g. 1.1 if 10% more is used than generated (imports)
+# The total generation, the load and the load with the pumping of the pumped
+# storage (not in the load of ENTSO-E) as rows of their own (`total`, `load`
+# and `load.pumping`, the charts do not stack them with the sources), the share
+# of the loads is the one of the generation, e.g. 1.1 if 10% more is used than
+# generated (imports), the generation and `load.pumping` differ by the net
+# exports
 d.total = d.plot[, .(total = sum(value)), by = .(period, season, hour)]
-d.load = merge(seasons(d.load), d.total, by = c("period", "season", "hour"))[, .(
-    period, season, hour, source.group = "load", value, value.share = value / total
+d.pumping = seasons(d.gen[source.group == "Hydro pumped storage", .(year, month, hour, value = consumption, n)])
+d.load = merge(seasons(d.load), d.pumping[, .(period, season, hour, pumping = value)], by = c("period", "season", "hour"))
+d.load = rbind(
+    d.load[, .(period, season, hour, source.group = "load", value)],
+    d.load[, .(period, season, hour, source.group = "load.pumping", value = value + pumping)]
+)
+d.load = merge(d.load, d.total, by = c("period", "season", "hour"))[, .(
+    period, season, hour, source.group, value, value.share = value / total
 )]
 d.plot = rbind(
     d.plot,
