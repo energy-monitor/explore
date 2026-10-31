@@ -22,15 +22,24 @@ roundSignif = function(x, s = 6) {
 # The CSV of a chart for the web and the same rows as parquet next to it, e.g.
 # gas/price.parquet of gas/price.csv, gen-vis reads both, the numbers rounded
 # by roundSignif, the dates (and other classes) are kept, the data is not
-# changed. Parquet with snappy (the default of arrow), which gen-vis reads
-# without loading further decompressors, arrow is not attached, it masks
-# utils::timestamp
+# changed. The parquet of arrow is written again by export/data/_parquet.py
+# (pyarrow) with the same values, the doubles as decimals and with encodings
+# which arrow of R can not set, less than half the size, it fails if pyarrow is
+# missing, the python of the pixi environment, also in sessions outside of it,
+# arrow is not attached, it masks utils::timestamp
 fwriteWeb = function(d, file, ...) {
     stopifnot(grepl("\\.csv$", file))
     cols = names(d)[sapply(d, function(x) is.double(x) && !is.object(x))]
     d = copy(as.data.table(d))[, (cols) := lapply(.SD, roundSignif), .SDcols = cols]
     fwrite(d, file, ...)
-    arrow::write_parquet(d, sub("\\.csv$", ".parquet", file))
+    parquet = sub("\\.csv$", ".parquet", file)
+    arrow::write_parquet(d, parquet)
+    python = ".pixi/envs/default/bin/python"
+    if (!file.exists(python))
+        python = Sys.which("python3")
+    status = system2(python, c("-I", "export/data/_parquet.py", shQuote(parquet)), stdout = FALSE)
+    if (status != 0)
+        stop(glue("export/data/_parquet.py failed for {parquet}"))
 }
 
 addRollMean = function(d, l, g = character(0)) {
