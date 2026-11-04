@@ -3,7 +3,7 @@ authors = ["Peter Reschenhofer <peter@abteil.org>"]
 channels = ["conda-forge"]
 description = "Codebase for data wrangling and analyis of https://energie.wifo.ac.at"
 name = "explore"
-platforms = ["linux-64"]
+platforms = ["linux-64", "linux-aarch64"]
 version = "0.1.0"
 
 [tasks]
