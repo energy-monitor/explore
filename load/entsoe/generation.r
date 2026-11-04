@@ -87,7 +87,7 @@ saveToStorages(
     list(
         id = "electricity-generation-hourly",
         source = "entsoe",
-        format = "csv",
+        format = c("csv", "parquet"),
         update.time = update.time
     )
 )

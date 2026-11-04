@@ -49,7 +49,7 @@ d.agg = d.base.f.hourly[, .(
 saveToStorages(d.agg, list(
     id = "electricity-load-hourly-res",
     source = "entsoe",
-    format = "csv",
+    format = c("csv", "parquet"),
     update.time = update.time
 ))
 

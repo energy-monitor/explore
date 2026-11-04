@@ -2,26 +2,45 @@ loadPackages(
     'curl'
 )
 
+# Formats a dataset can be stored in, `meta$format` of `saveToStorages` may
+# list several (e.g. c("csv", "parquet")), each is saved as `{id}.{format}`.
+# arrow is only used through its namespace, attached it would mask functions of
+# lubridate and others.
+storageFormats = list(
+    csv = list(
+        write = function(d, f) fwrite(d, f),
+        read = function(f) fread(f)
+    ),
+    parquet = list(
+        write = function(d, f) arrow::write_parquet(d, f, compression = "zstd"),
+        read = function(f) as.data.table(arrow::read_parquet(f))
+    )
+)
+
+storageFormat = function(format) {
+    if (is.null(storageFormats[[format]])) stop(glue("Format type '{format}' not implemented!"))
+    storageFormats[[format]]
+}
+
 saveToStorages = function(data, meta, storages = g$storage$default$save) {
-    fileName = glue("{meta$id}.{meta$format}")
-    if (meta$format == 'csv') {
-        fileWriteFunction = function(d, f) fwrite(d, f)
-    } else {
-        stop(glue("Format type '{meta$format}' not implemented!"))
-    }
-    for (storage in storages) {
-        l(glue("Storage '{storage}':"))
-        if (storage == "local") {
-            filePath = file.path(g$storage$local$path, fileName)
-            l(glue("-> '{filePath}'"), iL = 2)
-            fileWriteFunction(data, filePath)
-        } else if (storage == "sftp") {
-            fileTemp = tempfile()
-            fileWriteFunction(data, fileTemp)
-            l(glue("-> '{sftpUrl(fileName)}'"), iL = 2)
-            uploadSftp(fileTemp, fileName)
-        } else {
-            stop(glue("Storage type '{storage}' not implemented!"))
+    for (format in meta$format) {
+        fileName = glue("{meta$id}.{format}")
+        fileWriteFunction = storageFormat(format)$write
+        for (storage in storages) {
+            l(glue("Storage '{storage}':"))
+            if (storage == "local") {
+                filePath = file.path(g$storage$local$path, fileName)
+                l(glue("-> '{filePath}'"), iL = 2)
+                fileWriteFunction(data, filePath)
+            } else if (storage == "sftp") {
+                fileTemp = tempfile(fileext = glue(".{format}"))
+                fileWriteFunction(data, fileTemp)
+                l(glue("-> '{sftpUrl(fileName)}'"), iL = 2)
+                uploadSftp(fileTemp, fileName)
+                unlink(fileTemp)
+            } else {
+                stop(glue("Storage type '{storage}' not implemented!"))
+            }
         }
     }
 }
@@ -30,18 +49,14 @@ loadFromStorage = function(id, format = 'csv', storage = g$storage$default$load)
     # format = 'csv'
     # id = "temperature-hdd"
     fileName = glue("{id}.{format}")
-
-    if (format == 'csv') {
-        fileReadFunction = function(f) fread(f)
-    } else {
-        stop(glue("Format type '{format}' not implemented!"))
-    }
+    fileReadFunction = storageFormat(format)$read
 
     if (storage == "local") {
         file = file.path(g$storage$local$path, fileName)
         return(fileReadFunction(file))
     } else if (storage == "sftp") {
-        file = tempfile()
+        file = tempfile(fileext = glue(".{format}"))
+        on.exit(unlink(file))
         downloadSftp(fileName, file)
         return(fileReadFunction(file))
     } else {
