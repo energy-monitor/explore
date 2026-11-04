@@ -19,8 +19,10 @@ c.nice2entsoe = c(
 )
 
 
-date.start = as.POSIXct("2018-12-01", tz = "UTC")
-date.end = Sys.time()
+# ENTSOE_FROM and ENTSOE_TO (e.g. "2026-09-01") limit the months loaded, e.g.
+# to try a script on a sample instead of downloading the whole history
+date.start = as.POSIXct(Sys.getenv("ENTSOE_FROM", "2018-12-01"), tz = "UTC")
+date.end = if (nzchar(Sys.getenv("ENTSOE_TO"))) as.POSIXct(Sys.getenv("ENTSOE_TO"), tz = "UTC") else Sys.time()
 
 c.resToFactor = c(
     "PT15M" = 1/4,

@@ -26,6 +26,12 @@ if (file.exists("config.local.json")) {
     l.config = mergeConfig(l.config, read_json("config.local.json"))
 }
 
+# ENERGY_STORAGE=local loads and saves only there, e.g. to try a script on a
+# machine whose default storage is shared with the live system
+if (nzchar(Sys.getenv("ENERGY_STORAGE"))) {
+    l.config$storage$default = list(load = Sys.getenv("ENERGY_STORAGE"), save = list(Sys.getenv("ENERGY_STORAGE")))
+}
+
 g = modifyList(l.config, list(
     entsoe = list(
         params = list(
