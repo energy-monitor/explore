@@ -4,10 +4,15 @@ source("export/data/_shared.r")
 
 # The day-ahead prices of the bidding zones of Europe by month, for the map of
 # web/data/electricity/price-map.json (the zones of web/assets/geo/
-# europe-bidding-zones.json, see export/geo/bidding-zones.sh): the mean of the
-# daily means, the lowest and the highest price of a day of the month (of
-# load/entsoe/price.r, the finest resolution of a day), in EUR/MWh, the full
-# months of the last 13, without the current one.
+# europe-bidding-zones.json, see export/geo/bidding-zones.sh), in EUR/MWh, of
+# the daily prices of load/entsoe/price.r (local time of the zones):
+# - mean (base), peak (Monday to Friday 8:00-20:00) and offpeak (the other
+#   hours, the days weighted by their hours, 12 on a working day, 24 on a
+#   weekend)
+# - min and max: the lowest and the highest price of an hour (or a quarter
+#   hour) of the month
+# - negative: the hours with a negative price
+# the full months of the last 13, without the current one.
 
 d.base = loadFromStorage(id = "electricity-price-entsoe-countries")[,
     date := as.Date(date)
@@ -24,10 +29,14 @@ lastFull = if (max(d.base$date) == ceiling_date(max(d.base$date), "month") - day
 months = sort(unique(d.base[month <= lastFull]$month))
 months = tail(months, 13)
 
+d.base[, offpeak.hours := fifelse(is.na(peak), 24, 12)]
 d.plot = d.base[month %in% months, .(
     mean = mean(mean),
+    peak = mean(peak, na.rm = TRUE),
+    offpeak = weighted.mean(offpeak, offpeak.hours),
     min = min(min),
     max = max(max),
+    negative = sum(negative),
     days = .N
 ), by = .(country, month)]
 

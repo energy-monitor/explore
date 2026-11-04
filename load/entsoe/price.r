@@ -43,21 +43,42 @@ saveToStorages(
 )
 
 
-# The daily prices of all bidding zones (AreaMapCode, e.g. AT, DE_LU, IT_NORD)
-# in EUR: the mean, the least and the largest one of a day (UTC, as the ones of
-# Austria below), of the finest resolution of the day, e.g. the quarter hours
-# since the 15 minute products of October 2025 when a zone has both
+# The daily prices of all bidding zones (AreaMapCode, e.g. AT, DE_LU, IT-NORTH)
+# in EUR, the days and hours in the local time of the zone, of the finest
+# resolution of the day, e.g. the quarter hours since the 15 minute products of
+# October 2025 when a zone has both:
+# - mean (base), min and max: of all hours of the day
+# - peak: the mean of Monday to Friday 8:00-20:00 (as the peak products of the
+#   exchanges, holidays included), NA on weekends, offpeak: the mean of the
+#   other hours (a monthly mean weights the days by their hours, 12 on a
+#   working day, 24 on a weekend)
+# - negative: the hours with a negative price (quarter hours as a quarter)
+# the zones are in CET/CEST, but the ones of the time zones below
+c.zoneTz = c(
+    PT = "Europe/Lisbon", IE_SEM = "Europe/Dublin",
+    FI = "Europe/Helsinki", EE = "Europe/Tallinn", LV = "Europe/Riga", LT = "Europe/Vilnius",
+    GR = "Europe/Athens", RO = "Europe/Bucharest", BG = "Europe/Sofia", MD = "Europe/Chisinau"
+)
 d.zones = d.base[Currency == "EUR", .(
     country = AreaMapCode,
-    date = as.Date(DateTime),
+    DateTime,
     res = c.resToFactor[ResolutionCode],
     price = `Price[Currency/MWh]`
 )]
+d.zones[, tz := fifelse(country %in% names(c.zoneTz), c.zoneTz[country], "Europe/Vienna")]
+d.zones[, c("date", "hour", "wday") := {
+    lt = as.POSIXlt(DateTime, tz = tz[1])
+    list(as.Date(format(lt, "%Y-%m-%d")), lt$hour, lt$wday)
+}, by = tz]
+d.zones[, peak := wday %in% 1:5 & hour >= 8 & hour < 20]
 d.zones = d.zones[d.zones[, .I[res == min(res)], by = .(country, date)]$V1]
 d.zones = d.zones[, .(
     mean = mean(price),
     min = min(price),
-    max = max(price)
+    max = max(price),
+    peak = if (any(peak)) mean(price[peak]) else NA_real_,
+    offpeak = mean(price[!peak]),
+    negative = sum(res[price < 0])
 ), by = .(country, date)][order(country, date)]
 d.zones = removeLastDays(d.zones, 1)
 
