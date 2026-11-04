@@ -43,6 +43,35 @@ saveToStorages(
 )
 
 
+# The daily prices of all bidding zones (AreaMapCode, e.g. AT, DE_LU, IT_NORD)
+# in EUR: the mean, the least and the largest one of a day (UTC, as the ones of
+# Austria below), of the finest resolution of the day, e.g. the quarter hours
+# since the 15 minute products of October 2025 when a zone has both
+d.zones = d.base[Currency == "EUR", .(
+    country = AreaMapCode,
+    date = as.Date(DateTime),
+    res = c.resToFactor[ResolutionCode],
+    price = `Price[Currency/MWh]`
+)]
+d.zones = d.zones[d.zones[, .I[res == min(res)], by = .(country, date)]$V1]
+d.zones = d.zones[, .(
+    mean = mean(price),
+    min = min(price),
+    max = max(price)
+), by = .(country, date)][order(country, date)]
+d.zones = removeLastDays(d.zones, 1)
+
+saveToStorages(
+    d.zones,
+    list(
+        id = "electricity-price-entsoe-countries",
+        source = "entsoe",
+        format = "csv",
+        update.time = update.time
+    )
+)
+
+
 d.base.f = d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR"]
 
 # max(d.base[AreaCode == "10YAT-APG------L" & Currency == "EUR" & ResolutionCode == "PT60M"]$DateTime)

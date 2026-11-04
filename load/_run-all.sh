@@ -76,6 +76,7 @@ run daily Rscript load/entsoe/load.r
 run daily Rscript load/entsoe/load-hourly.r
 run daily Rscript load/entsoe/generation.r
 run daily Rscript load/entsoe/generation-hourly.r
+run daily Rscript load/entsoe/generation-hourly-series.r
 run daily Rscript load/entsoe/price.r
 # run daily Rscript load/entsoe/netPosition.r
 run daily Rscript load/entsoe/physicalFlows.r
@@ -97,6 +98,7 @@ run weekly Rscript load/eurostat/prc_hicp_minr.r
 run weekly Rscript load/eurostat/nrg_cb_gasm.r
 run weekly Rscript load/eurostat/nrg_cb_oilm.r
 run weekly Rscript load/eurostat/nrg_cb_sffm.r
+run weekly Rscript load/eurostat/household-prices.r
 run weekly Rscript load/eurostat/emissions.r
 run weekly Rscript load/uba-thg-crt.r
 run weekly Rscript load/unfccc-crt.r

@@ -9,8 +9,10 @@ Following data sources are used:
 - [E-Control](https://www.e-control.at/)
     - Gas consumption
 - [entsoe](https://www.entsoe.eu/)
-    - Electricity generation
+    - Electricity generation (also hourly by source)
     - Electricity load
+    - Day-ahead prices of all bidding zones (hourly, daily)
+    - Physical flows per neighbour
 - [GIE - Gas Infrastructure Europe](https://www.gie.eu/)
     - Gas Storage
 - [AGGM - Austrian Gas Grid Managment AG](https://www.aggm.at/)
@@ -19,6 +21,7 @@ Following data sources are used:
     - Traffic on motorways and expressways
 - [Eurostat](https://ec.europa.eu/eurostat/)
     - Rail transport (goods quarterly, passengers annual)
+    - Electricity and gas prices of households (half-yearly, all countries)
 - [Umweltbundesamt](https://www.umweltbundesamt.at/)
     - Greenhouse gas inventory by CRT sector ([data.gv.at](https://www.data.gv.at/datasets/78bd7b69-c1a7-456b-8698-fac3b24f7aa5))
     - Greenhouse gas inventory by CRT sector and fuel, submission to the UNFCCC (summary workbook in `data/unfccc`)
