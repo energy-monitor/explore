@@ -12,7 +12,9 @@ source("export/data/_shared.r")
 # - min and max: the lowest and the highest price of an hour (or a quarter
 #   hour) of the month
 # - negative: the hours with a negative price
-# the full months of the last 13, without the current one.
+# the full months since January 2019, without the current one, Moldova is
+# left out (its prices since December 2025 seem wrong, e.g. a mean of 740
+# EUR/MWh in its first month).
 
 d.base = loadFromStorage(id = "electricity-price-entsoe-countries")[,
     date := as.Date(date)
@@ -20,14 +22,13 @@ d.base = loadFromStorage(id = "electricity-price-entsoe-countries")[,
 
 # not areas of the map: the NordLink cable of NO2 (NO2NSL) and the links of
 # Sardinia, Corsica and the mainland (IT-SACOAC, IT-SACODC)
-d.base = d.base[!country %in% c("NO2NSL", "IT-SACOAC", "IT-SACODC")]
+d.base = d.base[!country %in% c("NO2NSL", "IT-SACOAC", "IT-SACODC", "MD")]
 
 # the full months, the last one ends with the data or before the last date
 d.base[, month := format(date, "%Y-%m")]
 lastFull = if (max(d.base$date) == ceiling_date(max(d.base$date), "month") - days(1))
     format(max(d.base$date), "%Y-%m") else format(floor_date(max(d.base$date), "month") - days(1), "%Y-%m")
-months = sort(unique(d.base[month <= lastFull]$month))
-months = tail(months, 13)
+months = sort(unique(d.base[month <= lastFull & month >= "2019-01"]$month))
 
 d.base[, offpeak.hours := fifelse(is.na(peak), 24, 12)]
 d.plot = d.base[month %in% months, .(
