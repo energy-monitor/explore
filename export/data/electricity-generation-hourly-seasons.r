@@ -46,6 +46,9 @@ d.plot = rbind(
     d.load
 )
 setcolorder(d.plot, c("period", "season", "hour", "source.group", "value", "value.share"))
+# the hour 24 as the hour 0 (the mean day goes round), so the area chart
+# reaches 24 Uhr, the radial one has 24 at the angle of 0
+d.plot = rbind(d.plot, d.plot[hour == 0][, hour := 24L])
 
 fwriteWeb(d.plot, file.path(g$d$wd, "electricity", "generation-hourly-seasons.csv"))
 
